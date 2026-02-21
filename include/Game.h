@@ -3,6 +3,7 @@
 #include "Player.h"
 #include "Enemy.h"
 #include "Boss.h"
+#include "Window.h"
 
 class Game {
 public:
@@ -10,11 +11,10 @@ public:
     void Run();
 
 private:
-    void ProcessEvents();
     void Update(sf::Time deltaTime);
     void Render();
 
-    sf::RenderWindow m_window;
+    Window m_window;
     sf::View m_camera;
     Map m_map;
     Player m_player;
