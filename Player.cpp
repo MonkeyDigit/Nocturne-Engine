@@ -12,7 +12,9 @@ Player::Player()
     m_wasAttackPressed(false),
     m_facingDirection(1), // Start facing right
     m_isAttacking(false),
-    m_attackTimer(0.0f)
+    m_attackTimer(0.0f),
+    m_hasDoubleJumpUnlocked(true), // TODO: Set to false later when Boss is added
+    m_canDoubleJump(false)
 {
     // A standard humanoid hitbox size
     m_shape.setSize({ 32.0f, 64.0f });
@@ -104,6 +106,19 @@ void Player::Update(sf::Time deltaTime, const Map& map)
         m_jumpBufferTimer = 0.0f;
         m_coyoteTimer = 0.0f;
     }
+    // Double Jump (In the air)
+    else if (m_jumpBufferTimer > 0.0f && m_coyoteTimer <= 0.0f)
+    {
+        if (m_hasDoubleJumpUnlocked && m_canDoubleJump)
+        {
+            // Reset vertical velocity completely, then apply jump force
+            // This ensures consistent height regardless of falling speed
+            m_velocity.y = -DOUBLE_JUMP_FORCE;
+
+            m_jumpBufferTimer = 0.0f;
+            m_canDoubleJump = false; // Consume the double jump
+        }
+    }
 
     // --- APPLY VELOCITY ---
 
@@ -170,6 +185,11 @@ void Player::Draw(sf::RenderWindow& window)
     {
         window.draw(m_attackHitbox);
     }
+}
+
+void Player::UnlockDoubleJump()
+{
+    m_hasDoubleJumpUnlocked = true;
 }
 
 sf::FloatRect Player::GetAttackBounds() const
@@ -257,6 +277,7 @@ void Player::ResolveCollisionsY(const Map& map)
                     m_velocity.y = 0.0f;
                     m_isGrounded = true;
                     m_coyoteTimer = COYOTE_TIME; // Recharge coyote time
+                    m_canDoubleJump = true; // <--- AGGIUNGI QUESTA RIGA! Recharge double jump
                     return;
                 }
                 else if (m_velocity.y < 0.0f) // Jumping up and hit the ceiling (bonk!)

@@ -11,6 +11,8 @@ public:
     void Update(sf::Time deltaTime, const Map& map);
     void Draw(sf::RenderWindow& window);
 
+    void UnlockDoubleJump();
+
     // Getters for combat
     sf::FloatRect GetAttackBounds() const;
     bool IsAttacking() const;
@@ -24,11 +26,12 @@ private:
     const float FRICTION = 2600.0f;       // px/s
 
     // Jump & Gravity constants
-    const float GRAVITY = 1900.0f;        // px/s^2
-    const float JUMP_FORCE = 650.0f;      // px/s
+    const float GRAVITY = 1900.0f;          // px/s^2
+    const float JUMP_FORCE = 650.0f;        // px/s
+    const float DOUBLE_JUMP_FORCE = 550.0f; // Slightly weaker than the main jump
     const float JUMP_CUT_MULTIPLIER = 0.45f;
-    const float COYOTE_TIME = 0.12f;      // seconds
-    const float JUMP_BUFFER_TIME = 0.12f; // seconds
+    const float COYOTE_TIME = 0.12f;        // seconds
+    const float JUMP_BUFFER_TIME = 0.12f;   // seconds
 
     // Combat constants
     const float ATTACK_DURATION = 0.2f; // How long the attack hitbox stays active
@@ -47,6 +50,10 @@ private:
     int m_facingDirection; // 1 for Right, -1 for Left
     bool m_isAttacking;
     float m_attackTimer;
+
+    // Ability states
+    bool m_hasDoubleJumpUnlocked; // Do we have the relic?
+    bool m_canDoubleJump;         // Is it available right now in the air?
 
 
     // TODO: A simple rectangle for Phase 1 testing
