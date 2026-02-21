@@ -4,11 +4,14 @@ Game::Game()
 // SFML 3 uses braced initialization for sf::VideoMode
     : m_window(sf::VideoMode({ 1280, 720 }), "Project Nocturne"),
     m_enemy(800.0f, 300.0f),
-    m_boss(1000.0f, 300.0f),
+    m_boss(250.0f, 800.0f),
     m_bossDefeatedProcessed(false)
 {
     // Disable VSync to test the robustness of our fixed timestep loop
     m_window.setVerticalSyncEnabled(false);
+
+    // Setup camera size to match window
+    m_camera.setSize({ 1280.0f, 720.0f });
 }
 
 void Game::Run()
@@ -94,11 +97,31 @@ void Game::Update(sf::Time deltaTime)
         m_player.UnlockDoubleJump();
         m_bossDefeatedProcessed = true;
     }
+
+    // --- CAMERA LOGIC ---
+    sf::Vector2f playerPos = m_player.GetPosition();
+
+    // We center the camera on the player
+    sf::Vector2f cameraCenter = playerPos;
+
+    // Clamp camera to map bounds so it doesn't show areas outside the map
+    float halfWidth = m_camera.getSize().x / 2.0f;
+    float halfHeight = m_camera.getSize().y / 2.0f;
+
+    if (cameraCenter.x < halfWidth) cameraCenter.x = halfWidth;
+    if (cameraCenter.x > m_map.GetWidth() - halfWidth) cameraCenter.x = m_map.GetWidth() - halfWidth;
+
+    if (cameraCenter.y < halfHeight) cameraCenter.y = halfHeight;
+    if (cameraCenter.y > m_map.GetHeight() - halfHeight) cameraCenter.y = m_map.GetHeight() - halfHeight;
+
+    m_camera.setCenter(cameraCenter);
 }
 
 void Game::Render()
 {
     m_window.clear(sf::Color(30, 30, 30));
+    // Apply Camera View before rendering
+    m_window.setView(m_camera);
     // TODO: Drawing of map and entities will happen here
 
     m_map.Draw(m_window);       // First draw the map

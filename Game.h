@@ -15,6 +15,7 @@ private:
     void Render();
 
     sf::RenderWindow m_window;
+    sf::View m_camera;
     Map m_map;
     Player m_player;
     Enemy m_enemy;
