@@ -3,15 +3,15 @@
 Game::Game()
 // SFML 3 uses braced initialization for sf::VideoMode
     : m_window(sf::VideoMode({ 1280, 720 }), "Project Nocturne"),
-    m_enemy(800.0f, 300.0f),
-    m_boss(250.0f, 800.0f),
+    m_enemy(400.0f, 150.0f),
+    m_boss(120.0f, 400.0f),
     m_bossDefeatedProcessed(false)
 {
     // Disable VSync to test the robustness of our fixed timestep loop
     m_window.setVerticalSyncEnabled(false);
 
-    // Setup camera size to match window
-    m_camera.setSize({ 1280.0f, 720.0f });
+    // Setup camera with 2x zoom
+    m_camera.setSize({ 640.0f, 360.0f });
 }
 
 void Game::Run()

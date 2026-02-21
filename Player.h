@@ -22,14 +22,14 @@ public:
     sf::FloatRect GetBounds() const;
 
 private:
-    const float MAX_SPEED = 240.0f;       // px/s
-    const float ACCELERATION = 3000.0f;   // px/s^2
-    const float FRICTION = 2600.0f;       // px/s
+    const float MAX_SPEED = 120.0f;       // px/s
+    const float ACCELERATION = 1500.0f;   // px/s^2
+    const float FRICTION = 1300.0f;       // px/s
 
     // Jump & Gravity constants
-    const float GRAVITY = 1900.0f;          // px/s^2
-    const float JUMP_FORCE = 650.0f;        // px/s
-    const float DOUBLE_JUMP_FORCE = 550.0f; // Slightly weaker than the main jump
+    const float GRAVITY = 950.0f;          // px/s^2
+    const float JUMP_FORCE = 325.0f;        // px/s
+    const float DOUBLE_JUMP_FORCE = 275.0f; // Slightly weaker than the main jump
     const float JUMP_CUT_MULTIPLIER = 0.45f;
     const float COYOTE_TIME = 0.12f;        // seconds
     const float JUMP_BUFFER_TIME = 0.12f;   // seconds

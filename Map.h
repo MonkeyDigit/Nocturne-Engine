@@ -11,7 +11,7 @@ public:
     void Draw(sf::RenderWindow& window);
     bool IsSolid(int x, int y) const;
 
-    static constexpr float TILE_SIZE = 32.0f;
+    static constexpr float TILE_SIZE = 16.0f;
 
     // Getters to know the real size of the world, useful for camera clamping
     float GetWidth() const;
@@ -19,5 +19,7 @@ public:
 
 private:
     std::vector<std::string> m_grid;
-    sf::RectangleShape m_tileShape;
+    
+    sf::Texture m_tileTexture;
+    sf::Sprite m_tileSprite;
 };

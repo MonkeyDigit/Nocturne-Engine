@@ -20,11 +20,11 @@ private:
     enum class State { Idle, Charge };
 
     // --- PHYSICS & COMBAT CONSTANTS ---
-    const float GRAVITY = 1900.0f;
-    const float FRICTION = 1500.0f;
-    const float CHARGE_SPEED = 350.0f; // Very fast horizontal attack
-    const float KNOCKBACK_FORCE_X = 150.0f; // Bosses take less knockback
-    const float KNOCKBACK_FORCE_Y = 100.0f;
+    const float GRAVITY = 950.0f;
+    const float FRICTION = 750.0f;
+    const float CHARGE_SPEED = 175.0f; // Very fast horizontal attack
+    const float KNOCKBACK_FORCE_X = 75.0f; // Bosses take less knockback
+    const float KNOCKBACK_FORCE_Y = 50.0f;
     const float INVULNERABILITY_DURATION = 0.2f;
 
     // --- VARIABLES ---

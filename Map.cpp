@@ -1,6 +1,8 @@
+#include <iostream> // For error logging
 #include "Map.h"
 
 Map::Map()
+    : m_tileSprite(m_tileTexture)
 {
     // A 50x30 map (1600x960 pixels, larger than our 1280x720 window)
     // '1' = Solid Wall, '0' = Empty Space
@@ -39,10 +41,16 @@ Map::Map()
         "11111111111111111111111111111111111111111111111111"  // Bottom floor
     };
 
-    m_tileShape.setSize({ TILE_SIZE, TILE_SIZE });
-    m_tileShape.setFillColor(sf::Color(50, 60, 90));
-    m_tileShape.setOutlineThickness(-1.0f);
-    m_tileShape.setOutlineColor(sf::Color(30, 40, 60));
+    // --- LOAD TEXTURE ---
+    if (!m_tileTexture.loadFromFile("media/textures/TileSheet.png"))
+    {
+        std::cerr << "ERROR: Could not load TileSheet.png! Check working directory.\n" ;
+    }
+
+    // Define which part of the TileSheet to use. 
+    // In SFML 3: sf::IntRect({posX, posY}, {width, height})
+    // The first tile in the tile sheet is at top-left (0,0) and is 16x16
+    m_tileSprite.setTextureRect(sf::IntRect({ 0, 0 }, { 16, 16 }));
 }
 
 bool Map::IsSolid(int x, int y) const
@@ -63,8 +71,9 @@ void Map::Draw(sf::RenderWindow& window)
         {
             if (m_grid[y][x] == '1')
             {
-                m_tileShape.setPosition({ x * TILE_SIZE, y * TILE_SIZE });
-                window.draw(m_tileShape);
+                // Move the sprite to the grid coordinate and draw it
+                m_tileSprite.setPosition({ x * TILE_SIZE, y * TILE_SIZE });
+                window.draw(m_tileSprite);
             }
         }
     }

@@ -7,8 +7,8 @@ Enemy::Enemy(float startX, float startY)
     m_hp(5), // Dies after 5 hits
     m_invulnerabilityTimer(0.0f)
 {
-    m_shape.setSize({ 32.0f, 32.0f }); // A bit shorter than the player
-    m_shape.setOrigin({ 16.0f, 32.0f }); // Bottom-center origin
+    m_shape.setSize({ 16.0f, 16.0f }); // A bit shorter than the player
+    m_shape.setOrigin({ 8.0f, 16.0f }); // Bottom-center origin
     m_shape.setFillColor(sf::Color::Red);
     m_shape.setPosition(m_position);
 }

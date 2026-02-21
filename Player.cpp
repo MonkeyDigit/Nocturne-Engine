@@ -3,7 +3,7 @@
 #include <algorithm>
 
 Player::Player()
-    : m_position(640.0f, 360.0f), // Start in the middle of the screen
+    : m_position(64.0f, 64.0f),
     m_velocity(0.0f, 0.0f),
     m_isGrounded(false),
     m_wasJumpPressed(false),
@@ -17,15 +17,15 @@ Player::Player()
     m_canDoubleJump(false)
 {
     // A standard humanoid hitbox size
-    m_shape.setSize({ 32.0f, 64.0f });
+    m_shape.setSize({ 16.0f, 42.0f });
     // Set origin to bottom-center for easier floor alignment later
-    m_shape.setOrigin({ 16.0f, 64.0f });
+    m_shape.setOrigin({ 8.0f, 42.0f });
     m_shape.setFillColor(sf::Color::White);
     m_shape.setPosition(m_position);
 
     // Setup Attack Hitbox (e.g. a sword thrust)
-    m_attackHitbox.setSize({ 48.0f, 16.0f }); // Longer than it is tall
-    m_attackHitbox.setOrigin({ 0.0f, 8.0f });
+    m_attackHitbox.setSize({ 24.0f, 8.0f });
+    m_attackHitbox.setOrigin({ 0.0f, 4.0f });
     m_attackHitbox.setFillColor(sf::Color(255, 200, 0, 150)); // Semi-transparent yellow
 }
 
@@ -163,14 +163,14 @@ void Player::Update(sf::Time deltaTime, const Map& map)
     if (m_facingDirection == 1)
     {
         // Spawns on the right side
-        m_attackHitbox.setPosition({ m_position.x + 16.0f, m_position.y - 32.0f });
+        m_attackHitbox.setPosition({ m_position.x + 8.0f, m_position.y - 16.0f });
         // We flip the size to point right
         m_attackHitbox.setScale({ 1.0f, 1.0f });
     }
     else
     {
         // Spawns on the left side
-        m_attackHitbox.setPosition({ m_position.x - 16.0f, m_position.y - 32.0f });
+        m_attackHitbox.setPosition({ m_position.x - 8.0f, m_position.y - 16.0f });
         // We flip the scale to point left (SFML 3 handles negative scale well)
         m_attackHitbox.setScale({ -1.0f, 1.0f });
     }

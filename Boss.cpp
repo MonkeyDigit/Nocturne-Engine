@@ -10,8 +10,8 @@ Boss::Boss(float startX, float startY)
     m_stateTimer(2.0f), // Start by idling for 2 seconds
     m_facingDirection(1)
 {
-    m_shape.setSize({ 64.0f, 96.0f }); // Big boss size
-    m_shape.setOrigin({ 32.0f, 96.0f }); // Bottom-center origin
+    m_shape.setSize({ 32.0f, 48.0f }); // Big boss size
+    m_shape.setOrigin({ 16.0f, 48.0f }); // Bottom-center origin
     m_shape.setFillColor(sf::Color(150, 0, 200)); // Purple color
     m_shape.setPosition(m_position);
 }
