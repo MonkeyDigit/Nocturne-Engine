@@ -1,0 +1,25 @@
+# Cartella nascosta di Visual Studio (contiene cache e intellisense)
+.vs/
+
+# Cartelle di compilazione (Build)
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Bb]in/
+[Oo]bj/
+
+# File specifici dell'utente (che non vanno condivisi)
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# File di cache e log
+*.ncb
+*.log
+*.ilk
+*.pdb
+
+# Escludi i file eseguibili compilati
+*.exe
