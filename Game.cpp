@@ -53,15 +53,16 @@ void Game::ProcessEvents()
 void Game::Update(sf::Time deltaTime)
 {
     // TODO: Here we will update our mathematical Player logic later
-    m_player.Update(deltaTime);
+    m_player.Update(deltaTime, m_map);
 }
 
 void Game::Render()
 {
     m_window.clear(sf::Color(30, 30, 30));
-    m_player.Draw(m_window);
-
     // TODO: Drawing of map and entities will happen here
+
+    m_map.Draw(m_window);       // First draw the map
+    m_player.Draw(m_window);    // Then the player
 
     m_window.display();
 }

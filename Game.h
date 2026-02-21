@@ -13,6 +13,7 @@ private:
     void Render();
 
     sf::RenderWindow m_window;
+    Map m_map;
     Player m_player;
 
     // Constant for 60 Hz fixed physics timestep (approx 0.0166667 seconds)

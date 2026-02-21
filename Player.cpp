@@ -18,7 +18,7 @@ Player::Player()
     m_shape.setPosition(m_position);
 }
 
-void Player::Update(sf::Time deltaTime)
+void Player::Update(sf::Time deltaTime, const Map& map)
 {
     float dt = deltaTime.asSeconds();
     float moveDirection = 0.0f;
@@ -95,25 +95,16 @@ void Player::Update(sf::Time deltaTime)
     }
 
     // --- APPLY VELOCITY ---
+
+    // Move X
     m_position.x += m_velocity.x * dt;
+    m_shape.setPosition(m_position); // Update position to check bounds
+    ResolveCollisionsX(map);
+
+    // Move Y
     m_position.y += m_velocity.y * dt;
-
-    // --- MOCK FLOOR COLLISION (For Phase 1 Testing) ---
-    const float FLOOR_Y = 600.0f; // Arbitrary ground level
-
-    if (m_position.y >= FLOOR_Y)
-    {
-        m_position.y = FLOOR_Y;
-        m_velocity.y = 0.0f;
-        m_isGrounded = true;
-
-        // As long as we are on the ground, Coyote Time is full
-        m_coyoteTimer = COYOTE_TIME;
-    }
-    else
-    {
-        m_isGrounded = false;
-    }
+    m_shape.setPosition(m_position);
+    ResolveCollisionsY(map);
 
     // Sync visual shape with logical position
     m_shape.setPosition(m_position);
@@ -122,4 +113,82 @@ void Player::Update(sf::Time deltaTime)
 void Player::Draw(sf::RenderWindow& window)
 {
     window.draw(m_shape);
+}
+
+void Player::ResolveCollisionsX(const Map& map)
+{
+    sf::FloatRect bounds = m_shape.getGlobalBounds();
+
+    // Find the grid tiles the player is currently overlapping
+    // In SFML 3, we use bounds.position and bounds.size instead of left/top/width/height
+    // TODO: Ha senso?
+    // We shrink the height slightly (-0.1f) so we don't get stuck on the floor when walking
+    int leftTile = bounds.position.x / Map::TILE_SIZE;
+    int rightTile = (bounds.position.x + bounds.size.x) / Map::TILE_SIZE;
+    int topTile = bounds.position.y / Map::TILE_SIZE;
+    int bottomTile = (bounds.position.y + bounds.size.y - 0.1f) / Map::TILE_SIZE;
+
+    for (int y = topTile; y <= bottomTile; ++y)
+    {
+        for (int x = leftTile; x <= rightTile; ++x)
+        {
+            if (map.IsSolid(x, y))
+            {
+                if (m_velocity.x > 0.0f) // Moving right and hit a wall
+                {
+                    // Snap to the left of the wall (account for origin being at center X)
+                    m_position.x = x * Map::TILE_SIZE - (bounds.size.x / 2.0f);
+                    m_velocity.x = 0.0f;
+                    return;
+                }
+                else if (m_velocity.x < 0.0f) // Moving left and hit a wall
+                {
+                    // Snap to the right of the wall
+                    m_position.x = (x + 1) * Map::TILE_SIZE + (bounds.size.x / 2.0f);
+                    m_velocity.x = 0.0f;
+                    return;
+                }
+            }
+        }
+    }
+}
+
+void Player::ResolveCollisionsY(const Map& map)
+{
+    sf::FloatRect bounds = m_shape.getGlobalBounds();
+
+    // Shrink the width slightly (+0.1f / -0.1f) to avoid touching walls when falling into a tight hole.
+    int leftTile = (bounds.position.x + 0.1f) / Map::TILE_SIZE;
+    int rightTile = (bounds.position.x + bounds.size.x - 0.1f) / Map::TILE_SIZE;
+    int topTile = bounds.position.y / Map::TILE_SIZE;
+    int bottomTile = (bounds.position.y + bounds.size.y) / Map::TILE_SIZE;
+
+    // Assume we are in the air at the start of the check
+    m_isGrounded = false;
+
+    for (int y = topTile; y <= bottomTile; ++y)
+    {
+        for (int x = leftTile; x <= rightTile; ++x)
+        {
+            if (map.IsSolid(x, y))
+            {
+                if (m_velocity.y > 0.0f) // Falling down and hit the floor
+                {
+                    // Snap to the top of the floor tile (origin is at bottom Y)
+                    m_position.y = y * Map::TILE_SIZE;
+                    m_velocity.y = 0.0f;
+                    m_isGrounded = true;
+                    m_coyoteTimer = COYOTE_TIME; // Recharge coyote time
+                    return;
+                }
+                else if (m_velocity.y < 0.0f) // Jumping up and hit the ceiling (bonk!)
+                {
+                    // Snap to the bottom of the ceiling tile
+                    m_position.y = (y + 1) * Map::TILE_SIZE + bounds.size.y;
+                    m_velocity.y = 0.0f; // Reset vertical velocity to fall immediately
+                    return;
+                }
+            }
+        }
+    }
 }

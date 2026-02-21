@@ -1,13 +1,14 @@
 #pragma once
 #include <SFML/Graphics.hpp>
 #include <SFML/Window/Keyboard.hpp>
+#include "Map.h"
 
 class Player
 {
 public:
     Player();
 
-    void Update(sf::Time deltaTime);
+    void Update(sf::Time deltaTime, const Map& map);
     void Draw(sf::RenderWindow& window);
 
 private:
@@ -33,4 +34,7 @@ private:
 
     // TODO: A simple rectangle for Phase 1 testing
     sf::RectangleShape m_shape;
+
+    void ResolveCollisionsX(const Map& map);
+    void ResolveCollisionsY(const Map& map);
 };
