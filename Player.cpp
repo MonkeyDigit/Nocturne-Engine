@@ -13,7 +13,7 @@ Player::Player()
     m_facingDirection(1), // Start facing right
     m_isAttacking(false),
     m_attackTimer(0.0f),
-    m_hasDoubleJumpUnlocked(true), // TODO: Set to false later when Boss is added
+    m_hasDoubleJumpUnlocked(false), // TODO: Unlocked by killing the boss
     m_canDoubleJump(false)
 {
     // A standard humanoid hitbox size
@@ -190,6 +190,11 @@ void Player::Draw(sf::RenderWindow& window)
 void Player::UnlockDoubleJump()
 {
     m_hasDoubleJumpUnlocked = true;
+}
+
+sf::Vector2f Player::GetPosition() const
+{
+    return m_position;
 }
 
 sf::FloatRect Player::GetAttackBounds() const

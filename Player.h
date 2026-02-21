@@ -13,6 +13,7 @@ public:
 
     void UnlockDoubleJump();
 
+    sf::Vector2f GetPosition() const;
     // Getters for combat
     sf::FloatRect GetAttackBounds() const;
     bool IsAttacking() const;
