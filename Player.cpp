@@ -8,7 +8,11 @@ Player::Player()
     m_isGrounded(false),
     m_wasJumpPressed(false),
     m_coyoteTimer(0.0f),
-    m_jumpBufferTimer(0.0f)
+    m_jumpBufferTimer(0.0f),
+    m_wasAttackPressed(false),
+    m_facingDirection(1), // Start facing right
+    m_isAttacking(false),
+    m_attackTimer(0.0f)
 {
     // A standard humanoid hitbox size
     m_shape.setSize({ 32.0f, 64.0f });
@@ -16,6 +20,11 @@ Player::Player()
     m_shape.setOrigin({ 16.0f, 64.0f });
     m_shape.setFillColor(sf::Color::White);
     m_shape.setPosition(m_position);
+
+    // Setup Attack Hitbox (e.g. a sword thrust)
+    m_attackHitbox.setSize({ 48.0f, 16.0f }); // Longer than it is tall
+    m_attackHitbox.setOrigin({ 0.0f, 8.0f });
+    m_attackHitbox.setFillColor(sf::Color(255, 200, 0, 150)); // Semi-transparent yellow
 }
 
 void Player::Update(sf::Time deltaTime, const Map& map)
@@ -31,10 +40,12 @@ void Player::Update(sf::Time deltaTime, const Map& map)
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A))
     {
         moveDirection -= 1.0f;
+        m_facingDirection = -1; // Update facing direction
     }
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D))
     {
         moveDirection += 1.0f;
+        m_facingDirection = 1; // Update facing direction
     }
 
     // Apply Acceleration or Friction
@@ -108,11 +119,68 @@ void Player::Update(sf::Time deltaTime, const Map& map)
 
     // Sync visual shape with logical position
     m_shape.setPosition(m_position);
+
+    // --- COMBAT LOGIC ---
+
+    // Start attack (using 'X' key)
+    bool attackKeyPressed = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::X);
+
+    if (m_isAttacking)
+    {
+        m_attackTimer -= dt;
+        if (m_attackTimer <= 0.0f)
+        {
+            m_isAttacking = false;
+        }
+    }
+    else
+    {
+        if (attackKeyPressed && !m_wasAttackPressed)
+        {
+            m_isAttacking = true;
+            m_attackTimer = ATTACK_DURATION;
+        }
+    }
+
+    m_wasAttackPressed = attackKeyPressed;
+
+    // Update Attack Hitbox position based on player position and facing direction
+    if (m_facingDirection == 1)
+    {
+        // Spawns on the right side
+        m_attackHitbox.setPosition({ m_position.x + 16.0f, m_position.y - 32.0f });
+        // We flip the size to point right
+        m_attackHitbox.setScale({ 1.0f, 1.0f });
+    }
+    else
+    {
+        // Spawns on the left side
+        m_attackHitbox.setPosition({ m_position.x - 16.0f, m_position.y - 32.0f });
+        // We flip the scale to point left (SFML 3 handles negative scale well)
+        m_attackHitbox.setScale({ -1.0f, 1.0f });
+    }
 }
 
 void Player::Draw(sf::RenderWindow& window)
 {
     window.draw(m_shape);
+
+    // Draw attack hitbox only if attacking
+    if (m_isAttacking)
+    {
+        window.draw(m_attackHitbox);
+    }
+}
+
+sf::FloatRect Player::GetAttackBounds() const
+{
+    if (m_isAttacking) return m_attackHitbox.getGlobalBounds();
+    return sf::FloatRect(); // Return empty rect if not attacking
+}
+
+bool Player::IsAttacking() const
+{
+    return m_isAttacking;
 }
 
 void Player::ResolveCollisionsX(const Map& map)
