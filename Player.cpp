@@ -1,9 +1,11 @@
 #include "Player.h"
 #include <cmath>
+#include <iostream>
 #include <algorithm>
 
 Player::Player()
-    : m_position(64.0f, 64.0f),
+    : m_sprite(m_texture), 
+    m_position(64.0f, 64.0f),
     m_velocity(0.0f, 0.0f),
     m_isGrounded(false),
     m_wasJumpPressed(false),
@@ -14,19 +16,38 @@ Player::Player()
     m_isAttacking(false),
     m_attackTimer(0.0f),
     m_hasDoubleJumpUnlocked(false), // TODO: Unlocked by killing the boss
-    m_canDoubleJump(false)
+    m_canDoubleJump(false),
+    m_animState(AnimState::Idle),
+    m_animTimer(0.0f),
+    m_currentFrame(0)
 {
     // A standard humanoid hitbox size
     m_shape.setSize({ 16.0f, 42.0f });
     // Set origin to bottom-center for easier floor alignment later
     m_shape.setOrigin({ 8.0f, 42.0f });
-    m_shape.setFillColor(sf::Color::White);
-    m_shape.setPosition(m_position);
+    // --- DEBUG HITBOX ---
+    // Make the physical shape semi-transparent red with an outline
+    // so we can see the sprite AND the collision box simultaneously
+    m_shape.setFillColor(sf::Color(255, 0, 0, 80));
+    //Use negative thickness for an internal outline!
+    // A positive outline expands getGlobalBounds(), making the player collide with the floor during X checks!
+    m_shape.setOutlineThickness(-1.0f);
+    m_shape.setOutlineColor(sf::Color::Red);
 
     // Setup Attack Hitbox (e.g. a sword thrust)
     m_attackHitbox.setSize({ 24.0f, 8.0f });
     m_attackHitbox.setOrigin({ 0.0f, 4.0f });
     m_attackHitbox.setFillColor(sf::Color(255, 200, 0, 150)); // Semi-transparent yellow
+
+    // --- LOAD TEXTURE ---
+    if (!m_texture.loadFromFile("media/textures/PlayerSheet.png"))
+    {
+        std::cerr << "ERROR: Could not load PlayerSheet.png!\n";
+    }
+
+    // Origin is bottom-center, just like the physics hitbox, so they align automatically
+    m_sprite.setOrigin({ SPRITE_WIDTH / 2.0f, (float)SPRITE_HEIGHT });
+    m_sprite.setTextureRect(sf::IntRect({ 0, 0 }, { SPRITE_WIDTH, SPRITE_HEIGHT }));
 }
 
 void Player::Update(sf::Time deltaTime, const Map& map)
@@ -174,10 +195,96 @@ void Player::Update(sf::Time deltaTime, const Map& map)
         // We flip the scale to point left (SFML 3 handles negative scale well)
         m_attackHitbox.setScale({ -1.0f, 1.0f });
     }
+
+    // ==========================================
+    // VISUAL ANIMATION LOGIC
+    // ==========================================
+
+    // Determine the current logical state
+    AnimState nextState = AnimState::Idle;
+
+    if (m_isAttacking)
+        nextState = AnimState::Attack;
+    else if (!m_isGrounded)
+    {
+        if (m_velocity.y < 0.0f) nextState = AnimState::Jump;
+        else nextState = AnimState::Fall;
+    }
+    else if (std::abs(m_velocity.x) > 10.0f)
+        nextState = AnimState::Run;
+
+    // Mapping the states
+    int row = 0;
+    int startFrame = 0;
+    int endFrame = 0;
+    float frameTime = 0.06f;
+    bool loop = true;
+
+    if (nextState == AnimState::Idle) {
+        row = 0; startFrame = 0; endFrame = 5; frameTime = 0.16f; loop = true;
+    }
+    else if (nextState == AnimState::Run) {
+        row = 2; startFrame = 0; endFrame = 14; frameTime = 0.04f; loop = true;
+    }
+    else if (nextState == AnimState::Jump) {
+        row = 12; startFrame = 0; endFrame = 5; frameTime = 0.06f; loop = false;
+    }
+    else if (nextState == AnimState::Fall) {
+        row = 12; startFrame = 7; endFrame = 15; frameTime = 0.06f; loop = false;
+    }
+    else if (nextState == AnimState::Attack) {
+        row = 6; startFrame = 13; endFrame = 17; frameTime = 0.06f; loop = false;
+    }
+
+    // Reset frame if state changed
+    if (nextState != m_animState)
+    {
+        m_animState = nextState;
+        m_currentFrame = 0;
+        m_animTimer = 0.0f;
+    }
+
+    // Update animation timer
+    m_animTimer += dt;
+    if (m_animTimer > 0.1f) // Change frame every 0.1 seconds (10 fps)
+    {
+        m_animTimer = 0.0f;
+        m_currentFrame++;
+
+        // Loop back
+        if (m_currentFrame > endFrame)
+        {
+            if (loop) {
+                m_currentFrame = startFrame;
+            }
+            else {
+                m_currentFrame = endFrame;
+            }
+        }
+    }
+
+    // Frame crop
+    m_sprite.setTextureRect(sf::IntRect(
+        { m_currentFrame * SPRITE_WIDTH, row * SPRITE_HEIGHT },
+        { SPRITE_WIDTH, SPRITE_HEIGHT }
+    ));
+
+    // Synchronize the frame to logical position
+    m_sprite.setPosition(m_position);
+
+    // Turn the frame left or right
+    if (m_facingDirection == 1)
+        m_sprite.setScale({ 1.0f, 1.0f });
+    else
+        m_sprite.setScale({ -1.0f, 1.0f });
 }
 
 void Player::Draw(sf::RenderWindow& window)
 {
+    // Draw the sprite FIRST (bottom layer)
+    window.draw(m_sprite);
+
+    // Draw the collision shape ON TOP (for debugging)
     window.draw(m_shape);
 
     // Draw attack hitbox only if attacking
@@ -281,8 +388,8 @@ void Player::ResolveCollisionsY(const Map& map)
                     m_position.y = y * Map::TILE_SIZE;
                     m_velocity.y = 0.0f;
                     m_isGrounded = true;
-                    m_coyoteTimer = COYOTE_TIME; // Recharge coyote time
-                    m_canDoubleJump = true; // <--- AGGIUNGI QUESTA RIGA! Recharge double jump
+                    m_coyoteTimer = COYOTE_TIME;    // Recharge coyote time
+                    m_canDoubleJump = true;         // Recharge double jump
                     return;
                 }
                 else if (m_velocity.y < 0.0f) // Jumping up and hit the ceiling (bonk!)
