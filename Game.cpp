@@ -2,7 +2,8 @@
 
 Game::Game()
 // SFML 3 uses braced initialization for sf::VideoMode
-    : m_window(sf::VideoMode({ 1280, 720 }), "Project Nocturne")
+    : m_window(sf::VideoMode({ 1280, 720 }), "Project Nocturne"),
+    m_enemy(800.0f, 300.0f)
 {
     // Disable VSync to test the robustness of our fixed timestep loop
     m_window.setVerticalSyncEnabled(false);
@@ -54,6 +55,26 @@ void Game::Update(sf::Time deltaTime)
 {
     // TODO: Here we will update our mathematical Player logic later
     m_player.Update(deltaTime, m_map);
+    m_enemy.Update(deltaTime, m_map);
+
+    // --- COMBAT RESOLUTION ---
+    // If the player is currently throwing out an attack hitbox
+    if (m_player.IsAttacking())
+    {
+        sf::FloatRect attackBounds = m_player.GetAttackBounds();
+        sf::FloatRect enemyBounds = m_enemy.GetBounds();
+
+        // In SFML 3, findIntersection returns std::optional<sf::FloatRect>.
+        // If it has a value, they are colliding
+        if (attackBounds.findIntersection(enemyBounds).has_value())
+        {
+            // Push the enemy in the exact direction the player is facing
+            float knockbackDir = static_cast<float>(m_player.GetFacingDirection());
+
+            // Deal 1 damage and apply knockback
+            m_enemy.TakeDamage(1, knockbackDir);
+        }
+    }
 }
 
 void Game::Render()
@@ -62,6 +83,7 @@ void Game::Render()
     // TODO: Drawing of map and entities will happen here
 
     m_map.Draw(m_window);       // First draw the map
+    m_enemy.Draw(m_window); // Draw enemy behind the player
     m_player.Draw(m_window);    // Then the player
 
     m_window.display();

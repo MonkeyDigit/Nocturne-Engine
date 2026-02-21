@@ -15,6 +15,9 @@ public:
     sf::FloatRect GetAttackBounds() const;
     bool IsAttacking() const;
 
+    int GetFacingDirection() const;
+    sf::FloatRect GetBounds() const;
+
 private:
     const float MAX_SPEED = 240.0f;       // px/s
     const float ACCELERATION = 3000.0f;   // px/s^2

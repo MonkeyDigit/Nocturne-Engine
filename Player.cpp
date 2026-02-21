@@ -183,6 +183,16 @@ bool Player::IsAttacking() const
     return m_isAttacking;
 }
 
+int Player::GetFacingDirection() const
+{
+    return m_facingDirection;
+}
+
+sf::FloatRect Player::GetBounds() const
+{
+    return m_shape.getGlobalBounds();
+}
+
 void Player::ResolveCollisionsX(const Map& map)
 {
     sf::FloatRect bounds = m_shape.getGlobalBounds();
