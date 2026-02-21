@@ -3,5 +3,5 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="Nocturne-Engine.vcxproj" />
+  <Project Path="Nocturne-Engine.vcxproj" Id="072f70bc-b8e0-4004-a825-a499fa914fd8" />
 </Solution>

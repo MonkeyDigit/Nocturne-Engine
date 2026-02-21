@@ -74,7 +74,6 @@ void Player::Update(sf::Time deltaTime, const Map& map)
     // Apply Acceleration or Friction
     if (moveDirection != 0.0f)
     {
-        // TODO: In Phase 2, we will apply AirControlMultiplier if !m_isGrounded
         // Apply acceleration
         m_velocity.x += moveDirection * ACCELERATION * dt;
     }
