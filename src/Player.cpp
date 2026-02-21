@@ -8,10 +8,8 @@ Player::Player()
     m_position(64.0f, 64.0f),
     m_velocity(0.0f, 0.0f),
     m_isGrounded(false),
-    m_wasJumpPressed(false),
     m_coyoteTimer(0.0f),
     m_jumpBufferTimer(0.0f),
-    m_wasAttackPressed(false),
     m_facingDirection(1), // Start facing right
     m_isAttacking(false),
     m_attackTimer(0.0f),
@@ -50,7 +48,7 @@ Player::Player()
     m_sprite.setTextureRect(sf::IntRect({ 0, 0 }, { SPRITE_WIDTH, SPRITE_HEIGHT }));
 }
 
-void Player::Update(sf::Time deltaTime, const Map& map)
+void Player::Update(sf::Time deltaTime, const Map& map, const EventManager& input)
 {
     float dt = deltaTime.asSeconds();
     float moveDirection = 0.0f;
@@ -59,16 +57,17 @@ void Player::Update(sf::Time deltaTime, const Map& map)
     m_coyoteTimer -= dt;
     m_jumpBufferTimer -= dt;
 
-    // Get Input
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A))
+    // TODO: TOGLI LE STRINGHE
+    // --- HORIZONTAL INPUT ---
+    if (input.IsActionHeld("MoveLeft"))
     {
         moveDirection -= 1.0f;
-        m_facingDirection = -1; // Update facing direction
+        m_facingDirection = -1;
     }
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D))
+    if (input.IsActionHeld("MoveRight"))
     {
         moveDirection += 1.0f;
-        m_facingDirection = 1; // Update facing direction
+        m_facingDirection = 1;
     }
 
     // Apply Acceleration or Friction
@@ -96,22 +95,17 @@ void Player::Update(sf::Time deltaTime, const Map& map)
     m_velocity.x = std::clamp(m_velocity.x, -MAX_SPEED, MAX_SPEED);
 
     // --- JUMP INPUT LOGIC ---
-    // Let's use 'Z' or 'Space' for jumping
-    bool jumpKeyPressed = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Z) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Space);
-
     // Jump Buffer: Set timer when key is JUST pressed
-    if (jumpKeyPressed && !m_wasJumpPressed)
+    if (input.IsActionJustPressed("Jump"))
     {
         m_jumpBufferTimer = JUMP_BUFFER_TIME;
     }
 
     // Variable Jump Height: Cut velocity if key is JUST released while going up
-    if (!jumpKeyPressed && m_wasJumpPressed && m_velocity.y < 0.0f)
+    if (input.IsActionJustReleased("Jump") && m_velocity.y < 0.0f)
     {
         m_velocity.y *= JUMP_CUT_MULTIPLIER;
     }
-
-    m_wasJumpPressed = jumpKeyPressed; // Store for next frame
 
     // --- GRAVITY ---
     m_velocity.y += GRAVITY * dt;
@@ -170,14 +164,12 @@ void Player::Update(sf::Time deltaTime, const Map& map)
     }
     else
     {
-        if (attackKeyPressed && !m_wasAttackPressed)
+        if (input.IsActionJustPressed("Attack"))
         {
             m_isAttacking = true;
             m_attackTimer = ATTACK_DURATION;
         }
     }
-
-    m_wasAttackPressed = attackKeyPressed;
 
     // Update Attack Hitbox position based on player position and facing direction
     if (m_facingDirection == 1)

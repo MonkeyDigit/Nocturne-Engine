@@ -141,6 +141,7 @@
   <ItemGroup>
     <ClInclude Include="include\Boss.h" />
     <ClInclude Include="include\Enemy.h" />
+    <ClInclude Include="include\EventManager.h" />
     <ClInclude Include="include\Game.h" />
     <ClInclude Include="include\Map.h" />
     <ClInclude Include="include\Player.h" />
@@ -149,6 +150,7 @@
   <ItemGroup>
     <ClCompile Include="src\Boss.cpp" />
     <ClCompile Include="src\Enemy.cpp" />
+    <ClCompile Include="src\EventManager.cpp" />
     <ClCompile Include="src\Game.cpp" />
     <ClCompile Include="src\Main.cpp" />
     <ClCompile Include="src\Map.cpp" />

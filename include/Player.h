@@ -2,13 +2,14 @@
 #include <SFML/Graphics.hpp>
 #include <SFML/Window/Keyboard.hpp>
 #include "Map.h"
+#include "EventManager.h"
 
 class Player
 {
 public:
     Player();
 
-    void Update(sf::Time deltaTime, const Map& map);
+    void Update(sf::Time deltaTime, const Map& map, const EventManager& input);
     void Draw(sf::RenderWindow& window);
 
     void UnlockDoubleJump();
@@ -42,10 +43,8 @@ private:
 
     // --- STATE & TIMERS ---
     bool m_isGrounded;
-    bool m_wasJumpPressed; // To detect the exact frame the key is pressed/released
     float m_coyoteTimer;
     float m_jumpBufferTimer;
-    bool m_wasAttackPressed;
 
     // --- COMBAT STATES ---
     int m_facingDirection; // 1 for Right, -1 for Left

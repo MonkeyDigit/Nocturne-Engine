@@ -42,8 +42,12 @@ void Game::Update(sf::Time deltaTime)
 {
     // First update the window
     m_window.Update();
+    // Update Input states
+    m_eventManager.Update();
 
-    m_player.Update(deltaTime, m_map);
+    // TODO: Da migliorare
+    // Pass EventManager to Player so it can read inputs
+    m_player.Update(deltaTime, m_map, m_eventManager);
     m_enemy.Update(deltaTime, m_map);
     // Pass the player's position to the boss
     m_boss.Update(deltaTime, m_map, m_player.GetPosition());

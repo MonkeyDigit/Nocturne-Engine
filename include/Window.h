@@ -25,6 +25,7 @@ public:
     void Draw(const sf::Drawable& drawable);
 
     // We expose the raw RenderWindow by reference for things like sf::View (Camera)
+    // We use a reference because we don't forsee the window to be a nullptr
     sf::RenderWindow& GetRenderWindow();
 
 private:

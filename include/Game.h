@@ -4,6 +4,7 @@
 #include "Enemy.h"
 #include "Boss.h"
 #include "Window.h"
+#include "EventManager.h"
 
 class Game {
 public:
@@ -15,6 +16,7 @@ private:
     void Render();
 
     Window m_window;
+    EventManager m_eventManager;
     sf::View m_camera;
     Map m_map;
     Player m_player;
