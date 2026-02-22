@@ -9,6 +9,9 @@
 // TODO: IMPLEMENTA MEGLIO LA LOGICA DI HELD DOWN
 // TODO: CONVIENE TRASFORMARE / 2 in * 0.5f?
 // TODO: RISOLVERE INCOMPLETE TYPE IN STATEMANAGER
+// TODO: Posso gestire meglio le inclusioni circolari?
+// TODO: Cambiare il motore random?
+// TODO: Rimettere reacttoinput?
 
 int main() {
     Game game;

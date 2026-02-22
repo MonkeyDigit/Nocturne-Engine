@@ -1,17 +1,35 @@
 #pragma once
 #include <string>
+#include <iostream>
 
-struct Animation
+class Animation
 {
-    std::string name;
-    int row;
-    int startFrame;
-    int endFrame;
-    float frameTime;
-    bool loop;
+public:
+    Animation();
+    ~Animation() = default;
 
-    // Constructor for easy setup
-    Animation(const std::string& n = "", int r = 0, int sf = 0, int ef = 0, float ft = 0.1f, bool l = true)
-        : name(n), row(r), startFrame(sf), endFrame(ef), frameTime(ft), loop(l) {
-    }
+    void Play();
+    void Stop();
+    void SetLooping(bool loop);
+    void Update(float deltaTime);
+
+    friend std::istream& operator>>(std::istream& is, Animation& a);
+
+    const std::string& GetName() const;
+    unsigned int GetCurrentFrame() const;
+    unsigned int GetRow() const;
+    bool IsPlaying() const;
+    bool IsLooped() const;
+
+private:
+    std::string m_name;
+    unsigned int m_startFrame;
+    unsigned int m_endFrame;
+    unsigned int m_currentFrame;
+    unsigned int m_frameRow;
+    float m_frameTime;
+
+    bool m_playing;
+    bool m_loop;
+    float m_elapsedTime;
 };

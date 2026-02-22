@@ -32,10 +32,6 @@ private:
     sf::Vector2i m_mousePos;
     bool m_cursorVisible;
 
-    // --- TEMPORARY ENTITIES ---
-    // (We will replace these with EntityManager)
     Map m_gameMap;
-    Player m_player;
-    Enemy m_enemy;
     bool m_debugMode;
 };
