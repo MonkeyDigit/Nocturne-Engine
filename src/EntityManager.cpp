@@ -150,8 +150,8 @@ void EntityManager::EntityCollisionCheck()
             // SFML 3: findIntersection instead of intersects
             if (e1->m_AABB.findIntersection(e2->m_AABB))
             {
-                e1->OnEntityCollision(e2, false);
-                e2->OnEntityCollision(e1, false);
+                e1->OnEntityCollision(*e2, false);
+                e2->OnEntityCollision(*e1, false);
             }
 
             EntityType t1 = e1->GetType();
@@ -162,7 +162,7 @@ void EntityManager::EntityCollisionCheck()
                 auto* c1 = static_cast<Character*>(e1);
                 if (c1->m_attackAABB.findIntersection(e2->m_AABB))
                 {
-                    c1->OnEntityCollision(e2, true);
+                    c1->OnEntityCollision(*e2, true);
                 }
             }
 
@@ -171,7 +171,7 @@ void EntityManager::EntityCollisionCheck()
                 auto* c2 = static_cast<Character*>(e2);
                 if (c2->m_attackAABB.findIntersection(e1->m_AABB))
                 {
-                    c2->OnEntityCollision(e1, true);
+                    c2->OnEntityCollision(*e1, true);
                 }
             }
         }

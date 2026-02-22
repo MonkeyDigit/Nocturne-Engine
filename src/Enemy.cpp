@@ -4,97 +4,101 @@
 #include <cstdlib>
 
 Enemy::Enemy(EntityManager& entityManager)
-    : Character(entityManager),
-    m_hasDestination(false),
-    m_waitTimer(0.0f)
+    : Character(entityManager), m_hasDestination(false), m_elapsed(0.0f)
 {
     m_type = EntityType::Enemy;
-    // NOTE: Statistics (Health, Speed, Spritesheet) are injected automatically by EntityManager calling the Load() method when the enemy is spawned
 }
 
-void Enemy::OnEntityCollision(EntityBase* collider, bool attack)
+Enemy::~Enemy() {}
+
+void Enemy::OnEntityCollision(EntityBase& collider, bool attack)
 {
     if (m_state == EntityState::Dying) return;
 
-    if (attack) return; // Handled by EntityManager's attack hitbox checks
+    if (attack) return;
 
-    // If we bump into the player, get aggressive
-    if (collider->GetType() == EntityType::Player)
+    if (collider.GetType() != EntityType::Player) return;
+
+    Character& player = static_cast<Character&>(collider);
+    SetState(EntityState::Attacking);
+    player.TakeDamage(1);
+
+    if (m_position.x > player.GetPosition().x)
     {
-        SetState(EntityState::Attacking);
-
-        // Face the player
-        if (m_position.x > collider->GetPosition().x)
-        {
-            m_spriteSheet.SetDirection(Direction::Left);
-        }
-        else
-        {
-            m_spriteSheet.SetDirection(Direction::Right);
-        }
+        player.AddVelocity(-m_speed.x, 0.0f);
+        m_spriteSheet.SetDirection(Direction::Left);
+    }
+    else
+    {
+        player.AddVelocity(m_speed.x, 0.0f);
+        m_spriteSheet.SetDirection(Direction::Right);
     }
 }
 
 void Enemy::Update(float deltaTime)
 {
-    if (m_state == EntityState::Dying)
+    Character::Update(deltaTime);
+
+    if (m_hasDestination)
     {
-        Character::Update(deltaTime);
+        if (std::abs(m_destination.x - m_position.x) < 16.0f)
+        {
+            m_hasDestination = false;
+            return;
+        }
+
+        if (m_destination.x - m_position.x > 0.0f) Move(Direction::Right);
+        else Move(Direction::Left);
+
+        if (m_collidingOnX) m_hasDestination = false;
+
         return;
     }
 
-    // --- SIMPLE PATROL AI LOGIC ---
-    if (m_hasDestination)
+    m_elapsed += deltaTime;
+
+    if (m_elapsed < 1.0f) return;
+
+    m_elapsed -= 1.0f;
+
+    int newX = rand() % 64 + 1;
+    if (rand() % 2) newX = -newX;
+
+    m_destination.x = m_position.x + static_cast<float>(newX);
+
+    if (m_destination.x < 0.0f) m_destination.x = 0.0f;
+
+    m_hasDestination = true;
+}
+
+void Enemy::Animate()
+{
+    // Simple basic animation fallback for enemies (extracted from your original Character class)
+    EntityState state = GetState();
+    Animation* currentAnimation = m_spriteSheet.GetCurrentAnim();
+
+    if (state == EntityState::Walking && currentAnimation->GetName() != "Walk")
     {
-        // Arrived at destination?
-        if (std::abs(m_destination.x - m_position.x) < 16.0f || m_collidingOnX)
-        {
-            m_hasDestination = false;
-        }
-        else
-        {
-            // Move towards destination
-            float moveDirection = (m_destination.x > m_position.x) ? 1.0f : -1.0f;
-            Accelerate(moveDirection * m_acceleration.x, 0.0f);
-
-            // Update facing direction
-            m_spriteSheet.SetDirection(moveDirection > 0.0f ? Direction::Right : Direction::Left);
-        }
+        m_spriteSheet.SetAnimation("Walk", true, true);
     }
-    else
+    else if (state == EntityState::Jumping && currentAnimation->GetName() != "Jump")
     {
-        // Waiting state
-        m_waitTimer += deltaTime;
-        if (m_waitTimer >= 1.0f)
-        {
-            m_waitTimer = 0.0f;
-            m_hasDestination = true;
-
-            // Pick a random distance to walk (from 16 to 80 pixels)
-            int randomOffset = (std::rand() % 64) + 16;
-            if (std::rand() % 2 == 0) randomOffset = -randomOffset;
-
-            m_destination.x = m_position.x + static_cast<float>(randomOffset);
-
-            // Prevent walking completely off the left edge of the map
-            if (m_destination.x < 0.0f) m_destination.x = 0.0f;
-        }
+        m_spriteSheet.SetAnimation("Jump", true, false);
     }
-
-    // Apply friction automatically if not actively steering
-    if (m_acceleration.x == 0.0f) SetAcceleration(0.0f, m_acceleration.y);
-
-    // --- ANIMATION STATE UPDATE ---
-    if (m_state != EntityState::Attacking && m_state != EntityState::Hurt)
+    else if (state == EntityState::Attacking && currentAnimation->GetName() != "Attack")
     {
-        if (!m_isGrounded) m_state = EntityState::Jumping;
-        else if (std::abs(m_velocity.x) > 10.0f) m_state = EntityState::Walking;
-        else m_state = EntityState::Idle;
+        m_spriteSheet.SetAnimation("Attack", true, false);
     }
-
-    // Character::Update handles physics, collisions, and sprite updates
-    Character::Update(deltaTime);
-
-    // Reset acceleration for the next frame
-    SetAcceleration(0.0f, m_acceleration.y);
+    else if (state == EntityState::Hurt && currentAnimation->GetName() != "Hurt")
+    {
+        m_spriteSheet.SetAnimation("Hurt", true, false);
+    }
+    else if (state == EntityState::Dying && currentAnimation->GetName() != "Death")
+    {
+        m_spriteSheet.SetAnimation("Death", true, false);
+    }
+    else if (state == EntityState::Idle && currentAnimation->GetName() != "Idle")
+    {
+        m_spriteSheet.SetAnimation("Idle", true, true);
+    }
 }

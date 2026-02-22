@@ -1,128 +1,153 @@
 #include "Player.h"
-#include "EntityManager.h"
 #include "SharedContext.h"
+#include "EntityManager.h"
 #include "StateManager.h"
-#include <iostream>
 
 Player::Player(EntityManager& entityManager)
-    : Character(entityManager),
-    m_coyoteTimer(0.0f),
-    m_jumpBufferTimer(0.0f)
+    : Character(entityManager)
 {
-    Load("media/characters/player.char");
+    Load("media/characters/Player.char");
+    m_type = EntityType::Player;
 
-    // --- REGISTERING CALLBACKS ---
-    EventManager& evMgr = m_entityManager.GetContext().m_eventManager;
+    EventManager& events = m_entityManager.GetContext().m_eventManager;
 
-    // TODO: Assicurati che questi nomi (es. "MoveLeft") coincidano con quelli in Bindings.cfg
-    evMgr.AddCallback(StateType::Game, "MoveLeft", &Player::MoveLeft, *this);
-    evMgr.AddCallback(StateType::Game, "MoveRight", &Player::MoveRight, *this);
-    evMgr.AddCallback(StateType::Game, "Jump", &Player::Jump, *this);
-    evMgr.AddCallback(StateType::Game, "Attack", &Player::Attack, *this);
+    // Registering the callbacks using the Nocturne Engine architecture
+    events.AddCallback(StateType::Game, "Player_MoveLeft", &Player::React, *this);
+    events.AddCallback(StateType::Game, "Player_MoveRight", &Player::React, *this);
+    events.AddCallback(StateType::Game, "Player_Jump", &Player::React, *this);
+    events.AddCallback(StateType::Game, "Player_Attack", &Player::React, *this);
 }
 
 Player::~Player()
 {
-    // --- UNREGISTERING CALLBACKS ---
-    EventManager& evMgr = m_entityManager.GetContext().m_eventManager;
-    evMgr.RemoveCallback(StateType::Game, "MoveLeft");
-    evMgr.RemoveCallback(StateType::Game, "MoveRight");
-    evMgr.RemoveCallback(StateType::Game, "Jump");
-    evMgr.RemoveCallback(StateType::Game, "Attack");
+    EventManager& events = m_entityManager.GetContext().m_eventManager;
+    events.RemoveCallback(StateType::Game, "Player_MoveLeft");
+    events.RemoveCallback(StateType::Game, "Player_MoveRight");
+    events.RemoveCallback(StateType::Game, "Player_Jump");
+    events.RemoveCallback(StateType::Game, "Player_Attack");
 }
 
-void Player::OnEntityCollision(EntityBase* collider, bool attack)
+void Player::OnEntityCollision(EntityBase& collider, bool attack)
 {
-    if (collider->GetType() == EntityType::Enemy && !attack)
+    if (m_state == EntityState::Dying) return;
+
+    if (attack)
     {
-        TakeDamage(1);
+        if (m_state != EntityState::Attacking) return;
+        if (!m_spriteSheet.GetCurrentAnim()->IsPlaying()) return;
 
-        if (m_position.x < collider->GetPosition().x) m_velocity.x = -m_maxVelocity.x * 0.5f;
-        else m_velocity.x = m_maxVelocity.x * 0.5f;
-
-        m_velocity.y = -m_jumpVelocity * 0.5f;
-    }
-}
-
-void Player::Update(float deltaTime)
-{
-    // --- TIMERS ---
-    m_coyoteTimer -= deltaTime;
-    m_jumpBufferTimer -= deltaTime;
-
-    if (m_isGrounded) m_coyoteTimer = COYOTE_TIME;
-
-    if (m_state == EntityState::Attacking)
-    {
-        Animation* currentAnim = m_spriteSheet.GetCurrentAnim();
-        if (currentAnim && !currentAnim->IsPlaying())
+        if (collider.GetType() != EntityType::Enemy && collider.GetType() != EntityType::Player)
         {
-            m_state = EntityState::Idle;
+            return;
+        }
+
+        Character& opponent = static_cast<Character&>(collider);
+        opponent.TakeDamage(1);
+
+        if (m_position.x > opponent.GetPosition().x)
+        {
+            opponent.AddVelocity(-32.0f, 0.0f);
+        }
+        else
+        {
+            opponent.AddVelocity(32.0f, 0.0f);
         }
     }
-
-    // --- APPLY FORCES based on current state ---
-    // Friction is applied automatically by EntityBase::Update if acceleration is 0
-
-    // Set Logical State for Character::Animate() to use
-    if (m_state != EntityState::Attacking && m_state != EntityState::Hurt)
+    else
     {
-        if (!m_isGrounded) m_state = EntityState::Jumping;
-        else if (std::abs(m_velocity.x) > 10.0f) m_state = EntityState::Walking;
-        else m_state = EntityState::Idle;
+        // Other behavior
     }
-
-    // Move, Collide, Animate
-    Character::Update(deltaTime);
-
-    // Reset acceleration every frame so we stop moving if buttons are released!
-    SetAcceleration(0.0f, m_acceleration.y);
 }
 
-// ==========================================
-// EVENT MANAGER CALLBACKS
-// ==========================================
-
-void Player::MoveLeft(EventDetails& details)
+void Player::React(EventDetails& details)
 {
-    if (m_state == EntityState::Attacking) return; // Can't move while attacking
+    std::string action = details.m_name;
 
-    m_spriteSheet.SetDirection(Direction::Left);
-    Accelerate(-m_acceleration.x, 0.0f);
-}
-
-void Player::MoveRight(EventDetails& details)
-{
-    if (m_state == EntityState::Attacking) return;
-
-    m_spriteSheet.SetDirection(Direction::Right);
-    Accelerate(m_acceleration.x, 0.0f);
-}
-
-void Player::Jump(EventDetails& details)
-{
-    if (m_state == EntityState::Attacking) return;
-
-    if (!details.m_heldDown) // JUST PRESSED
+    if (action == "Player_MoveLeft")
     {
-        m_jumpBufferTimer = JUMP_BUFFER_TIME;
-
-        // Execute Jump if buffered and within coyote time
-        if (m_jumpBufferTimer > 0.0f && m_coyoteTimer > 0.0f)
+        Character::Move(Direction::Left);
+    }
+    else if (action == "Player_MoveRight")
+    {
+        Character::Move(Direction::Right);
+    }
+    else if (action == "Player_Attack" && !details.m_heldDown)
+    {
+        Character::Attack();
+    }
+    else // For actions that happen once a key press
+    {
+        if (action == "Player_Jump" && !details.m_heldDown)
         {
-            m_velocity.y = -m_jumpVelocity;
-            m_jumpBufferTimer = 0.0f;
-            m_coyoteTimer = 0.0f;
+            Character::Jump();
         }
     }
-    // TODO: CALLBACK FOR JUMP RELEASE
 }
 
-void Player::Attack(EventDetails& details)
+void Player::Animate()
 {
-    if (!details.m_heldDown && m_state != EntityState::Attacking)
+    EntityState state = GetState();
+    Animation* currentAnimation = m_spriteSheet.GetCurrentAnim();
+
+    if (state == EntityState::Walking && currentAnimation->GetName() != "Walk")
     {
-        m_state = EntityState::Attacking;
-        m_velocity.x = 0.0f;
+        if ((currentAnimation->GetName() == "WalkStart" && !currentAnimation->IsPlaying()) ||
+            currentAnimation->GetName() == "Jump" ||
+            currentAnimation->GetName() == "Fall")
+        {
+            m_spriteSheet.SetAnimation("Walk", true, true);
+        }
+        else
+        {
+            m_spriteSheet.SetAnimation("WalkStart", true, false);
+        }
+    }
+    else if (state == EntityState::Jumping)
+    {
+        if (m_velocity.y > 0.0f && currentAnimation->GetName() != "Fall")
+        {
+            m_spriteSheet.SetAnimation("Fall", true, false);
+        }
+        else if (m_velocity.x != 0.0f && m_velocity.y < 0.0f && currentAnimation->GetName() != "JumpForward")
+        {
+            m_spriteSheet.SetAnimation("JumpForward", true, false);
+        }
+        else if (m_velocity.y < 0.0f && m_velocity.x == 0.0f &&
+            currentAnimation->GetName() != "Jump" &&
+            currentAnimation->GetName() != "JumpForward")
+        {
+            m_spriteSheet.SetAnimation("Jump", true, false);
+        }
+    }
+    else if (state == EntityState::Attacking && currentAnimation->GetName() != "Attack")
+    {
+        m_spriteSheet.SetAnimation("Attack", true, false);
+    }
+    else if (state == EntityState::Hurt && currentAnimation->GetName() != "Hurt")
+    {
+        m_spriteSheet.SetAnimation("Hurt", true, false);
+    }
+    else if (state == EntityState::Dying && currentAnimation->GetName() != "Death")
+    {
+        m_spriteSheet.SetAnimation("Death", true, false);
+    }
+    else if (state == EntityState::Idle && currentAnimation->GetName() != "Idle")
+    {
+        if (currentAnimation->GetName() == "Walk")
+        {
+            m_spriteSheet.SetAnimation("WalkEnd", true, false);
+        }
+        else if (currentAnimation->GetName() == "Fall")
+        {
+            m_spriteSheet.SetAnimation("Land", true, false);
+        }
+
+        if ((currentAnimation->GetName() == "WalkEnd" && currentAnimation->IsPlaying()) ||
+            (currentAnimation->GetName() == "Land" && currentAnimation->IsPlaying()))
+        {
+            return;
+        }
+
+        m_spriteSheet.SetAnimation("Idle", true, true);
     }
 }

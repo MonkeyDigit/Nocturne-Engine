@@ -4,15 +4,17 @@
 class Enemy : public Character
 {
 public:
-    // Takes the EntityManager by reference
     Enemy(EntityManager& entityManager);
-    ~Enemy() override = default;
+    ~Enemy() override;
 
-    void OnEntityCollision(EntityBase* collider, bool attack) override;
+    void OnEntityCollision(EntityBase& collider, bool attack) override;
     void Update(float deltaTime) override;
+
+protected:
+    void Animate() override;
 
 private:
     sf::Vector2f m_destination;
     bool m_hasDestination;
-    float m_waitTimer;
+    float m_elapsed;
 };

@@ -9,12 +9,15 @@
 class SharedContext;
 class BaseState;
 
+// TODO: Modificare?
 namespace Sheet
 {
     constexpr unsigned int TILE_SIZE = 16;
     constexpr unsigned int SHEET_WIDTH = 128;
     constexpr unsigned int SHEET_HEIGHT = 128;
 }
+
+using TileID = unsigned int;
 
 struct TileInfo
 {
@@ -31,8 +34,8 @@ struct Tile
     bool warp;
 };
 
-using TileMap = std::unordered_map<unsigned int, std::unique_ptr<Tile>>;
-using TileSet = std::unordered_map<unsigned int, std::unique_ptr<TileInfo>>;
+using TileMap = std::unordered_map<TileID, std::unique_ptr<Tile>>;
+using TileSet = std::unordered_map<TileID, std::unique_ptr<TileInfo>>;
 
 class Map
 {
@@ -46,12 +49,11 @@ public:
     void Draw(sf::RenderWindow& window);
 
     Tile* GetTile(unsigned int x, unsigned int y) const;
+    TileInfo* GetDefaultTile();
     float GetGravity() const;
     unsigned int GetTileSize() const;
     const sf::Vector2u& GetMapSize() const;
     const sf::Vector2f& GetPlayerStart() const;
-
-    bool IsSolid(unsigned int x, unsigned int y) const;
 
 private:
     unsigned int ConvertCoords(unsigned int x, unsigned int y) const;
@@ -62,6 +64,7 @@ private:
     // Bakes the map into a single GPU call
     void BuildVertexArray();
 
+    int m_playerId;
     TileSet m_tileSet;
     TileMap m_tileMap;
 

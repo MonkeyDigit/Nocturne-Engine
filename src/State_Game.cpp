@@ -59,16 +59,47 @@ void State_Game::Update(const sf::Time& time)
     // Update Entities
     context.m_entityManager.Update(time.asSeconds());
 
-    // Camera Tracking
+    // Camera Tracking & Respawn
     Character* player = static_cast<Character*>(context.m_entityManager.Find("Player"));
     if (player)
     {
+        // TODO: Mettere l'offset y dell'originale?
         sf::Vector2f playerPos = player->GetPosition();
-        m_view.setCenter({ playerPos.x, playerPos.y });
+        m_view.setCenter({ playerPos.x, playerPos.y + player->GetSize().y * 0.5f });
+    }
+    else
+    {
+        context.m_entityManager.Add(EntityType::Player, "Player");
+        player = static_cast<Character*>(context.m_entityManager.Find("Player"));
+        if (player) player->SetPosition(m_gameMap.GetPlayerStart());
     }
 
-    // ... [Smooth Camera clamping come prima] ...
+    // --- CLAMPING CAMERA ---
+    sf::Vector2f viewCenter = m_view.getCenter();
+    sf::Vector2f viewSize = m_view.getSize();
+
+    float mapWidth = static_cast<float>(m_gameMap.GetMapSize().x * m_gameMap.GetTileSize());
+    float mapHeight = static_cast<float>(m_gameMap.GetMapSize().y * m_gameMap.GetTileSize());
+
+    // Horizontal bounds
+    if (viewCenter.x - viewSize.x * 0.5f < 0.0f)
+        viewCenter.x = viewSize.x * 0.5f;
+    else if (viewCenter.x + viewSize.x * 0.5f > mapWidth)
+        viewCenter.x = mapWidth - viewSize.x * 0.5f;
+
+    // Vertical bounds
+    if (viewCenter.y + viewSize.y * 0.5f > mapHeight)
+        viewCenter.y = mapHeight - viewSize.y * 0.5f;
+    else if (viewCenter.y - viewSize.y * 0.5f < 0.0f)
+        viewCenter.y = viewSize.y * 0.5f;
+
+    m_view.setCenter(viewCenter);
+
+    // Apply view
     context.m_window.GetRenderWindow().setView(m_view);
+
+    // Update the map
+    m_gameMap.Update(time.asSeconds());
 }
 
 void State_Game::Draw()

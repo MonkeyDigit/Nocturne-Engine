@@ -145,14 +145,26 @@ void EventManager::LoadBindings(const std::string& path)
             std::string evinfoStr = eventToken.substr(colonPos + 1);
 
             int code = 0;
-            if (evtype == EventTypes::KeyDown || evtype == EventTypes::KeyUp || evtype == EventTypes::KeyboardHeld)
+            if (evtype == EventTypes::KeyDown || evtype == EventTypes::KeyUp || 
+                evtype == EventTypes::KeyboardHeld || evtype == EventTypes::Keyboard)
+            {
                 code = ParseKeyCode(evinfoStr);
-            else if (evtype == EventTypes::MouseClick || evtype == EventTypes::MouseRelease || evtype == EventTypes::MouseHeld)
+            }
+            else if (evtype == EventTypes::MouseClick || evtype == EventTypes::MouseRelease || 
+                     evtype == EventTypes::MouseHeld || evtype == EventTypes::Mouse)
+            {
                 code = ParseMouseButton(evinfoStr);
+            }
             else
-                code = std::stoi(evinfoStr); // For things like Closed:0
-
-            bind->BindEvent(evtype, EventInfo(code));
+            {
+                try { 
+                    code = std::stoi(evinfoStr); 
+                } 
+                catch (...) { 
+                    std::cerr << "! Errore (stoi): Impossibile convertire '" << evinfoStr << "' per il binding " << callbackName << '\n';
+                    code = -1; 
+                }
+            }
         }
 
         if (!AddBinding(std::move(bind)))
