@@ -1,32 +1,35 @@
 #pragma once
 #include <SFML/Graphics.hpp>
-#include <SFML/Window/Event.hpp>
+#include "EventManager.h"
 #include <string>
 
-class Window
-{
+class Window {
 public:
     Window();
     Window(const std::string& title, const sf::Vector2u& size);
     ~Window();
 
-    void BeginDraw(); // Clears the window
-    void EndDraw();   // Displays the changes
+    void BeginDraw();                           // Clears the window
+    void Draw(const sf::Drawable& drawable);    // Draw drawables directly through the wrapper
+    void EndDraw();                             // Displays the changes
 
     void Update();    // Handles OS events (like closing the window)
+    void SetResizeable(const bool resizeable);
+    void SetFramerateLimit(const int limit);
 
-    bool IsDone() const;
-    bool IsFullscreen() const;
-    sf::Vector2u GetWindowSize() const;
-
-    void ToggleFullscreen();
-
-    // Helper to draw drawables directly through the wrapper
-    void Draw(const sf::Drawable& drawable);
+    // In futuro EventDetails sarà implementato con EventManager, per ora lo lasciamo opzionale
+    void Close(EventDetails& details);
+    void ToggleFullscreen(EventDetails& details);
 
     // We expose the raw RenderWindow by reference for things like sf::View (Camera)
     // We use a reference because we don't forsee the window to be a nullptr
     sf::RenderWindow& GetRenderWindow();
+    EventManager& GetEventManager();
+    sf::Vector2u GetWindowSize() const;
+    sf::FloatRect GetViewSpace() const;
+    bool IsFocused() const;
+    bool IsDone() const;
+    bool IsFullscreen() const;
 
 private:
     void Setup(const std::string& title, const sf::Vector2u& size);
@@ -36,7 +39,11 @@ private:
     sf::RenderWindow m_window;
     sf::Vector2u m_windowSize;
     std::string m_windowTitle;
+    EventManager m_eventManager;
+
+    bool m_isFocused;
     bool m_isDone;
     bool m_isFullscreen;
-    // TODO: isFocused, isresizeable
+    bool m_isResizeable;
+    int m_frameRateLimit;
 };

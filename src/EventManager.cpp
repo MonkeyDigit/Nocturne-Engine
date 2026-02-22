@@ -1,66 +1,342 @@
 #include "EventManager.h"
+#include <iostream>
+#include <fstream>
+#include <sstream>
 
-EventManager::EventManager()
+// --- TRANSLATION DICTIONARIES ---
+// Using an anonymous namespace to confine this data in this file only
+// It gets allocated in memory only once on startup
+namespace
 {
-    // TODO: Load bindings from file
-    // Setup default control scheme
-    AddBinding("MoveLeft", sf::Keyboard::Key::Left);
-    AddBinding("MoveRight", sf::Keyboard::Key::Right);
-    AddBinding("Jump", sf::Keyboard::Key::Z);
-    AddBinding("Attack", sf::Keyboard::Key::X);
+    const std::unordered_map<std::string, sf::Keyboard::Key> KEY_MAP = {
+        {"A", sf::Keyboard::Key::A}, {"B", sf::Keyboard::Key::B}, {"C", sf::Keyboard::Key::C},
+        {"D", sf::Keyboard::Key::D}, {"E", sf::Keyboard::Key::E}, {"F", sf::Keyboard::Key::F},
+        {"G", sf::Keyboard::Key::G}, {"H", sf::Keyboard::Key::H}, {"I", sf::Keyboard::Key::I},
+        {"J", sf::Keyboard::Key::J}, {"K", sf::Keyboard::Key::K}, {"L", sf::Keyboard::Key::L},
+        {"M", sf::Keyboard::Key::M}, {"N", sf::Keyboard::Key::N}, {"O", sf::Keyboard::Key::O},
+        {"P", sf::Keyboard::Key::P}, {"Q", sf::Keyboard::Key::Q}, {"R", sf::Keyboard::Key::R},
+        {"S", sf::Keyboard::Key::S}, {"T", sf::Keyboard::Key::T}, {"U", sf::Keyboard::Key::U},
+        {"V", sf::Keyboard::Key::V}, {"W", sf::Keyboard::Key::W}, {"X", sf::Keyboard::Key::X},
+        {"Y", sf::Keyboard::Key::Y}, {"Z", sf::Keyboard::Key::Z},
+        {"Left", sf::Keyboard::Key::Left}, {"Right", sf::Keyboard::Key::Right},
+        {"Up", sf::Keyboard::Key::Up}, {"Down", sf::Keyboard::Key::Down},
+        {"Space", sf::Keyboard::Key::Space}, {"Enter", sf::Keyboard::Key::Enter},
+        {"Escape", sf::Keyboard::Key::Escape}, {"LShift", sf::Keyboard::Key::LShift}
+    };
+
+    const std::unordered_map<std::string, sf::Mouse::Button> MOUSE_MAP = {
+        {"Left", sf::Mouse::Button::Left},
+        {"Right", sf::Mouse::Button::Right},
+        {"Middle", sf::Mouse::Button::Middle}
+    };
 }
 
-void EventManager::AddBinding(const std::string& name, sf::Keyboard::Key key)
+// --- EVENT DETAILS ---
+EventDetails::EventDetails(const std::string& bindName) : m_name(bindName) { Clear(); }
+
+void EventDetails::Clear()
 {
-    m_bindings[name] = key;
-    m_currentState[name] = false;
-    m_previousState[name] = false;
+    m_size = sf::Vector2i(0, 0);
+    m_textEntered = 0;
+    m_mouse = sf::Vector2i(0, 0);
+    m_mouseWheelDelta = 0;
+    m_keyCode = -1;
 }
 
+// --- BINDING ---
+Binding::Binding(const std::string& bindName) : m_name(bindName), m_details(bindName), m_evCount(0) {}
+
+void Binding::BindEvent(const std::string& type, EventInfo info)
+{
+    m_events.emplace_back(type, info);
+}
+
+// --- EVENT MANAGER ---
+EventManager::EventManager() : m_hasFocus(true)
+{
+    LoadBindings("config/bindings.cfg");
+}
+
+bool EventManager::AddBinding(std::unique_ptr<Binding> binding)
+{
+    if (!binding || m_bindings.find(binding->m_name) != m_bindings.end()) 
+        return false;
+
+    std::string name = binding->m_name;
+
+    return m_bindings.emplace(name, std::move(binding)).second;
+}
+
+bool EventManager::RemoveBinding(const std::string& name)
+{
+    return m_bindings.erase(name) > 0;
+}
+
+void EventManager::SetFocus(bool focus) { m_hasFocus = focus; }
+sf::Vector2i EventManager::GetMousePos() const { return sf::Mouse::getPosition(); }
+sf::Vector2i EventManager::GetMousePos(const sf::RenderWindow& window) const { return sf::Mouse::getPosition(window); }
+
+bool EventManager::RemoveCallback(StateType state, const std::string& name)
+{
+    auto itr = m_callbacks.find(state);
+    if (itr == m_callbacks.end()) return false;
+    return itr->second.erase(name) > 0;
+}
+
+void EventManager::SetCurrentState(StateType type) { m_currentState = type; }
+
+// --- PARSERS FOR HUMAN READABLE CONFIG FILES ---
+// TODO: CAMBIA
+int EventManager::ParseKeyCode(const std::string& keyStr)
+{
+    auto it = KEY_MAP.find(keyStr);
+    if (it != KEY_MAP.end())
+    {
+        return static_cast<int>(it->second);
+    }
+
+    // Fallback: if you write the int code
+    try { return std::stoi(keyStr); }
+    catch (...) { return -1; }
+}
+
+int EventManager::ParseMouseButton(const std::string& btnStr)
+{
+    auto it = MOUSE_MAP.find(btnStr);
+    if (it != MOUSE_MAP.end())
+    {
+        return static_cast<int>(it->second);
+    }
+
+    try { return std::stoi(btnStr); }
+    catch (...) { return -1; }
+}
+
+void EventManager::LoadBindings(const std::string& path)
+{
+    std::ifstream bindings{ path };
+    if (!bindings.is_open())
+    {
+        std::cerr << "! Failed loading bindings file: " << path << '\n';
+        return;
+    }
+
+    std::string line;                       // Each line is a binding with the callback name and the events
+    while (std::getline(bindings, line))
+    {
+        if (line.empty() || line[0] == '|') continue;
+
+        std::stringstream keystream(line);
+        std::string callbackName;
+        keystream >> callbackName;
+
+        auto bind = std::make_unique<Binding>(callbackName);
+
+        while (!keystream.eof())    // Bind the events to the callback
+        {
+            std::string eventToken;
+            keystream >> eventToken; // e.g. "KeyDown:Left" or "Closed:0"
+            if (eventToken.empty()) break;
+
+            size_t colonPos = eventToken.find(':');
+            if (colonPos == std::string::npos) break; // Invalid format
+
+            std::string evtype = eventToken.substr(0, colonPos);
+            std::string evinfoStr = eventToken.substr(colonPos + 1);
+
+            int code = 0;
+            if (evtype == EventTypes::KeyDown || evtype == EventTypes::KeyUp || evtype == EventTypes::KeyboardHeld)
+                code = ParseKeyCode(evinfoStr);
+            else if (evtype == EventTypes::MouseClick || evtype == EventTypes::MouseRelease || evtype == EventTypes::MouseHeld)
+                code = ParseMouseButton(evinfoStr);
+            else
+                code = std::stoi(evinfoStr); // For things like Closed:0
+
+            bind->BindEvent(evtype, EventInfo(code));
+        }
+
+        if (!AddBinding(std::move(bind)))
+            std::cerr << "! Couldn't load binding: " << callbackName << '\n';
+    }
+
+    bindings.close();
+}
+
+void EventManager::HandleEvent(const sf::Event& event)
+{
+    for (auto& b_itr : m_bindings)              // Iterate through the bindings
+    {
+        Binding* bind = b_itr.second.get();
+        for (auto& e_itr : bind->m_events)      // Iterate through the binding events
+        {
+            const std::string& bindType = e_itr.first;
+
+            if (bindType == EventTypes::KeyDown)
+            {
+                if (const auto* keyEvent = event.getIf<sf::Event::KeyPressed>())
+                {
+                    if (e_itr.second.m_code == static_cast<int>(keyEvent->code))
+                    {
+                        if (bind->m_details.m_keyCode != -1) bind->m_details.m_keyCode = e_itr.second.m_code;
+                        ++(bind->m_evCount);
+                    }
+                }
+            }
+            else if (bindType == EventTypes::KeyUp)
+            {
+                if (const auto* keyEvent = event.getIf<sf::Event::KeyReleased>())
+                {
+                    if (e_itr.second.m_code == static_cast<int>(keyEvent->code))
+                    {
+                        if (bind->m_details.m_keyCode != -1) bind->m_details.m_keyCode = e_itr.second.m_code;
+                        ++(bind->m_evCount);
+                    }
+                }
+            }
+            else if (bindType == EventTypes::MouseClick)
+            {
+                if (const auto* mouseEvent = event.getIf<sf::Event::MouseButtonPressed>())
+                {
+                    if (e_itr.second.m_code == static_cast<int>(mouseEvent->button))
+                    {
+                        bind->m_details.m_mouse.x = mouseEvent->position.x;
+                        bind->m_details.m_mouse.y = mouseEvent->position.y;
+                        if (bind->m_details.m_keyCode != -1) bind->m_details.m_keyCode = e_itr.second.m_code;
+                        ++(bind->m_evCount);
+                    }
+                }
+            }
+            else if (bindType == EventTypes::MouseRelease)
+            {
+                if (const auto* mouseEvent = event.getIf<sf::Event::MouseButtonReleased>())
+                {
+                    if (e_itr.second.m_code == static_cast<int>(mouseEvent->button))
+                    {
+                        bind->m_details.m_mouse.x = mouseEvent->position.x;
+                        bind->m_details.m_mouse.y = mouseEvent->position.y;
+                        if (bind->m_details.m_keyCode != -1) bind->m_details.m_keyCode = e_itr.second.m_code;
+                        ++(bind->m_evCount);
+                    }
+                }
+            }
+            else if (bindType == EventTypes::MouseWheel)
+            {
+                if (const auto* mouseEvent = event.getIf<sf::Event::MouseWheelScrolled>())
+                {
+                    if (e_itr.second.m_code == static_cast<int>(mouseEvent->wheel))
+                    {
+                        // TODO: Togliere?
+                        bind->m_details.m_mouse.x = mouseEvent->position.x;
+                        bind->m_details.m_mouse.y = mouseEvent->position.y;
+                        bind->m_details.m_mouseWheelDelta = mouseEvent->delta;
+                        if (bind->m_details.m_keyCode != -1) bind->m_details.m_keyCode = e_itr.second.m_code;
+                        ++(bind->m_evCount);
+                    }
+                }
+            }
+            else if (bindType == EventTypes::Resized)
+            {
+                if (const auto* windowEvent = event.getIf<sf::Event::Resized>())
+                {
+                    bind->m_details.m_size.x = windowEvent->size.x;
+                    bind->m_details.m_size.y = windowEvent->size.y;
+                    // TODO: Modificare?
+                    if (bind->m_details.m_keyCode != -1) bind->m_details.m_keyCode = e_itr.second.m_code;
+                    ++(bind->m_evCount);
+                }
+            }
+            else if (bindType == EventTypes::TextEntered)
+            {
+                if (const auto* textEvent = event.getIf<sf::Event::TextEntered>())
+                {
+                    bind->m_details.m_textEntered = textEvent->unicode;
+                    // TODO: Modificare?
+                    if (bind->m_details.m_keyCode != -1) bind->m_details.m_keyCode = e_itr.second.m_code;
+                    ++(bind->m_evCount);
+                }
+            }
+            else if (bindType == EventTypes::Closed)
+            {
+                if (event.is<sf::Event::Closed>()) ++(bind->m_evCount);
+            }
+            else
+            {
+                ++(bind->m_evCount);
+            }
+        }
+    }
+}
+
+void EventManager::HandleUserInput()
+{
+    for (auto& b_itr : m_bindings)          // Iterate through the bindings
+    {
+        Binding* bind = b_itr.second.get();
+        for (auto& e_itr : bind->m_events)  // Iterate through the binding events
+        {
+            // TODO: Aggiungere altro?
+            if (e_itr.first == EventTypes::Keyboard)
+            {
+                if (sf::Keyboard::isKeyPressed(static_cast<sf::Keyboard::Key>(e_itr.second.m_code)))
+                {
+                    if (bind->m_details.m_keyCode != -1) bind->m_details.m_keyCode = e_itr.second.m_code;
+                    ++(bind->m_evCount);
+                }
+            }
+            else if (e_itr.first == EventTypes::Mouse)
+            {
+                if (sf::Keyboard::isKeyPressed(static_cast<sf::Keyboard::Key>(e_itr.second.m_code)))
+                {
+                    if (bind->m_details.m_keyCode != -1) bind->m_details.m_keyCode = e_itr.second.m_code;
+                    ++(bind->m_evCount);
+                }
+            }
+        }
+    }
+}
+
+// At this point, if the matched events counter is equal to the number of the binding's triggering events, its callback function is called.
 void EventManager::Update()
 {
-    for (auto& pair : m_bindings)
+    if (!m_hasFocus) return;
+
+    for (auto& b_itr : m_bindings)  // Iterate through the bindings
     {
-        const std::string& name = pair.first;
-        sf::Keyboard::Key key = pair.second;
+        Binding* bind = b_itr.second.get();
+        if (bind->m_events.size() == bind->m_evCount)
+        {
+            auto stateCallbacks = m_callbacks.find(m_currentState);
+            auto otherCallbacks = m_callbacks.find(static_cast<StateType>(0));
 
-        // Shift current state to previous state
-        m_previousState[name] = m_currentState[name];
+            if (stateCallbacks != m_callbacks.end())
+            {
+                auto callItr = stateCallbacks->second.find(bind->m_name);
+                if (callItr != stateCallbacks->second.end())
+                {   // Pass in information about events
+                    callItr->second(bind->m_details);
+                    // This is set to true after executing the binding once
+                    // so that, the next time it is called, you can check if the binding was held down
+                    bind->m_details.m_heldDown = true;
+                }
+            }
 
-        // Read new state directly from OS
-        m_currentState[name] = sf::Keyboard::isKeyPressed(key);
+            // Also check global callbacks (State 0)
+            if (otherCallbacks != m_callbacks.end())
+            {
+                auto callItr = otherCallbacks->second.find(bind->m_name);
+                if (callItr != otherCallbacks->second.end())
+                {   // Pass in information about events
+                    callItr->second(bind->m_details);
+                    bind->m_details.m_heldDown = true;
+                }
+            }
+        }
+        else
+        {
+            bind->m_details.m_heldDown = false;
+        }
+
+        bind->m_evCount = 0;
+        bind->m_details.Clear();
     }
-}
-
-bool EventManager::IsActionHeld(const std::string& name) const
-{
-    auto it = m_currentState.find(name);
-    if (it != m_currentState.end()) return it->second;
-    return false;
-}
-
-bool EventManager::IsActionJustPressed(const std::string& name) const
-{
-    auto curr = m_currentState.find(name);
-    auto prev = m_previousState.find(name);
-
-    // True if pressed NOW, but NOT pressed in the previous frame
-    if (curr != m_currentState.end() && prev != m_previousState.end())
-    {
-        return curr->second && !prev->second;
-    }
-    return false;
-}
-
-bool EventManager::IsActionJustReleased(const std::string& name) const
-{
-    auto curr = m_currentState.find(name);
-    auto prev = m_previousState.find(name);
-
-    // True if NOT pressed NOW, but WAS pressed in the previous frame
-    if (curr != m_currentState.end() && prev != m_previousState.end())
-    {
-        return !curr->second && prev->second;
-    }
-    return false;
 }

@@ -50,6 +50,7 @@ Player::Player()
 
 void Player::Update(sf::Time deltaTime, const Map& map, const EventManager& input)
 {
+    /*
     float dt = deltaTime.asSeconds();
     float moveDirection = 0.0f;
 
@@ -268,6 +269,8 @@ void Player::Update(sf::Time deltaTime, const Map& map, const EventManager& inpu
         m_sprite.setScale({ 1.0f, 1.0f });
     else
         m_sprite.setScale({ -1.0f, 1.0f });
+
+    */
 }
 
 void Player::Draw(sf::RenderWindow& window)
