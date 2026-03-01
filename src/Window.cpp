@@ -6,7 +6,11 @@ Window::Window(const std::string& title, const sf::Vector2u& size) {
     Setup(title, size);
 }
 
-Window::~Window() { Destroy(); }
+Window::~Window() 
+{
+    // TODO: Remove callback ???
+    Destroy();
+}
 
 void Window::Setup(const std::string& title, const sf::Vector2u& size) {
     m_windowTitle = title;
@@ -18,20 +22,26 @@ void Window::Setup(const std::string& title, const sf::Vector2u& size) {
     m_frameRateLimit = 60;
 
     Create();
+
+    // TODO: Add callback functions ???
 }
 
-void Window::Create() {
+void Window::Create()
+{
     auto state = m_isFullscreen ? sf::State::Fullscreen : sf::State::Windowed;
 
     // Check if we should use fullscreen or windowed state
     m_window.create(sf::VideoMode(m_windowSize), m_windowTitle, state);
     m_window.setFramerateLimit(m_frameRateLimit);
+
+    // TODO: Gestire le varie clausole di isfullscreen, isresizeable ecc...
 }
 
 void Window::Destroy() { m_window.close(); }
 
 void Window::Update() {
     // In SFML 3, pollEvent returns std::optional<sf::Event>
+    // TODO: Singolo = ???
     while (const std::optional<sf::Event> event = m_window.pollEvent()) {
         if (event->is<sf::Event::Closed>())
         {

@@ -42,10 +42,10 @@ void Game::Run()
 
 void Game::Update(sf::Time deltaTime)
 {
-    // 1. Process Window and OS events
+    // Process Window and OS events
     m_window.Update();
 
-    // 2. Delegate the update logic to the State Machine
+    // Delegate the update logic to the State Machine
     // (It will update the EntityManager if the current state is State_Game)
     m_stateManager.Update(deltaTime);
 }
@@ -59,3 +59,5 @@ void Game::Render()
 
     m_window.EndDraw();
 }
+
+// TODO: Aggiungere late update?

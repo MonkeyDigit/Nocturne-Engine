@@ -12,6 +12,7 @@
 // TODO: Posso gestire meglio le inclusioni circolari?
 // TODO: Cambiare il motore random?
 // TODO: Rimettere reacttoinput?
+// TODO: Guarda i todo dell'originale
 
 int main() {
     Game game;

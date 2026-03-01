@@ -9,6 +9,7 @@
 
 // --- EVENT TYPE STRING CONSTANTS ---
 // We use strings to identify event types, making config files human-readable
+// TODO: Convertire in mappa stringa - enum (quelli corrispondenti all'originale) ?
 namespace EventTypes
 {
     //These are handled by HandleWindowEvent()
@@ -111,8 +112,7 @@ public:
 private:
     void LoadBindings(const std::string& path);
     // Helper to convert strings like "Left" to sf::Keyboard::Key::Left
-    int ParseKeyCode(const std::string& keyStr);
-    int ParseMouseButton(const std::string& btnStr);
+    int ParseEventInfo(const std::string& evtype, const std::string& evinfoStr);
 
     StateType m_currentState;
     Bindings m_bindings;
