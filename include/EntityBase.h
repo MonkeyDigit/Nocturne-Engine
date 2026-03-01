@@ -62,7 +62,6 @@ public:
 
 protected:
     void UpdateAABB();
-    // TODO: Unificare map collisions?
     void CheckCollisions();
     void ResolveCollisions();
 
@@ -84,7 +83,6 @@ protected:
 
     bool m_collidingOnX;
     bool m_collidingOnY;
-    // TODO: togliere o gestire diversamente?
     Collisions m_collisions;
     EntityManager& m_entityManager;
 };

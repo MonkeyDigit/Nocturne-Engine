@@ -30,6 +30,8 @@ protected:
 
     SpriteSheet m_spriteSheet;
     float m_jumpVelocity;
+    float m_coyoteTimer = 0.0f;     // Extra time to jump after falling off a ledge
+    float m_jumpBufferTimer = 0.0f; // Remembers the jump input for a few frames before hitting the ground
     int m_hitPoints;
     int m_maxHitPoints;
 

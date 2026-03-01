@@ -39,12 +39,14 @@ void Character::Jump()
 
     SetState(EntityState::Jumping);
 
-    SetVelocity(m_velocity.x, -m_jumpVelocity);
+    // Instead of jumping immediately, we buffer the input for 0.15 seconds
+    m_jumpBufferTimer = 0.15f;
 }
 
 void Character::CancelJump()
 {
     // VJH (Variable Jump Height)
+    // Cut the upward velocity in half if the jump button is released early
     if (m_velocity.y < 0.0f)
     {
         SetVelocity(m_velocity.x, m_velocity.y * 0.5f);
@@ -165,6 +167,34 @@ void Character::Animate()
 
 void Character::Update(float deltaTime)
 {
+    // Coyote Time
+    // If the character is grounded (state is not Jumping), keep the timer full
+    if (GetState() != EntityState::Jumping)
+    {
+        m_coyoteTimer = 0.1f; // 0.1 seconds of leniency after walking off a ledge
+    }
+    else
+    {
+        // Decrease the timer while in the air
+        m_coyoteTimer -= deltaTime;
+    }
+
+    // Jump Buffer
+    // Decrease the jump buffer timer
+    m_jumpBufferTimer -= deltaTime;
+
+    // Jump Execution
+    // If the player wants to jump (buffer active) AND can jump (coyote time active)
+    if (m_jumpBufferTimer > 0.0f && m_coyoteTimer > 0.0f)
+    {
+        // Reset timers to prevent double jumps
+        m_jumpBufferTimer = 0.0f;
+        m_coyoteTimer = 0.0f;
+
+        SetState(EntityState::Jumping);
+        SetVelocity(m_velocity.x, -m_jumpVelocity);
+    }
+
     EntityBase::Update(deltaTime);
 
     if (m_attackAABB.size.x != 0.0f && m_attackAABB.size.y != 0.0f)
