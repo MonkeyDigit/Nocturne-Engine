@@ -11,6 +11,7 @@
 // TODO: Reference o ptr
 // TODO: Guarda i todo dell'originale
 // TODO: Impostare jump timer e attack timer da file?
+// TODO: Implementare le specifiche del pdf
 
 int main() {
     Game game;

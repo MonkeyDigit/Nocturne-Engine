@@ -1,6 +1,10 @@
 #pragma once
+#pragma once
+#include <unordered_map>
+#include <memory>
+#include <typeindex>
 #include "Map.h"
-#include <vector>
+#include "Component.h"
 
 class EntityManager;
 
@@ -60,6 +64,45 @@ public:
     sf::Vector2f GetPosition() const;
     sf::Vector2f GetSize() const;
 
+    // ENTITY COMPONENT SYSTEM
+
+    // Adds a component of type T to the entity
+    template <typename T, typename... Args>
+    T* AddComponent(Args&&... args)
+    {
+        // Ensure that T actually inherits from Component at compile-time
+        static_assert(std::is_base_of<Component, T>::value, "T must inherit from Component");
+
+        // Create the component, passing 'this' (the owner) and any additional arguments
+        auto newComponent = std::make_unique<T>(this, std::forward<Args>(args)...);
+        T* rawPtr = newComponent.get();
+
+        // Store the component in the map using its type as the key
+        m_components[typeid(T)] = std::move(newComponent);
+
+        rawPtr->Awake(); // Initialize the component
+        return rawPtr;
+    }
+
+    // Retrieves a component of type T. Returns nullptr if not found
+    template <typename T>
+    T* GetComponent()
+    {
+        auto it = m_components.find(typeid(T));
+        if (it != m_components.end())
+        {
+            return static_cast<T*>(it->second.get());
+        }
+        return nullptr;
+    }
+
+    // Removes a component of type T from the entity
+    template <typename T>
+    void RemoveComponent()
+    {
+        m_components.erase(typeid(T));
+    }
+
 protected:
     void UpdateAABB();
     void CheckCollisions();
@@ -85,4 +128,7 @@ protected:
     bool m_collidingOnY;
     Collisions m_collisions;
     EntityManager& m_entityManager;
+
+    // Map storing the components. Uses std::type_index for fast and safe type lookups
+    std::unordered_map<std::type_index, std::unique_ptr<Component>> m_components;
 };
