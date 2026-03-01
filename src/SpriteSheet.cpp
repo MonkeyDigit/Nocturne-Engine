@@ -31,6 +31,8 @@ bool SpriteSheet::LoadSheet(const std::string& file)
 
         if (type == "Texture")
         {
+            // TODO: Clausola duplicate entries ???
+
             keystream >> m_textureName;
             // Ask the TextureManager for the resource. If it works, construct the sprite
             if (m_textureManager.RequireResource(m_textureName))
@@ -51,6 +53,7 @@ bool SpriteSheet::LoadSheet(const std::string& file)
         }
         else if (type == "Animation")
         {
+            // TODO: Clausola duplicate e invalid ?
             Animation anim;
             keystream.clear();
             keystream.seekg(0);
@@ -100,14 +103,22 @@ bool SpriteSheet::SetAnimation(const std::string& name, bool play, bool loop)
     if (m_animationCurrent && m_animationCurrent->GetName() == name) return false;
 
     auto it = m_animations.find(name);
+
+    /* TODO: Aggiungere questa clausola ?
+    if (l_name == m_animationCurrent.GetName() &&
+		l_play == m_animationCurrent.IsPlaying() && 
+		l_loop == m_animationCurrent.IsLooped())
+		return false;
+    */
     if (it != m_animations.end())
     {
         m_animationCurrent = &it->second;
-        if (play) m_animationCurrent->Play();
         m_animationCurrent->SetLooping(loop);
+        if (play) m_animationCurrent->Play();
         CropSprite();
         return true;
     }
+
     return false;
 }
 

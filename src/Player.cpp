@@ -75,9 +75,9 @@ void Player::React(EventDetails& details)
     {
         Character::Attack();
     }
-    else // For actions that happen once a key press
+    else
     {
-        if (action == "Player_Jump" && !details.m_heldDown)
+        if (action == "Player_Jump")
         {
             Character::Jump();
         }

@@ -40,8 +40,8 @@ int EntityManager::Add(EntityType type, const std::string& name)
         auto typeItr = m_enemyTypes.find(name);
         if (typeItr != m_enemyTypes.end())
         {
-            // dynamic_cast is safer, but static_cast is faster.
-            // We use static_cast since we know it's an enemy.
+            // dynamic_cast is safer, but static_cast is faster
+            // We use static_cast since we know it's an enemy
             auto* enemy = static_cast<Enemy*>(entity.get());
             enemy->Load(typeItr->second);
         }
@@ -93,7 +93,7 @@ void EntityManager::Update(float deltaTime)
 
 void EntityManager::Draw()
 {
-    sf::RenderWindow& wnd = m_context.m_window.GetRenderWindow();
+    sf::RenderWindow& window = m_context.m_window.GetRenderWindow();
     sf::FloatRect viewSpace = m_context.m_window.GetViewSpace();
 
     for (auto& pair : m_entities)
@@ -101,7 +101,7 @@ void EntityManager::Draw()
         // SFML 3 uses findIntersection instead of intersects!
         if (!viewSpace.findIntersection(pair.second->m_AABB)) continue;
 
-        pair.second->Draw(wnd);
+        pair.second->Draw(window);
     }
 }
 

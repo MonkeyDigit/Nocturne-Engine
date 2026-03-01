@@ -19,7 +19,7 @@ State_Game::~State_Game() {}
 void State_Game::OnCreate()
 {
     // Using half the resolution for a pixel-perfect 2x zoom look
-    m_view.setSize({ 640.0f, 360.0f });
+    m_view.setSize({ 480.0f, 270.0f });
     m_view.setCenter(m_view.getSize() * 0.5f);
     AdjustView();
 
@@ -27,6 +27,7 @@ void State_Game::OnCreate()
 
     // Registering callbacks using the modern EventDetails reference
     // TODO: Make sure "Pause" and "ToggleDebug" are in your Bindings.cfg
+    // TODO: OPEN MENU
     evMgr.AddCallback(StateType::Game, "Pause", &State_Game::Pause, *this);
     evMgr.AddCallback(StateType::Game, "ToggleDebug", &State_Game::ToggleOverlay, *this);
 
@@ -38,11 +39,14 @@ void State_Game::OnCreate()
     m_stateManager.GetContext().m_window.GetRenderWindow().setView(m_view);
 
     m_gameMap.LoadMap("media/maps/map1.map");
+
+    // TODO: AGGIUNGERE L'HEALTH BAR
 }
 
 void State_Game::OnDestroy()
 {
     EventManager& evMgr = m_stateManager.GetContext().m_eventManager;
+    // TODO: OPEN MENU
     evMgr.RemoveCallback(StateType::Game, "Pause");
     evMgr.RemoveCallback(StateType::Game, "ToggleDebug");
 }
@@ -56,19 +60,23 @@ void State_Game::Update(const sf::Time& time)
     UpdateCursor(time);
     SharedContext& context = m_stateManager.GetContext();
 
+    // TODO: SPOSTARE ENTITIES DOPO IL RESPAWN DEL PLAYER?
     // Update Entities
     context.m_entityManager.Update(time.asSeconds());
 
     // Camera Tracking & Respawn
+    // TODO: USARE UNA REFERENCE?
     Character* player = static_cast<Character*>(context.m_entityManager.Find("Player"));
     if (player)
     {
         // TODO: Mettere l'offset y dell'originale?
+        // TODO: HEALTH BAR?
         sf::Vector2f playerPos = player->GetPosition();
         m_view.setCenter({ playerPos.x, playerPos.y + player->GetSize().y * 0.5f });
     }
     else
     {
+        std::cout << "Respawning player..." << '\n';
         context.m_entityManager.Add(EntityType::Player, "Player");
         player = static_cast<Character*>(context.m_entityManager.Find("Player"));
         if (player) player->SetPosition(m_gameMap.GetPlayerStart());
@@ -100,6 +108,8 @@ void State_Game::Update(const sf::Time& time)
 
     // Update the map
     m_gameMap.Update(time.asSeconds());
+
+    // TODO: DEBUG OVERLAY
 }
 
 void State_Game::Draw()
@@ -113,7 +123,7 @@ void State_Game::Draw()
     // Draw Entities
     context.m_entityManager.Draw();
 
-    // Draw UI overlay here in the future
+    // TODO: Draw UI overlay here in the future
 }
 
 void State_Game::MainMenu(EventDetails& details)

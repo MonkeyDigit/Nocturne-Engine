@@ -119,6 +119,7 @@ void StateManager::SwitchTo(StateType type)
 
     // State wasn't found, we need to create it
     if (!m_states.empty()) m_states.back().second->Deactivate();
+
     CreateState(type);
 
     if (!m_states.empty())

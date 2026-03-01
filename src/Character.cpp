@@ -21,10 +21,13 @@ void Character::Move(Direction dir)
 
     if (GetState() == EntityState::Attacking && m_spriteSheet.GetCurrentAnim()->GetName() == "Attack") return;
 
-    if (dir == Direction::Left) Accelerate(-m_speed.x, 0.0f);
-    else Accelerate(m_speed.x, 0.0f);
+    if (dir == Direction::Left) 
+        Accelerate(-m_speed.x, 0.0f);
+    else 
+        Accelerate(m_speed.x, 0.0f);
 
-    if (GetState() == EntityState::Idle) SetState(EntityState::Walking);
+    if (GetState() == EntityState::Idle) 
+        SetState(EntityState::Walking);
 
     if (m_velocity.x < 0.0f && dir == Direction::Right) return;
 
@@ -77,7 +80,8 @@ void Character::Load(const std::string& path)
         std::string type;
         keystream >> type;
 
-        if (type == "Name") keystream >> m_name;
+        if (type == "Name") 
+            keystream >> m_name;
         else if (type == "Spritesheet")
         {
             std::string sheetPath;
@@ -150,12 +154,14 @@ void Character::Animate()
     }
 }
 
+// TODO: Perché non funziona il salto con durata di pressione diverse ???
 void Character::Update(float deltaTime)
 {
     if (m_jumping)
     {
         // If you hit your head
-        if (m_jumpTimer > 0.0f && m_velocity.y == 0.0f) m_jumpTimer = 1.1f;
+        if (m_jumpTimer > 0.0f && m_velocity.y == 0.0f)
+            m_jumpTimer = 1.1f;
 
         m_jumpTimer += deltaTime;
         if (m_jumpTimer <= 0.2f)
@@ -165,8 +171,10 @@ void Character::Update(float deltaTime)
         }
         else m_jumping = false;
     }
-    else if (GetState() != EntityState::Jumping) m_jumpTimer = 0.0f;
-    else m_jumpTimer = 1.1f;
+    else if (GetState() != EntityState::Jumping) 
+        m_jumpTimer = 0.0f;
+    else 
+        m_jumpTimer = 1.1f;
 
     EntityBase::Update(deltaTime);
 
