@@ -24,9 +24,9 @@ void Character::Move(Direction dir)
     m_spriteSheet.SetDirection(dir);
 
     if (dir == Direction::Left) 
-        Accelerate(-m_speed.x, 0.0f);
+        AddAcceleration(-GetSpeed().x, 0.0f);
     else 
-        Accelerate(m_speed.x, 0.0f);
+        AddAcceleration(GetSpeed().x, 0.0f);
 
     if (GetState() == EntityState::Idle) 
         SetState(EntityState::Walking);
@@ -47,9 +47,9 @@ void Character::CancelJump()
 {
     // VJH (Variable Jump Height)
     // Cut the upward velocity in half if the jump button is released early
-    if (m_velocity.y < 0.0f)
+    if (GetVelocity().y < 0.0f)
     {
-        SetVelocity(m_velocity.x, m_velocity.y * 0.5f);
+        SetVelocity(GetVelocity().x, GetVelocity().y * 0.5f);
     }
 }
 
@@ -89,6 +89,7 @@ void Character::Load(const std::string& path)
 
         std::stringstream keystream{ line };
         std::string type;
+
         keystream >> type;
 
         if (type == "Name") 
@@ -114,10 +115,22 @@ void Character::Load(const std::string& path)
         {
             keystream >> m_attackAABBoffset.x >> m_attackAABBoffset.y >> m_attackAABB.size.x >> m_attackAABB.size.y;
         }
-        else if (type == "Speed") keystream >> m_speed.x >> m_speed.y;
+        else if (type == "Speed")
+        {
+            float x, y;
+            keystream >> x >> y;
+            SetSpeed(x, y);
+        }
+        else if (type == "MaxVelocity")
+        {
+            float x, y;
+            keystream >> x >> y;
+            SetMaxVelocity(x, y);
+        }
+        // TODO: Togliere?
         else if (type == "JumpVelocity") keystream >> m_jumpVelocity;
-        else if (type == "MaxVelocity") keystream >> m_maxVelocity.x >> m_maxVelocity.y;
         else std::cerr << "! Unknown type in character file: " << type << '\n';
+
     }
     file.close();
 
@@ -192,7 +205,7 @@ void Character::Update(float deltaTime)
         m_coyoteTimer = 0.0f;
 
         SetState(EntityState::Jumping);
-        SetVelocity(m_velocity.x, -m_jumpVelocity);
+        SetVelocity(GetVelocity().x, -m_jumpVelocity);
     }
 
     EntityBase::Update(deltaTime);
@@ -204,11 +217,11 @@ void Character::Update(float deltaTime)
 
     if (GetState() != EntityState::Dying && GetState() != EntityState::Attacking && GetState() != EntityState::Hurt)
     {
-        if (std::abs(m_velocity.y) > 0.01f || !m_referenceTile)
+        if (std::abs(GetVelocity().y) > 0.01f || !m_referenceTile)
         {
             SetState(EntityState::Jumping);
         }
-        else if (std::abs(m_velocity.x) > 0.2f && !m_collidingOnX)
+        else if (std::abs(GetVelocity().x) > 0.2f && !m_collidingOnX)
         {
             SetState(EntityState::Walking);
         }
@@ -232,7 +245,7 @@ void Character::Update(float deltaTime)
 
     Animate();
     m_spriteSheet.Update(deltaTime);
-    m_spriteSheet.SetSpritePosition(m_position);
+    m_spriteSheet.SetSpritePosition(GetPosition());
 }
 
 void Character::Draw(sf::RenderWindow& window)

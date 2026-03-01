@@ -23,14 +23,14 @@ void Enemy::OnEntityCollision(EntityBase& collider, bool attack)
     SetState(EntityState::Attacking);
     player.TakeDamage(1);
 
-    if (m_position.x > player.GetPosition().x)
+    if (GetPosition().x > player.GetPosition().x)
     {
-        player.AddVelocity(-m_speed.x, 0.0f);
+        player.AddVelocity(-GetSpeed().x, 0.0f);
         m_spriteSheet.SetDirection(Direction::Left);
     }
     else
     {
-        player.AddVelocity(m_speed.x, 0.0f);
+        player.AddVelocity(GetSpeed().x, 0.0f);
         m_spriteSheet.SetDirection(Direction::Right);
     }
 }
@@ -41,13 +41,13 @@ void Enemy::Update(float deltaTime)
 
     if (m_hasDestination)
     {
-        if (std::abs(m_destination.x - m_position.x) < 16.0f)
+        if (std::abs(m_destination.x - GetPosition().x) < 16.0f)
         {
             m_hasDestination = false;
             return;
         }
 
-        if (m_destination.x - m_position.x > 0.0f) Move(Direction::Right);
+        if (m_destination.x - GetPosition().x > 0.0f) Move(Direction::Right);
         else Move(Direction::Left);
 
         if (m_collidingOnX) m_hasDestination = false;
@@ -64,7 +64,7 @@ void Enemy::Update(float deltaTime)
     int newX = rand() % 64 + 1;
     if (rand() % 2) newX = -newX;
 
-    m_destination.x = m_position.x + static_cast<float>(newX);
+    m_destination.x = GetPosition().x + static_cast<float>(newX);
 
     if (m_destination.x < 0.0f) m_destination.x = 0.0f;
 

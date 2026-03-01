@@ -143,6 +143,7 @@
     <ClInclude Include="include\BaseState.h" />
     <ClInclude Include="include\Character.h" />
     <ClInclude Include="include\Component.h" />
+    <ClInclude Include="include\CTransform.h" />
     <ClInclude Include="include\Direction.h" />
     <ClInclude Include="include\Enemy.h" />
     <ClInclude Include="include\EntityBase.h" />

@@ -47,7 +47,7 @@ void Player::OnEntityCollision(EntityBase& collider, bool attack)
         Character& opponent = static_cast<Character&>(collider);
         opponent.TakeDamage(1);
 
-        if (m_position.x > opponent.GetPosition().x)
+        if (GetPosition().x > opponent.GetPosition().x)
         {
             opponent.AddVelocity(-32.0f, 0.0f);
         }
@@ -93,15 +93,15 @@ void Player::Animate()
     }
     else if (state == EntityState::Jumping)
     {
-        if (m_velocity.y > 0.0f && currentAnimation->GetName() != "Fall")
+        if (GetVelocity().y > 0.0f && currentAnimation->GetName() != "Fall")
         {
             m_spriteSheet.SetAnimation("Fall", true, false);
         }
-        else if (m_velocity.x != 0.0f && m_velocity.y < 0.0f && currentAnimation->GetName() != "JumpForward")
+        else if (GetVelocity().x != 0.0f && GetVelocity().y < 0.0f && currentAnimation->GetName() != "JumpForward")
         {
             m_spriteSheet.SetAnimation("JumpForward", true, false);
         }
-        else if (m_velocity.y < 0.0f && m_velocity.x == 0.0f &&
+        else if (GetVelocity().y < 0.0f && GetVelocity().x == 0.0f &&
             currentAnimation->GetName() != "Jump" &&
             currentAnimation->GetName() != "JumpForward")
         {
