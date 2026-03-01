@@ -6,21 +6,9 @@
 #include "Map.h"
 #include "Component.h"
 #include "CTransform.h"
+#include "CboxCollider.h"
 
 class EntityManager;
-
-struct CollisionElement
-{
-    CollisionElement(float area, TileInfo* info, const sf::FloatRect& bounds)
-        : m_area(area), m_tile(info), m_tileBounds(bounds) {
-    }
-
-    float m_area;
-    TileInfo* m_tile;
-    sf::FloatRect m_tileBounds;
-};
-
-using Collisions = std::vector<CollisionElement>;
 
 bool SortCollisions(const CollisionElement& e1, const CollisionElement& e2);
 
@@ -130,18 +118,13 @@ protected:
     std::string m_name;
     EntityType m_type;
     unsigned int m_id;
-    TileInfo* m_referenceTile;
-    sf::FloatRect m_AABB;
     EntityState m_state;
     bool m_jumping;
-
-    bool m_collidingOnX;
-    bool m_collidingOnY;
-    Collisions m_collisions;
     EntityManager& m_entityManager;
 
     // --- COMPONENT SHORTCUTS ---
     CTransform* m_transform;
+    CBoxCollider* m_collider;
 
     // Map storing the components. Uses std::type_index for fast and safe type lookups
     std::unordered_map<std::type_index, std::unique_ptr<Component>> m_components;

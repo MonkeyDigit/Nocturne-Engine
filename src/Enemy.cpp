@@ -50,7 +50,7 @@ void Enemy::Update(float deltaTime)
         if (m_destination.x - GetPosition().x > 0.0f) Move(Direction::Right);
         else Move(Direction::Left);
 
-        if (m_collidingOnX) m_hasDestination = false;
+        if (m_collider->IsCollidingX()) m_hasDestination = false;
 
         return;
     }

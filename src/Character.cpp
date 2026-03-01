@@ -143,12 +143,13 @@ void Character::Load(const std::string& path)
 
 void Character::UpdateAttackAABB()
 {
+    const sf::FloatRect& aabb = m_collider->GetAABB();
     // Calculating the attack hitbox based on the facing direction
     m_attackAABB.position.x = (m_sprite->GetSpriteSheet().GetDirection() == Direction::Left ?
-        (m_AABB.position.x - m_attackAABB.size.x) - m_attackAABBoffset.x
-        : (m_AABB.position.x + m_AABB.size.x) + m_attackAABBoffset.x);
+        (aabb.position.x - m_attackAABB.size.x) - m_attackAABBoffset.x
+        : (aabb.position.x + aabb.size.x) + m_attackAABBoffset.x);
 
-    m_attackAABB.position.y = m_AABB.position.y + m_attackAABBoffset.y;
+    m_attackAABB.position.y = aabb.position.y + m_attackAABBoffset.y;
 }
 
 void Character::Animate()
@@ -222,11 +223,11 @@ void Character::Update(float deltaTime)
 
     if (GetState() != EntityState::Dying && GetState() != EntityState::Attacking && GetState() != EntityState::Hurt)
     {
-        if (std::abs(GetVelocity().y) > 0.01f || !m_referenceTile)
+        if (std::abs(GetVelocity().y) > 0.01f || !m_collider->GetReferenceTile())
         {
             SetState(EntityState::Jumping);
         }
-        else if (std::abs(GetVelocity().x) > 0.2f && !m_collidingOnX)
+        else if (std::abs(GetVelocity().x) > 0.2f && !m_collider->IsCollidingX())
         {
             SetState(EntityState::Walking);
         }

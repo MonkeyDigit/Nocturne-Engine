@@ -12,13 +12,12 @@ bool SortCollisions(const CollisionElement& e1, const CollisionElement& e2)
 
 EntityBase::EntityBase(EntityManager& entityManager)
     : m_entityManager(entityManager), m_name("BaseEntity"),
-    m_type(EntityType::Base), m_referenceTile(nullptr),
-    m_state(EntityState::Idle), m_id(0),
-    m_collidingOnX(false), m_collidingOnY(false),
+    m_type(EntityType::Base), m_state(EntityState::Idle), m_id(0),
     m_jumping(false)
 {
-    // Add the Transform component and store the shortcut pointer
+    // Add the core components and store their shortcuts
     m_transform = AddComponent<CTransform>();
+    m_collider = AddComponent<CBoxCollider>();
 }
 
 EntityBase::~EntityBase() {}
@@ -39,14 +38,14 @@ void EntityBase::Move(float x, float y)
     float tileSize = static_cast<float>(m_entityManager.GetContext().m_gameMap->GetTileSize());
 
     // Clamp to window vertical borders
-    if (GetPosition().x - m_AABB.size.x * 0.5f < 0.0f)
+    if (GetPosition().x - m_collider->GetAABB().size.x * 0.5f < 0.0f)
     {
-        SetPosition(m_AABB.size.x * 0.5f, GetPosition().y);
+        SetPosition(m_collider->GetAABB().size.x * 0.5f, GetPosition().y);
         SetVelocity(0.0f, GetVelocity().y);
     }
-    else if (GetPosition().x + m_AABB.size.x * 0.5f > mapSize.x * tileSize)
+    else if (GetPosition().x + m_collider->GetAABB().size.x * 0.5f > mapSize.x * tileSize)
     {
-        SetPosition(mapSize.x * tileSize - m_AABB.size.x * 0.5f, GetPosition().y);
+        SetPosition(mapSize.x * tileSize - m_collider->GetAABB().size.x * 0.5f, GetPosition().y);
         SetVelocity(0.0f, GetVelocity().y);
     }
 
@@ -108,10 +107,10 @@ void EntityBase::Update(float deltaTime)
     AddVelocity(GetAcceleration().x * deltaTime, GetAcceleration().y * deltaTime);
 
     sf::Vector2f frictionValue;
-    if (m_referenceTile)
+    if (m_collider->GetReferenceTile())
     {
-        frictionValue = m_referenceTile->friction;
-        if (m_referenceTile->deadly) SetState(EntityState::Dying);
+        frictionValue = m_collider->GetReferenceTile()->friction;
+        if (m_collider->GetReferenceTile()->deadly) SetState(EntityState::Dying);
     }
     else if (map->GetDefaultTile())
     {
@@ -131,8 +130,8 @@ void EntityBase::Update(float deltaTime)
     sf::Vector2f deltaPos = GetVelocity() * deltaTime;
     Move(deltaPos.x, deltaPos.y);
 
-    m_collidingOnX = false;
-    m_collidingOnY = false;
+    m_collider->SetCollidingX(false);
+    m_collider->SetCollidingY(false);
 
     CheckCollisions();
     ResolveCollisions();
@@ -141,23 +140,26 @@ void EntityBase::Update(float deltaTime)
 void EntityBase::UpdateAABB()
 {
     // SFML 3: FloatRect requires position vector and size vector
-    m_AABB = sf::FloatRect(
+    sf::FloatRect AABBRect{
         { GetPosition().x - (GetSize().x * 0.5f), GetPosition().y - GetSize().y},
         { GetSize().x, GetSize().y}
-    );
+    };
+
+    m_collider->SetAABB(AABBRect);
 }
 
 void EntityBase::CheckCollisions()
 {
     Map* gameMap = m_entityManager.GetContext().m_gameMap;
     unsigned int tileSize = gameMap->GetTileSize();
+    const sf::FloatRect& aabb = m_collider->GetAABB();
 
     // Note: in SFML 3, left and top are position.x and position.y, width and height are size.x and size.y
-    int fromX = std::floor(m_AABB.position.x / tileSize);
-    int toX = std::floor((m_AABB.position.x + m_AABB.size.x) / tileSize);
+    int fromX = std::floor(aabb.position.x / tileSize);
+    int toX = std::floor((aabb.position.x + aabb.size.x) / tileSize);
 
-    int fromY = std::floor(m_AABB.position.y / tileSize);
-    int toY = std::floor((m_AABB.position.y + m_AABB.size.y) / tileSize);
+    int fromY = std::floor(aabb.position.y / tileSize);
+    int toY = std::floor((aabb.position.y + aabb.size.y) / tileSize);
 
     for (int x = fromX; x <= toX; ++x)
     {
@@ -172,12 +174,12 @@ void EntityBase::CheckCollisions()
             );
 
             // SFML 3 intersection check
-            std::optional<sf::FloatRect> intersection = m_AABB.findIntersection(tileBounds);
+            std::optional<sf::FloatRect> intersection = aabb.findIntersection(tileBounds);
             if (intersection.has_value())
             {
                 float area = intersection->size.x * intersection->size.y;
                 CollisionElement e(area, tile->properties, tileBounds);
-                m_collisions.emplace_back(e);
+                m_collider->m_collisions.emplace_back(e);
 
                 if (tile->warp && m_type == EntityType::Player)
                 {
@@ -190,63 +192,68 @@ void EntityBase::CheckCollisions()
 
 void EntityBase::ResolveCollisions()
 {
-    if (!m_collisions.empty())
+    if (!m_collider->m_collisions.empty())
     {
-        std::sort(m_collisions.begin(), m_collisions.end(), SortCollisions);
+        std::sort(m_collider->m_collisions.begin(), m_collider->m_collisions.end(), SortCollisions);
         Map* gameMap = m_entityManager.GetContext().m_gameMap;
         float tileSize = static_cast<float>(gameMap->GetTileSize());
+        const sf::FloatRect& aabb = m_collider->GetAABB();
 
-        for (auto& itr : m_collisions)
+        for (auto& itr : m_collider->m_collisions)
         {
-            std::optional<sf::FloatRect> intersection = m_AABB.findIntersection(itr.m_tileBounds);
+            std::optional<sf::FloatRect> intersection = aabb.findIntersection(itr.m_tileBounds);
             if (!intersection.has_value()) continue;
 
             sf::Vector2f delta;
-            delta.x = (m_AABB.position.x + (m_AABB.size.x * 0.5f)) - (itr.m_tileBounds.position.x + (itr.m_tileBounds.size.x * 0.5f));
-            delta.y = (m_AABB.position.y + (m_AABB.size.y * 0.5f)) - (itr.m_tileBounds.position.y + (itr.m_tileBounds.size.y * 0.5f));
+            delta.x = (aabb.position.x + (aabb.size.x * 0.5f)) - (itr.m_tileBounds.position.x + (itr.m_tileBounds.size.x * 0.5f));
+            delta.y = (aabb.position.y + (aabb.size.y * 0.5f)) - (itr.m_tileBounds.position.y + (itr.m_tileBounds.size.y * 0.5f));
 
             sf::Vector2f deltaDiff;
-            deltaDiff.x = std::abs(delta.x) - (m_AABB.size.x * 0.5f + itr.m_tileBounds.size.x * 0.5f);
-            deltaDiff.y = std::abs(delta.y) - (m_AABB.size.y * 0.5f + itr.m_tileBounds.size.y * 0.5f);
+            deltaDiff.x = std::abs(delta.x) - (aabb.size.x * 0.5f + itr.m_tileBounds.size.x * 0.5f);
+            deltaDiff.y = std::abs(delta.y) - (aabb.size.y * 0.5f + itr.m_tileBounds.size.y * 0.5f);
 
-            double resolve = 0.0;
+            // TODO: REIMPOSTARE A DOUBLE?
+            float resolve = 0.0f;
 
             // Push to the side
             if (deltaDiff.x > deltaDiff.y)
             {
                 // Push to the right
-                if (delta.x > 0.0f) resolve = (itr.m_tileBounds.position.x + tileSize) - m_AABB.position.x;
-                else resolve = -(((double)m_AABB.position.x + (double)m_AABB.size.x) - (double)itr.m_tileBounds.position.x);
+                if (delta.x > 0.0f) resolve = (itr.m_tileBounds.position.x + tileSize) - aabb.position.x;
+                else resolve = -((aabb.position.x + aabb.size.x) - itr.m_tileBounds.position.x);
 
                 // Prevent killing velocity when going away from the tile
                 if ((delta.x > 0.0f && GetVelocity().x < 0.0f) || (delta.x < 0.0f && GetVelocity().x > 0.0f))
                     SetVelocity(0.0f, GetVelocity().y);
 
                 Move(static_cast<float>(resolve), 0.0f);
-                m_collidingOnX = true;
+                m_collider->SetCollidingX(true);
             }
             else // Push to top or bottom
             {
-                if (delta.y > 0.0f) resolve = (itr.m_tileBounds.position.y + tileSize) - m_AABB.position.y;
-                else resolve = -((m_AABB.position.y + m_AABB.size.y) - itr.m_tileBounds.position.y);
+                if (delta.y > 0.0f) resolve = (itr.m_tileBounds.position.y + tileSize) - aabb.position.y;
+                else resolve = -((aabb.position.y + aabb.size.y) - itr.m_tileBounds.position.y);
 
                 if ((delta.y > 0.0f && GetVelocity().y < 0.0f) || (delta.y < 0.0f && GetVelocity().y > 0.0f))
                     SetVelocity(GetVelocity().x, 0.0f);
 
                 Move(0.0f, static_cast<float>(resolve));
 
-                if (m_collidingOnY) continue;
+                if (m_collider->IsCollidingY()) continue;
 
-                if (delta.y < 0.0f) m_referenceTile = itr.m_tile;
-                else m_referenceTile = nullptr;
+                if (delta.y < 0.0f)
+                    m_collider->SetReferenceTile(itr.m_tile);
+                else
+                    m_collider->SetReferenceTile(nullptr);
 
-                m_collidingOnY = true;
+                m_collider->SetCollidingY(true);
             }
         }
-        m_collisions.clear();
+        m_collider->m_collisions.clear();
     }
 
-    if (!m_collidingOnY) m_referenceTile = nullptr;
+    if (!m_collider->IsCollidingY())
+        m_collider->SetReferenceTile(nullptr);
 }
 
 EntityType EntityBase::GetType() const { return m_type; }
