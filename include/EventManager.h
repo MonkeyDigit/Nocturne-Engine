@@ -14,16 +14,9 @@ enum class EventType
     KeyboardHeld, MouseHeld, Keyboard, Mouse, Joystick
 };
 
-// --- EVENT INFO STRUCT ---
-struct EventInfo
-{
-    EventInfo(int code = 0) : m_code(code) {}
-    int m_code; // Can be a sf::Keyboard::Key or sf::Mouse::Button casted to int
-};
-
 //event type: button down; button up...
 //event info: key of the button pressed; 0, 1, 2...
-using Events = std::vector<std::pair<EventType, EventInfo>>;
+using Events = std::vector<std::pair<EventType, int>>;
 
 // --- EVENT DETAILS STRUCT ---
 struct EventDetails
@@ -37,15 +30,13 @@ struct EventDetails
     sf::Vector2i m_mouse;
     int m_mouseWheelDelta;
     int m_keyCode;              //Single key code
-    // TODO: Da implementare meglio?
-    bool m_heldDown;            //If the key was held down instead of a first press at the time of detection
 };
 
 // --- BINDING STRUCT ---
 struct Binding
 {
     Binding(const std::string& bindName);
-    void BindEvent(EventType type, EventInfo info = EventInfo());
+    void BindEvent(EventType type, int code = 0);
 
     Events m_events;
     std::string m_name;
@@ -87,9 +78,9 @@ public:
     bool RemoveCallback(StateType state, const std::string& name);
     void SetCurrentState(StateType type);
 
-    void HandleEvent(const sf::Event& event);   //Needed to retrieve information from the event
-    void HandleUserInput();                     //Needed to handle user input without the delay of pollEvent()
-    void Update();
+    void ProcessPolledEvent(const sf::Event& event);   // For discrete input
+    void ProcessRealTimeInput();                     // For continuous input
+    void DispatchCallbacks();
 
 private:
     void LoadBindings(const std::string& path);

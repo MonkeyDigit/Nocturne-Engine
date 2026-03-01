@@ -135,22 +135,16 @@ void State_Game::MainMenu(EventDetails& details)
 
 void State_Game::Pause(EventDetails& details)
 {
-    if (!details.m_heldDown)
-    {
-        m_stillCursorTime = 0.0f;
-        SetCursorVisible(true);
+    m_stillCursorTime = 0.0f;
+    SetCursorVisible(true);
         
-        m_stateManager.SwitchTo(StateType::Paused);
-    }
+    m_stateManager.SwitchTo(StateType::Paused);
 }
 
 void State_Game::ToggleOverlay(EventDetails& details)
 {
-    if (!details.m_heldDown)
-    {
-        m_debugMode = !m_debugMode;
-        std::cout << "Debug Mode: " << (m_debugMode ? "ON" : "OFF") << "\n";
-    }
+    m_debugMode = !m_debugMode;
+    std::cout << "Debug Mode: " << (m_debugMode ? "ON" : "OFF") << "\n";
 }
 
 void State_Game::UpdateCursor(const sf::Time& time)

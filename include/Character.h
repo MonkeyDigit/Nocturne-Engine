@@ -12,6 +12,7 @@ public:
 
     void Move(Direction dir);
     void Jump();
+    void CancelJump();
     void Attack();
     void TakeDamage(int damage);
     void Load(const std::string& path);

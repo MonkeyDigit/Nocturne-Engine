@@ -15,6 +15,7 @@ Player::Player(EntityManager& entityManager)
     events.AddCallback(StateType::Game, "Player_MoveLeft", &Player::React, *this);
     events.AddCallback(StateType::Game, "Player_MoveRight", &Player::React, *this);
     events.AddCallback(StateType::Game, "Player_Jump", &Player::React, *this);
+    events.AddCallback(StateType::Game, "Player_Jump_Cancel", &Player::React, *this);
     events.AddCallback(StateType::Game, "Player_Attack", &Player::React, *this);
 }
 
@@ -63,25 +64,11 @@ void Player::React(EventDetails& details)
 {
     std::string action = details.m_name;
 
-    if (action == "Player_MoveLeft")
-    {
-        Character::Move(Direction::Left);
-    }
-    else if (action == "Player_MoveRight")
-    {
-        Character::Move(Direction::Right);
-    }
-    else if (action == "Player_Attack" && !details.m_heldDown)
-    {
-        Character::Attack();
-    }
-    else
-    {
-        if (action == "Player_Jump")
-        {
-            Character::Jump();
-        }
-    }
+    if (action == "Player_MoveLeft")            Character::Move(Direction::Left);
+    else if (action == "Player_MoveRight")      Character::Move(Direction::Right);
+    else if (action == "Player_Attack")         Character::Attack();
+    else if (action == "Player_Jump")           Character::Jump();
+    else if (action == "Player_Jump_Cancel")    Character::CancelJump();
 }
 
 void Player::Animate()

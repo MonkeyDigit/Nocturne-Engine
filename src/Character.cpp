@@ -21,6 +21,8 @@ void Character::Move(Direction dir)
 
     if (GetState() == EntityState::Attacking && m_spriteSheet.GetCurrentAnim()->GetName() == "Attack") return;
 
+    m_spriteSheet.SetDirection(dir);
+
     if (dir == Direction::Left) 
         Accelerate(-m_speed.x, 0.0f);
     else 
@@ -28,10 +30,6 @@ void Character::Move(Direction dir)
 
     if (GetState() == EntityState::Idle) 
         SetState(EntityState::Walking);
-
-    if (m_velocity.x < 0.0f && dir == Direction::Right) return;
-
-    m_spriteSheet.SetDirection(dir);
 }
 
 void Character::Jump()
@@ -40,6 +38,11 @@ void Character::Jump()
 
     m_jumping = true;
     SetState(EntityState::Jumping);
+}
+
+void Character::CancelJump()
+{
+    m_jumping = false;
 }
 
 void Character::Attack()
@@ -164,7 +167,7 @@ void Character::Update(float deltaTime)
             m_jumpTimer = 1.1f;
 
         m_jumpTimer += deltaTime;
-        if (m_jumpTimer <= 0.2f)
+        if (m_jumpTimer <= 1.1f)
         {
             m_jumping = true;
             SetVelocity(m_velocity.x, -m_jumpVelocity);

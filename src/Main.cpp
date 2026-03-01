@@ -13,6 +13,7 @@
 // TODO: Cambiare il motore random?
 // TODO: Rimettere reacttoinput?
 // TODO: Guarda i todo dell'originale
+// TODO: USARE SOLO RELEASE AL POSTO DI HELD DOWN?
 
 int main() {
     Game game;

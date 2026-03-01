@@ -33,7 +33,7 @@ void Window::Create()
     // Check if we should use fullscreen or windowed state
     m_window.create(sf::VideoMode(m_windowSize), m_windowTitle, state);
     m_window.setFramerateLimit(m_frameRateLimit);
-
+    m_window.setKeyRepeatEnabled(false);
     // TODO: Gestire le varie clausole di isfullscreen, isresizeable ecc...
 }
 
@@ -62,11 +62,11 @@ void Window::Update() {
             m_windowSize = m_window.getSize();
         }
 
-        m_eventManager.HandleEvent(*event);
+        m_eventManager.ProcessPolledEvent(*event);
     }
     // TODO: Cosa fare di eventmanager set focus?
-    m_eventManager.HandleUserInput();
-    m_eventManager.Update();
+    m_eventManager.ProcessRealTimeInput();
+    m_eventManager.DispatchCallbacks();
 }
 
 void Window::SetResizeable(const bool resizeable)
@@ -94,9 +94,6 @@ void Window::SetFramerateLimit(const int limit)
 
 void Window::ToggleFullscreen(EventDetails& details)
 {
-    if (details.m_heldDown)
-        return;
-
     m_isFullscreen = !m_isFullscreen;
     Destroy(); // Destroy the current window
     Create();  // Recreate it with the new style
