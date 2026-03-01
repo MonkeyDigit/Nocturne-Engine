@@ -25,7 +25,7 @@ void Animation::Update(float deltaTime)
     m_elapsedTime += deltaTime;
     if (m_elapsedTime >= m_frameTime)
     {
-        m_elapsedTime = 0.0f;
+        m_elapsedTime -= m_frameTime;
         m_currentFrame++;
 
         if (m_currentFrame > m_endFrame)
@@ -54,5 +54,7 @@ std::istream& operator>>(std::istream& is, Animation& a)
     std::string type;
     // Expected format: Animation Name StartFrame EndFrame Row FrameTime Loop
     is >> type >> a.m_name >> a.m_startFrame >> a.m_endFrame >> a.m_frameRow >> a.m_frameTime >> a.m_loop;
+
+    a.m_currentFrame = a.m_startFrame;
     return is;
 }

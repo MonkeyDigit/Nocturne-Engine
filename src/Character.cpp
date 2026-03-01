@@ -8,7 +8,7 @@
 Character::Character(EntityManager& entityManager)
     : EntityBase(entityManager),
     m_spriteSheet(m_entityManager.GetContext().m_textureManager),
-    m_jumpVelocity(125.0f), m_maxHitPoints(5), m_hitPoints(5), m_jumpTimer(0.0f)
+    m_jumpVelocity(125.0f), m_maxHitPoints(5), m_hitPoints(5)
 {
     m_name = "Character";
 }
@@ -34,15 +34,21 @@ void Character::Move(Direction dir)
 
 void Character::Jump()
 {
-    if (GetState() == EntityState::Dying || GetState() == EntityState::Hurt) return;
+    if (GetState() == EntityState::Dying || GetState() == EntityState::Hurt || GetState() == EntityState::Jumping)
+        return;
 
-    m_jumping = true;
     SetState(EntityState::Jumping);
+
+    SetVelocity(m_velocity.x, -m_jumpVelocity);
 }
 
 void Character::CancelJump()
 {
-    m_jumping = false;
+    // VJH (Variable Jump Height)
+    if (m_velocity.y < 0.0f)
+    {
+        SetVelocity(m_velocity.x, m_velocity.y * 0.5f);
+    }
 }
 
 void Character::Attack()
@@ -157,28 +163,8 @@ void Character::Animate()
     }
 }
 
-// TODO: Perché non funziona il salto con durata di pressione diverse ???
 void Character::Update(float deltaTime)
 {
-    if (m_jumping)
-    {
-        // If you hit your head
-        if (m_jumpTimer > 0.0f && m_velocity.y == 0.0f)
-            m_jumpTimer = 1.1f;
-
-        m_jumpTimer += deltaTime;
-        if (m_jumpTimer <= 1.1f)
-        {
-            m_jumping = true;
-            SetVelocity(m_velocity.x, -m_jumpVelocity);
-        }
-        else m_jumping = false;
-    }
-    else if (GetState() != EntityState::Jumping) 
-        m_jumpTimer = 0.0f;
-    else 
-        m_jumpTimer = 1.1f;
-
     EntityBase::Update(deltaTime);
 
     if (m_attackAABB.size.x != 0.0f && m_attackAABB.size.y != 0.0f)

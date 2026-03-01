@@ -35,6 +35,4 @@ protected:
 
     sf::FloatRect m_attackAABB;
     sf::Vector2f m_attackAABBoffset;
-
-    float m_jumpTimer;
 };

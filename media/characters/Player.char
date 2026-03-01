@@ -4,5 +4,5 @@ Hitpoints 5
 BoundingBox 16 42
 DamageBox -5 0 13 13
 Speed 800 128
-JumpVelocity 256
+JumpVelocity 400
 MaxVelocity 128 512

@@ -12,6 +12,7 @@ Player::Player(EntityManager& entityManager)
     EventManager& events = m_entityManager.GetContext().m_eventManager;
 
     // Registering the callbacks using the Nocturne Engine architecture
+    // !!! IMPORTANT !!! REMEMBER TO REMOVE EACH CALLBACK
     events.AddCallback(StateType::Game, "Player_MoveLeft", &Player::React, *this);
     events.AddCallback(StateType::Game, "Player_MoveRight", &Player::React, *this);
     events.AddCallback(StateType::Game, "Player_Jump", &Player::React, *this);
@@ -25,6 +26,7 @@ Player::~Player()
     events.RemoveCallback(StateType::Game, "Player_MoveLeft");
     events.RemoveCallback(StateType::Game, "Player_MoveRight");
     events.RemoveCallback(StateType::Game, "Player_Jump");
+    events.RemoveCallback(StateType::Game, "Player_Jump_Cancel");
     events.RemoveCallback(StateType::Game, "Player_Attack");
 }
 

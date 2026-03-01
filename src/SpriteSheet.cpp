@@ -110,10 +110,12 @@ bool SpriteSheet::SetAnimation(const std::string& name, bool play, bool loop)
 		l_loop == m_animationCurrent.IsLooped())
 		return false;
     */
+
     if (it != m_animations.end())
     {
         m_animationCurrent = &it->second;
         m_animationCurrent->SetLooping(loop);
+        m_animationCurrent->Stop();
         if (play) m_animationCurrent->Play();
         CropSprite();
         return true;
