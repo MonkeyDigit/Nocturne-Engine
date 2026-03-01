@@ -26,12 +26,12 @@ void Enemy::OnEntityCollision(EntityBase& collider, bool attack)
     if (GetPosition().x > player.GetPosition().x)
     {
         player.AddVelocity(-GetSpeed().x, 0.0f);
-        m_spriteSheet.SetDirection(Direction::Left);
+        m_sprite->GetSpriteSheet().SetDirection(Direction::Left);
     }
     else
     {
         player.AddVelocity(GetSpeed().x, 0.0f);
-        m_spriteSheet.SetDirection(Direction::Right);
+        m_sprite->GetSpriteSheet().SetDirection(Direction::Right);
     }
 }
 
@@ -75,30 +75,30 @@ void Enemy::Animate()
 {
     // Simple basic animation fallback for enemies (extracted from your original Character class)
     EntityState state = GetState();
-    Animation* currentAnimation = m_spriteSheet.GetCurrentAnim();
+    Animation* currentAnimation = m_sprite->GetSpriteSheet().GetCurrentAnim();
 
     if (state == EntityState::Walking && currentAnimation->GetName() != "Walk")
     {
-        m_spriteSheet.SetAnimation("Walk", true, true);
+        m_sprite->GetSpriteSheet().SetAnimation("Walk", true, true);
     }
     else if (state == EntityState::Jumping && currentAnimation->GetName() != "Jump")
     {
-        m_spriteSheet.SetAnimation("Jump", true, false);
+        m_sprite->GetSpriteSheet().SetAnimation("Jump", true, false);
     }
     else if (state == EntityState::Attacking && currentAnimation->GetName() != "Attack")
     {
-        m_spriteSheet.SetAnimation("Attack", true, false);
+        m_sprite->GetSpriteSheet().SetAnimation("Attack", true, false);
     }
     else if (state == EntityState::Hurt && currentAnimation->GetName() != "Hurt")
     {
-        m_spriteSheet.SetAnimation("Hurt", true, false);
+        m_sprite->GetSpriteSheet().SetAnimation("Hurt", true, false);
     }
     else if (state == EntityState::Dying && currentAnimation->GetName() != "Death")
     {
-        m_spriteSheet.SetAnimation("Death", true, false);
+        m_sprite->GetSpriteSheet().SetAnimation("Death", true, false);
     }
     else if (state == EntityState::Idle && currentAnimation->GetName() != "Idle")
     {
-        m_spriteSheet.SetAnimation("Idle", true, true);
+        m_sprite->GetSpriteSheet().SetAnimation("Idle", true, true);
     }
 }

@@ -37,7 +37,7 @@ void Player::OnEntityCollision(EntityBase& collider, bool attack)
     if (attack)
     {
         if (m_state != EntityState::Attacking) return;
-        if (!m_spriteSheet.GetCurrentAnim()->IsPlaying()) return;
+        if (!m_sprite->GetSpriteSheet().GetCurrentAnim()->IsPlaying()) return;
 
         if (collider.GetType() != EntityType::Enemy && collider.GetType() != EntityType::Player)
         {
@@ -76,7 +76,7 @@ void Player::React(EventDetails& details)
 void Player::Animate()
 {
     EntityState state = GetState();
-    Animation* currentAnimation = m_spriteSheet.GetCurrentAnim();
+    Animation* currentAnimation = m_sprite->GetSpriteSheet().GetCurrentAnim();
 
     if (state == EntityState::Walking && currentAnimation->GetName() != "Walk")
     {
@@ -84,51 +84,51 @@ void Player::Animate()
             currentAnimation->GetName() == "Jump" ||
             currentAnimation->GetName() == "Fall")
         {
-            m_spriteSheet.SetAnimation("Walk", true, true);
+            m_sprite->GetSpriteSheet().SetAnimation("Walk", true, true);
         }
         else
         {
-            m_spriteSheet.SetAnimation("WalkStart", true, false);
+            m_sprite->GetSpriteSheet().SetAnimation("WalkStart", true, false);
         }
     }
     else if (state == EntityState::Jumping)
     {
         if (GetVelocity().y > 0.0f && currentAnimation->GetName() != "Fall")
         {
-            m_spriteSheet.SetAnimation("Fall", true, false);
+            m_sprite->GetSpriteSheet().SetAnimation("Fall", true, false);
         }
         else if (GetVelocity().x != 0.0f && GetVelocity().y < 0.0f && currentAnimation->GetName() != "JumpForward")
         {
-            m_spriteSheet.SetAnimation("JumpForward", true, false);
+            m_sprite->GetSpriteSheet().SetAnimation("JumpForward", true, false);
         }
         else if (GetVelocity().y < 0.0f && GetVelocity().x == 0.0f &&
             currentAnimation->GetName() != "Jump" &&
             currentAnimation->GetName() != "JumpForward")
         {
-            m_spriteSheet.SetAnimation("Jump", true, false);
+            m_sprite->GetSpriteSheet().SetAnimation("Jump", true, false);
         }
     }
     else if (state == EntityState::Attacking && currentAnimation->GetName() != "Attack")
     {
-        m_spriteSheet.SetAnimation("Attack", true, false);
+        m_sprite->GetSpriteSheet().SetAnimation("Attack", true, false);
     }
     else if (state == EntityState::Hurt && currentAnimation->GetName() != "Hurt")
     {
-        m_spriteSheet.SetAnimation("Hurt", true, false);
+        m_sprite->GetSpriteSheet().SetAnimation("Hurt", true, false);
     }
     else if (state == EntityState::Dying && currentAnimation->GetName() != "Death")
     {
-        m_spriteSheet.SetAnimation("Death", true, false);
+        m_sprite->GetSpriteSheet().SetAnimation("Death", true, false);
     }
     else if (state == EntityState::Idle && currentAnimation->GetName() != "Idle")
     {
         if (currentAnimation->GetName() == "Walk")
         {
-            m_spriteSheet.SetAnimation("WalkEnd", true, false);
+            m_sprite->GetSpriteSheet().SetAnimation("WalkEnd", true, false);
         }
         else if (currentAnimation->GetName() == "Fall")
         {
-            m_spriteSheet.SetAnimation("Land", true, false);
+            m_sprite->GetSpriteSheet().SetAnimation("Land", true, false);
         }
 
         if ((currentAnimation->GetName() == "WalkEnd" && currentAnimation->IsPlaying()) ||
@@ -137,6 +137,6 @@ void Player::Animate()
             return;
         }
 
-        m_spriteSheet.SetAnimation("Idle", true, true);
+        m_sprite->GetSpriteSheet().SetAnimation("Idle", true, true);
     }
 }

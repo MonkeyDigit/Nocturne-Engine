@@ -7,21 +7,24 @@
 
 Character::Character(EntityManager& entityManager)
     : EntityBase(entityManager),
-    m_spriteSheet(m_entityManager.GetContext().m_textureManager),
     m_jumpVelocity(125.0f), m_maxHitPoints(5), m_hitPoints(5)
 {
     m_name = "Character";
+    TextureManager& textures = entityManager.GetContext().m_textureManager;
+    m_sprite = AddComponent<CSprite>(textures);
 }
 
 Character::~Character() {}
 
 void Character::Move(Direction dir)
 {
+    SpriteSheet& spriteSheet = m_sprite->GetSpriteSheet();
+
     if (GetState() == EntityState::Dying) return;
 
-    if (GetState() == EntityState::Attacking && m_spriteSheet.GetCurrentAnim()->GetName() == "Attack") return;
+    if (GetState() == EntityState::Attacking && spriteSheet.GetCurrentAnim()->GetName() == "Attack") return;
 
-    m_spriteSheet.SetDirection(dir);
+    spriteSheet.SetDirection(dir);
 
     if (dir == Direction::Left) 
         AddAcceleration(-GetSpeed().x, 0.0f);
@@ -98,7 +101,7 @@ void Character::Load(const std::string& path)
         {
             std::string sheetPath;
             keystream >> sheetPath;
-            m_spriteSheet.LoadSheet("media/spritesheets/" + sheetPath);
+            m_sprite->Load("media/spritesheets/" + sheetPath);
         }
         else if (type == "Hitpoints")
         {
@@ -135,13 +138,13 @@ void Character::Load(const std::string& path)
     file.close();
 
     // Set a default animation
-    m_spriteSheet.SetAnimation("Idle", true, true);
+    m_sprite->GetSpriteSheet().SetAnimation("Idle", true, true);
 }
 
 void Character::UpdateAttackAABB()
 {
     // Calculating the attack hitbox based on the facing direction
-    m_attackAABB.position.x = (m_spriteSheet.GetDirection() == Direction::Left ?
+    m_attackAABB.position.x = (m_sprite->GetSpriteSheet().GetDirection() == Direction::Left ?
         (m_AABB.position.x - m_attackAABB.size.x) - m_attackAABBoffset.x
         : (m_AABB.position.x + m_AABB.size.x) + m_attackAABBoffset.x);
 
@@ -152,29 +155,31 @@ void Character::Animate()
 {
     EntityState state = GetState();
 
-    if (state == EntityState::Walking && m_spriteSheet.GetCurrentAnim()->GetName() != "Walk")
+    SpriteSheet& spriteSheet = m_sprite->GetSpriteSheet();
+
+    if (state == EntityState::Walking && spriteSheet.GetCurrentAnim()->GetName() != "Walk")
     {
-        m_spriteSheet.SetAnimation("Walk", true, true);
+        spriteSheet.SetAnimation("Walk", true, true);
     }
-    else if (state == EntityState::Jumping && m_spriteSheet.GetCurrentAnim()->GetName() != "Jump")
+    else if (state == EntityState::Jumping && spriteSheet.GetCurrentAnim()->GetName() != "Jump")
     {
-        m_spriteSheet.SetAnimation("Jump", true, false);
+        spriteSheet.SetAnimation("Jump", true, false);
     }
-    else if (state == EntityState::Attacking && m_spriteSheet.GetCurrentAnim()->GetName() != "Attack")
+    else if (state == EntityState::Attacking && spriteSheet.GetCurrentAnim()->GetName() != "Attack")
     {
-        m_spriteSheet.SetAnimation("Attack", true, false);
+        spriteSheet.SetAnimation("Attack", true, false);
     }
-    else if (state == EntityState::Hurt && m_spriteSheet.GetCurrentAnim()->GetName() != "Hurt")
+    else if (state == EntityState::Hurt && spriteSheet.GetCurrentAnim()->GetName() != "Hurt")
     {
-        m_spriteSheet.SetAnimation("Hurt", true, false);
+        spriteSheet.SetAnimation("Hurt", true, false);
     }
-    else if (state == EntityState::Dying && m_spriteSheet.GetCurrentAnim()->GetName() != "Death")
+    else if (state == EntityState::Dying && spriteSheet.GetCurrentAnim()->GetName() != "Death")
     {
-        m_spriteSheet.SetAnimation("Death", true, false);
+        spriteSheet.SetAnimation("Death", true, false);
     }
-    else if (state == EntityState::Idle && m_spriteSheet.GetCurrentAnim()->GetName() != "Idle")
+    else if (state == EntityState::Idle && spriteSheet.GetCurrentAnim()->GetName() != "Idle")
     {
-        m_spriteSheet.SetAnimation("Idle", true, true);
+        spriteSheet.SetAnimation("Idle", true, true);
     }
 }
 
@@ -232,7 +237,7 @@ void Character::Update(float deltaTime)
     }
     else if (GetState() == EntityState::Attacking || GetState() == EntityState::Hurt)
     {
-        if (!m_spriteSheet.GetCurrentAnim()->IsPlaying())
+        if (!m_sprite->GetSpriteSheet().GetCurrentAnim()->IsPlaying())
         {
             SetState(EntityState::Idle);
         }
@@ -244,13 +249,13 @@ void Character::Update(float deltaTime)
     }
 
     Animate();
-    m_spriteSheet.Update(deltaTime);
-    m_spriteSheet.SetSpritePosition(GetPosition());
+    m_sprite->Update(deltaTime);
+    m_sprite->GetSpriteSheet().SetSpritePosition(GetPosition());
 }
 
 void Character::Draw(sf::RenderWindow& window)
 {
-    m_spriteSheet.Draw(window);
+    m_sprite->Draw(window);
 }
 
 int Character::GetHitPoints() const { return m_hitPoints; }
