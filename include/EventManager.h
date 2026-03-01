@@ -7,30 +7,12 @@
 #include <string>
 #include "Utilities.h"
 
-// --- EVENT TYPE STRING CONSTANTS ---
-// We use strings to identify event types, making config files human-readable
-// TODO: Convertire in mappa stringa - enum (quelli corrispondenti all'originale) ?
-namespace EventTypes
+enum class EventType
 {
-    //These are handled by HandleWindowEvent()
-    const std::string Closed = "Closed";
-    const std::string Resized = "Resized";
-    const std::string FocusLost = "FocusLost";
-    const std::string FocusGained = "FocusGained";
-    const std::string TextEntered = "TextEntered";
-    const std::string KeyDown = "KeyDown";
-    const std::string KeyUp = "KeyUp";
-    const std::string MouseWheel = "MouseWheel";
-    const std::string MouseClick = "MouseClick";
-    const std::string MouseRelease = "MouseRelease";
-    const std::string KeyboardHeld = "KeyboardHeld"; // Real-time input // TODO: Togliere?
-    const std::string MouseHeld = "MouseHeld";       // Real-time input // TODO: Togliere?
-    //These are handled by HandleUserInput() and will be detected without delay. Use these for real time input
-    // TODO: Ha senso mantenere questa distinzione ora che non usa più gli id?
-    const std::string Keyboard = "Keyboard";
-    const std::string Mouse = "Mouse";
-    const std::string Joystick = "Joystick";
-}
+    Closed, Resized, FocusLost, FocusGained, TextEntered,
+    KeyDown, KeyUp, MouseWheel, MouseClick, MouseRelease,
+    KeyboardHeld, MouseHeld, Keyboard, Mouse, Joystick
+};
 
 // --- EVENT INFO STRUCT ---
 struct EventInfo
@@ -41,7 +23,7 @@ struct EventInfo
 
 //event type: button down; button up...
 //event info: key of the button pressed; 0, 1, 2...
-using Events = std::vector<std::pair<std::string, EventInfo>>;
+using Events = std::vector<std::pair<EventType, EventInfo>>;
 
 // --- EVENT DETAILS STRUCT ---
 struct EventDetails
@@ -63,7 +45,7 @@ struct EventDetails
 struct Binding
 {
     Binding(const std::string& bindName);
-    void BindEvent(const std::string& type, EventInfo info = EventInfo());
+    void BindEvent(EventType type, EventInfo info = EventInfo());
 
     Events m_events;
     std::string m_name;
@@ -112,7 +94,7 @@ public:
 private:
     void LoadBindings(const std::string& path);
     // Helper to convert strings like "Left" to sf::Keyboard::Key::Left
-    int ParseEventInfo(const std::string& evtype, const std::string& evinfoStr);
+    int ParseEventInfo(EventType evtype, const std::string& evinfoStr);
 
     StateType m_currentState;
     Bindings m_bindings;

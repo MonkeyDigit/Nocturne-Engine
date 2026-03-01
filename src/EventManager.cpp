@@ -3,13 +3,23 @@
 #include <fstream>
 #include <sstream>
 
-// TODO: SOSTITUIRE STA ROBA? RIMETTERE IL NAMESPACE?
 // --- TRANSLATION DICTIONARIES ---
 // Using an anonymous namespace to confine this data in this file only
 // It gets allocated in memory only once on startup
 namespace
 {
-    const std::unordered_map<std::string, sf::Keyboard::Key> KEY_MAP = {
+    const std::unordered_map<std::string, EventType> STRING_TO_EVENT_MAP = {
+        {"Closed", EventType::Closed}, {"Resized", EventType::Resized},
+        {"FocusLost", EventType::FocusLost}, {"FocusGained", EventType::FocusGained},
+        {"TextEntered", EventType::TextEntered}, {"KeyDown", EventType::KeyDown},
+        {"KeyUp", EventType::KeyUp}, {"MouseWheel", EventType::MouseWheel},
+        {"MouseClick", EventType::MouseClick}, {"MouseRelease", EventType::MouseRelease},
+        {"KeyboardHeld", EventType::KeyboardHeld}, {"MouseHeld", EventType::MouseHeld},
+        {"Keyboard", EventType::Keyboard}, {"Mouse", EventType::Mouse},
+        {"Joystick", EventType::Joystick}
+    };
+
+    const std::unordered_map<std::string, sf::Keyboard::Key> STRING_TO_KEY_MAP = {
         {"A", sf::Keyboard::Key::A}, {"B", sf::Keyboard::Key::B}, {"C", sf::Keyboard::Key::C},
         {"D", sf::Keyboard::Key::D}, {"E", sf::Keyboard::Key::E}, {"F", sf::Keyboard::Key::F},
         {"G", sf::Keyboard::Key::G}, {"H", sf::Keyboard::Key::H}, {"I", sf::Keyboard::Key::I},
@@ -26,7 +36,7 @@ namespace
         // TODO: AGGIUNGERE F1 F2 ecc
     };
 
-    const std::unordered_map<std::string, sf::Mouse::Button> MOUSE_MAP = {
+    const std::unordered_map<std::string, sf::Mouse::Button> STRING_TO_MOUSE_MAP = {
         {"Left", sf::Mouse::Button::Left},
         {"Right", sf::Mouse::Button::Right},
         {"Middle", sf::Mouse::Button::Middle}
@@ -48,7 +58,7 @@ void EventDetails::Clear()
 // --- BINDING ---
 Binding::Binding(const std::string& bindName) : m_name(bindName), m_details(bindName), m_evCount(0) {}
 
-void Binding::BindEvent(const std::string& type, EventInfo info)
+void Binding::BindEvent(EventType type, EventInfo info)
 {
     m_events.emplace_back(type, info);
 }
@@ -87,21 +97,26 @@ void EventManager::SetCurrentState(StateType type) { m_currentState = type; }
 
 // --- PARSERS FOR HUMAN READABLE CONFIG FILES ---
 // --- PARSER UNIFICATO ---
-int EventManager::ParseEventInfo(const std::string& evtype, const std::string& evinfoStr)
+int EventManager::ParseEventInfo(EventType evtype, const std::string& evinfoStr)
 {
     // KEYBOARD EVENT
-    if (evtype == EventTypes::KeyDown || evtype == EventTypes::KeyUp ||
-        evtype == EventTypes::KeyboardHeld || evtype == EventTypes::Keyboard)
+    switch (evtype)
     {
-        auto it = KEY_MAP.find(evinfoStr);
-        if (it != KEY_MAP.end()) return static_cast<int>(it->second);
+    case EventType::KeyDown: case EventType::KeyUp:
+    case EventType::KeyboardHeld: case EventType::Keyboard:
+    {
+        auto it = STRING_TO_KEY_MAP.find(evinfoStr);
+        if (it != STRING_TO_KEY_MAP.end()) return static_cast<int>(it->second);
+        break;
     }
-    // MOUSE EVENT
-    else if (evtype == EventTypes::MouseClick || evtype == EventTypes::MouseRelease ||
-        evtype == EventTypes::MouseHeld || evtype == EventTypes::Mouse)
+    case EventType::MouseClick: case EventType::MouseRelease:
+    case EventType::MouseHeld: case EventType::Mouse:
     {
-        auto it = MOUSE_MAP.find(evinfoStr);
-        if (it != MOUSE_MAP.end()) return static_cast<int>(it->second);
+        auto it = STRING_TO_MOUSE_MAP.find(evinfoStr);
+        if (it != STRING_TO_MOUSE_MAP.end()) return static_cast<int>(it->second);
+        break;
+    }
+    default: break;
     }
 
     // Fallback to int value
@@ -109,7 +124,7 @@ int EventManager::ParseEventInfo(const std::string& evtype, const std::string& e
         return std::stoi(evinfoStr);
     }
     catch (...) {
-        std::cerr << "! Error (stoi): impossible conversion '" << evinfoStr << "' of event " << evtype << '\n';
+        std::cerr << "! Error (stoi): impossible conversion '" << evinfoStr << "'\n";
         return -1;
     }
 }
@@ -145,8 +160,17 @@ void EventManager::LoadBindings(const std::string& path)
             size_t colonPos = eventToken.find(':');
             if (colonPos == std::string::npos) break; // Invalid format
 
-            std::string evtype = eventToken.substr(0, colonPos);
+            std::string evtypeStr = eventToken.substr(0, colonPos);
             std::string evinfoStr = eventToken.substr(colonPos + 1);
+
+            // String translation
+            auto typeIt = STRING_TO_EVENT_MAP.find(evtypeStr);
+            if (typeIt == STRING_TO_EVENT_MAP.end())
+            {
+                std::cerr << "! Unknown event type in config file: " << evtypeStr << '\n';
+                continue;
+            }
+            EventType evtype = typeIt->second;
 
             EventInfo info(ParseEventInfo(evtype, evinfoStr));
             bind->BindEvent(evtype, info);
@@ -162,102 +186,110 @@ void EventManager::LoadBindings(const std::string& path)
 
 void EventManager::HandleEvent(const sf::Event& event)
 {
-    std::string currentSFMLEventType = "";
-    if (event.is<sf::Event::KeyPressed>()) currentSFMLEventType = EventTypes::KeyDown;
-    else if (event.is<sf::Event::KeyReleased>()) currentSFMLEventType = EventTypes::KeyUp;
-    else if (event.is<sf::Event::MouseButtonPressed>()) currentSFMLEventType = EventTypes::MouseClick;
-    else if (event.is<sf::Event::MouseButtonReleased>()) currentSFMLEventType = EventTypes::MouseRelease;
-    else if (event.is<sf::Event::MouseWheelScrolled>()) currentSFMLEventType = EventTypes::MouseWheel;
-    else if (event.is<sf::Event::Resized>()) currentSFMLEventType = EventTypes::Resized;
-    else if (event.is<sf::Event::TextEntered>()) currentSFMLEventType = EventTypes::TextEntered;
-    else if (event.is<sf::Event::Closed>()) currentSFMLEventType = EventTypes::Closed;
+    std::optional<EventType> currentSFMLEventType;
+    if (event.is<sf::Event::KeyPressed>()) currentSFMLEventType = EventType::KeyDown;
+    else if (event.is<sf::Event::KeyReleased>()) currentSFMLEventType = EventType::KeyUp;
+    else if (event.is<sf::Event::MouseButtonPressed>()) currentSFMLEventType = EventType::MouseClick;
+    else if (event.is<sf::Event::MouseButtonReleased>()) currentSFMLEventType = EventType::MouseRelease;
+    else if (event.is<sf::Event::MouseWheelScrolled>()) currentSFMLEventType = EventType::MouseWheel;
+    else if (event.is<sf::Event::Resized>()) currentSFMLEventType = EventType::Resized;
+    else if (event.is<sf::Event::TextEntered>()) currentSFMLEventType = EventType::TextEntered;
+    else if (event.is<sf::Event::Closed>()) currentSFMLEventType = EventType::Closed;
 
-    if (currentSFMLEventType.empty()) return;
+    if (!currentSFMLEventType.has_value()) return;
 
     for (auto& b_itr : m_bindings)              // Iterate through the bindings
     {
         Binding* bind = b_itr.second.get();
         for (auto& e_itr : bind->m_events)      // Iterate through the binding events
         {
-            const std::string& bindType = e_itr.first;
+            if (e_itr.first != currentSFMLEventType.value()) continue;
 
-            if (bindType != currentSFMLEventType) continue;
+            switch (e_itr.first)
+            {
+                case EventType::KeyDown:
+                {
+                    const auto* keyEvent = event.getIf<sf::Event::KeyPressed>();
+                    if (e_itr.second.m_code == static_cast<int>(keyEvent->code))
+                    {
+                        // TODO: CI VA != ?
+                        if (bind->m_details.m_keyCode == -1) bind->m_details.m_keyCode = e_itr.second.m_code;
+                        ++(bind->m_evCount);
+                    }
+                    break;
+                }
+                case EventType::KeyUp:
+                {
+                    const auto* keyEvent = event.getIf<sf::Event::KeyReleased>();
+                    if (e_itr.second.m_code == static_cast<int>(keyEvent->code))
+                    {
+                        if (bind->m_details.m_keyCode == -1) bind->m_details.m_keyCode = e_itr.second.m_code;
+                        ++(bind->m_evCount);
+                    }
+                    break;
+                }
+                case EventType::MouseClick:
+                {
+                    const auto* mouseEvent = event.getIf<sf::Event::MouseButtonPressed>();
+                    if (e_itr.second.m_code == static_cast<int>(mouseEvent->button))
+                    {
+                        bind->m_details.m_mouse.x = mouseEvent->position.x;
+                        bind->m_details.m_mouse.y = mouseEvent->position.y;
+                        if (bind->m_details.m_keyCode == -1) bind->m_details.m_keyCode = e_itr.second.m_code;
+                        ++(bind->m_evCount);
+                    }
+                    break;
+                }
+                case EventType::MouseRelease:
+                {
+                    const auto* mouseEvent = event.getIf<sf::Event::MouseButtonReleased>();
+                    if (e_itr.second.m_code == static_cast<int>(mouseEvent->button))
+                    {
+                        bind->m_details.m_mouse.x = mouseEvent->position.x;
+                        bind->m_details.m_mouse.y = mouseEvent->position.y;
+                        if (bind->m_details.m_keyCode == -1) bind->m_details.m_keyCode = e_itr.second.m_code;
+                        ++(bind->m_evCount);
+                    }
+                    break;
+                }
+                case EventType::MouseWheel:
+                {
+                    const auto* mouseEvent = event.getIf<sf::Event::MouseWheelScrolled>();
+                    if (e_itr.second.m_code == static_cast<int>(mouseEvent->wheel))
+                    {
+                        bind->m_details.m_mouse.x = mouseEvent->position.x;
+                        bind->m_details.m_mouse.y = mouseEvent->position.y;
+                        bind->m_details.m_mouseWheelDelta = mouseEvent->delta;
+                        if (bind->m_details.m_keyCode == -1) bind->m_details.m_keyCode = e_itr.second.m_code;
+                        ++(bind->m_evCount);
+                    }
+                    break;
+                }
+                case EventType::Resized:
+                {
+                    const auto* windowEvent = event.getIf<sf::Event::Resized>();
+                    bind->m_details.m_size.x = windowEvent->size.x;
+                    bind->m_details.m_size.y = windowEvent->size.y;
+                    if (bind->m_details.m_keyCode == -1) bind->m_details.m_keyCode = e_itr.second.m_code;
+                    ++(bind->m_evCount);
 
-            if (bindType == EventTypes::KeyDown)
-            {
-                const auto* keyEvent = event.getIf<sf::Event::KeyPressed>();
-                if (e_itr.second.m_code == static_cast<int>(keyEvent->code))
+                    break;
+                }
+                case EventType::TextEntered:
                 {
-                    // TODO: CI VA != ?
+                    const auto* textEvent = event.getIf<sf::Event::TextEntered>();
+                    bind->m_details.m_textEntered = textEvent->unicode;
                     if (bind->m_details.m_keyCode == -1) bind->m_details.m_keyCode = e_itr.second.m_code;
                     ++(bind->m_evCount);
+
+                    break;
                 }
-            }
-            else if (bindType == EventTypes::KeyUp)
-            {
-                const auto* keyEvent = event.getIf<sf::Event::KeyReleased>();
-                if (e_itr.second.m_code == static_cast<int>(keyEvent->code))
-                {
-                    if (bind->m_details.m_keyCode == -1) bind->m_details.m_keyCode = e_itr.second.m_code;
+                case EventType::Closed:
                     ++(bind->m_evCount);
-                }
-            }
-            else if (bindType == EventTypes::MouseClick)
-            {
-                const auto* mouseEvent = event.getIf<sf::Event::MouseButtonPressed>();
-                if (e_itr.second.m_code == static_cast<int>(mouseEvent->button))
-                {
-                    bind->m_details.m_mouse.x = mouseEvent->position.x;
-                    bind->m_details.m_mouse.y = mouseEvent->position.y;
-                    if (bind->m_details.m_keyCode == -1) bind->m_details.m_keyCode = e_itr.second.m_code;
+                    break;
+
+                default:
                     ++(bind->m_evCount);
-                }
-            }
-            else if (bindType == EventTypes::MouseRelease)
-            {
-                const auto* mouseEvent = event.getIf<sf::Event::MouseButtonReleased>();
-                if (e_itr.second.m_code == static_cast<int>(mouseEvent->button))
-                {
-                    bind->m_details.m_mouse.x = mouseEvent->position.x;
-                    bind->m_details.m_mouse.y = mouseEvent->position.y;
-                    if (bind->m_details.m_keyCode == -1) bind->m_details.m_keyCode = e_itr.second.m_code;
-                    ++(bind->m_evCount);
-                }
-            }
-            else if (bindType == EventTypes::MouseWheel)
-            {
-                const auto* mouseEvent = event.getIf<sf::Event::MouseWheelScrolled>();
-                if (e_itr.second.m_code == static_cast<int>(mouseEvent->wheel))
-                {
-                    bind->m_details.m_mouse.x = mouseEvent->position.x;
-                    bind->m_details.m_mouse.y = mouseEvent->position.y;
-                    bind->m_details.m_mouseWheelDelta = mouseEvent->delta;
-                    if (bind->m_details.m_keyCode == -1) bind->m_details.m_keyCode = e_itr.second.m_code;
-                    ++(bind->m_evCount);
-                }
-            }
-            else if (bindType == EventTypes::Resized)
-            {
-                const auto* windowEvent = event.getIf<sf::Event::Resized>();
-                bind->m_details.m_size.x = windowEvent->size.x;
-                bind->m_details.m_size.y = windowEvent->size.y;
-                if (bind->m_details.m_keyCode == -1) bind->m_details.m_keyCode = e_itr.second.m_code;
-                ++(bind->m_evCount);
-            }
-            else if (bindType == EventTypes::TextEntered)
-            {
-                const auto* textEvent = event.getIf<sf::Event::TextEntered>();
-                bind->m_details.m_textEntered = textEvent->unicode;
-                if (bind->m_details.m_keyCode == -1) bind->m_details.m_keyCode = e_itr.second.m_code;
-                ++(bind->m_evCount);
-            }
-            else if (bindType == EventTypes::Closed)
-            {
-                ++(bind->m_evCount);
-            }
-            else
-            {
-                ++(bind->m_evCount);
             }
         }
     }
@@ -270,23 +302,29 @@ void EventManager::HandleUserInput()
         Binding* bind = b_itr.second.get();
         for (auto& e_itr : bind->m_events)  // Iterate through the binding events
         {
-            if (e_itr.first == EventTypes::Keyboard)
+            switch (e_itr.first)
             {
-                if (sf::Keyboard::isKeyPressed(static_cast<sf::Keyboard::Key>(e_itr.second.m_code)))
+                case EventType::Keyboard:
                 {
-                    // TODO: != ?
-                    if (bind->m_details.m_keyCode == -1) bind->m_details.m_keyCode = e_itr.second.m_code;
-                    ++(bind->m_evCount);
+                    if (sf::Keyboard::isKeyPressed(static_cast<sf::Keyboard::Key>(e_itr.second.m_code)))
+                    {
+                        // TODO: != ?
+                        if (bind->m_details.m_keyCode == -1) bind->m_details.m_keyCode = e_itr.second.m_code;
+                        ++(bind->m_evCount);
+                    }
+                    break;
                 }
-            }
-            else if (e_itr.first == EventTypes::Mouse)
-            {
-                if (sf::Mouse::isButtonPressed(static_cast<sf::Mouse::Button>(e_itr.second.m_code)))
+                case EventType::Mouse:
                 {
-                    // TODO: != ?
-                    if (bind->m_details.m_keyCode == -1) bind->m_details.m_keyCode = e_itr.second.m_code;
-                    ++(bind->m_evCount);
+                    if (sf::Mouse::isButtonPressed(static_cast<sf::Mouse::Button>(e_itr.second.m_code)))
+                    {
+                        if (bind->m_details.m_keyCode == -1) bind->m_details.m_keyCode = e_itr.second.m_code;
+                        ++(bind->m_evCount);
+                    }
+                    break;
                 }
+                default: 
+                    break;
             }
         }
     }
