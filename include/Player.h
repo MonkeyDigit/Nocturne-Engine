@@ -12,9 +12,5 @@ public:
 
     // The single callback that dispatches all actions
     void React(EventDetails& details);
-
-protected:
-    void Animate() override;
-
     // TODO: RIMETTERE LE ADVANCED PLATFORMER MECHANICS O INTEGRARE NEI TIPI DI TILE?
 };

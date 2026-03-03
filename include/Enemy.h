@@ -10,9 +10,6 @@ public:
     void OnEntityCollision(EntityBase& collider, bool attack) override;
     void Update(float deltaTime) override;
 
-protected:
-    void Animate() override;
-
 private:
     sf::Vector2f m_destination;
     bool m_hasDestination;

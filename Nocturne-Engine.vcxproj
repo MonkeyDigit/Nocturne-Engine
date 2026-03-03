@@ -140,11 +140,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="include\Animation.h" />
+    <ClInclude Include="include\AnimationSystem.h" />
     <ClInclude Include="include\BaseState.h" />
     <ClInclude Include="include\CBoxCollider.h" />
     <ClInclude Include="include\Character.h" />
     <ClInclude Include="include\Component.h" />
     <ClInclude Include="include\CSprite.h" />
+    <ClInclude Include="include\CState.h" />
     <ClInclude Include="include\CTransform.h" />
     <ClInclude Include="include\Direction.h" />
     <ClInclude Include="include\Enemy.h" />
@@ -167,6 +169,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Animation.cpp" />
+    <ClCompile Include="src\AnimationSystem.cpp" />
     <ClCompile Include="src\BaseState.cpp" />
     <ClCompile Include="src\Character.cpp" />
     <ClCompile Include="src\Enemy.cpp" />

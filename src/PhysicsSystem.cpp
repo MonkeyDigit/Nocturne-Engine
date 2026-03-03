@@ -4,6 +4,7 @@
 #include "EntityManager.h"
 #include "CTransform.h"
 #include "CboxCollider.h"
+#include "CState.h"
 
 void PhysicsSystem::Update(EntityManager& entityManager, Map* gameMap, float deltaTime)
 {
@@ -49,7 +50,7 @@ void PhysicsSystem::ApplyGravityAndMovement(EntityBase* entity, Map* map, float 
     if (collider->GetReferenceTile())
     {
         frictionValue = collider->GetReferenceTile()->friction;
-        if (collider->GetReferenceTile()->deadly) entity->SetState(EntityState::Dying);
+        if (collider->GetReferenceTile()->deadly) entity->GetComponent<CState>()->SetState(EntityState::Dying);
     }
     else if (map->GetDefaultTile())
     {
@@ -119,7 +120,7 @@ void PhysicsSystem::ConstrainToMapBounds(EntityBase* entity, Map* map)
     }
     else if (transform->GetPosition().y > (mapSize.y + 4) * tileSize)
     {
-        entity->SetState(EntityState::Dying);
+        entity->GetComponent<CState>()->SetState(EntityState::Dying);
         transform->SetVelocity(transform->GetVelocity().x, 0.0f);
     }
 }

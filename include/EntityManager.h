@@ -8,6 +8,7 @@
 #include "EntityBase.h"
 #include "PhysicsSystem.h"
 #include "RenderSystem.h"
+#include "AnimationSystem.h"
 
 struct SharedContext;
 
@@ -69,4 +70,5 @@ private:
 
     PhysicsSystem m_physicsSystem;
     RenderSystem m_renderSystem;
+    AnimationSystem m_animationSystem;
 };

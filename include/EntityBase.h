@@ -12,11 +12,6 @@ class EntityManager;
 
 bool SortCollisions(const CollisionElement& e1, const CollisionElement& e2);
 
-enum class EntityState
-{
-    Idle, Walking, Jumping, Attacking, Hurt, Dying
-};
-
 // Moved here to solve circular dependency issues
 enum class EntityType
 {
@@ -56,7 +51,6 @@ public:
     void SetSize(float x, float y) { m_transform->SetSize(x, y); }
     const sf::Vector2f& GetSize() const { return m_transform->GetSize(); }
 
-    void SetState(EntityState state);
     virtual void Update(float deltaTime);
     // Method for what THIS entity does TO the collider entity
     virtual void OnEntityCollision(EntityBase& collider, bool attack) = 0;
@@ -64,7 +58,6 @@ public:
     EntityType GetType() const;
     std::string GetName() const;
     unsigned int GetId() const;
-    EntityState GetState() const;
 
     // ENTITY COMPONENT SYSTEM
 
@@ -110,7 +103,6 @@ protected:
     std::string m_name;
     EntityType m_type;
     unsigned int m_id;
-    EntityState m_state;
     EntityManager& m_entityManager;
 
     // --- COMPONENT SHORTCUTS ---

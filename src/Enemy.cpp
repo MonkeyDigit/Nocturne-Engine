@@ -1,7 +1,8 @@
-#include "Enemy.h"
-#include "EntityManager.h"
 #include <cmath>
 #include <cstdlib>
+#include "Enemy.h"
+#include "EntityManager.h"
+#include "CState.h"
 
 Enemy::Enemy(EntityManager& entityManager)
     : Character(entityManager), m_hasDestination(false), m_elapsed(0.0f)
@@ -13,15 +14,16 @@ Enemy::~Enemy() {}
 
 void Enemy::OnEntityCollision(EntityBase& collider, bool attack)
 {
-    if (m_state == EntityState::Dying) return;
+    if (this->GetComponent<CState>()->GetState() == EntityState::Dying) return;
 
     if (attack) return;
 
     if (collider.GetType() != EntityType::Player) return;
 
     Character& player = static_cast<Character&>(collider);
-    SetState(EntityState::Attacking);
-    player.TakeDamage(1);
+    this->GetComponent<CState>()->SetState(EntityState::Attacking);
+
+    player.GetComponent<CState>()->TakeDamage(1);
 
     if (GetPosition().x > player.GetPosition().x)
     {
@@ -69,36 +71,4 @@ void Enemy::Update(float deltaTime)
     if (m_destination.x < 0.0f) m_destination.x = 0.0f;
 
     m_hasDestination = true;
-}
-
-void Enemy::Animate()
-{
-    // Simple basic animation fallback for enemies (extracted from your original Character class)
-    EntityState state = GetState();
-    Animation* currentAnimation = m_sprite->GetSpriteSheet().GetCurrentAnim();
-
-    if (state == EntityState::Walking && currentAnimation->GetName() != "Walk")
-    {
-        m_sprite->GetSpriteSheet().SetAnimation("Walk", true, true);
-    }
-    else if (state == EntityState::Jumping && currentAnimation->GetName() != "Jump")
-    {
-        m_sprite->GetSpriteSheet().SetAnimation("Jump", true, false);
-    }
-    else if (state == EntityState::Attacking && currentAnimation->GetName() != "Attack")
-    {
-        m_sprite->GetSpriteSheet().SetAnimation("Attack", true, false);
-    }
-    else if (state == EntityState::Hurt && currentAnimation->GetName() != "Hurt")
-    {
-        m_sprite->GetSpriteSheet().SetAnimation("Hurt", true, false);
-    }
-    else if (state == EntityState::Dying && currentAnimation->GetName() != "Death")
-    {
-        m_sprite->GetSpriteSheet().SetAnimation("Death", true, false);
-    }
-    else if (state == EntityState::Idle && currentAnimation->GetName() != "Idle")
-    {
-        m_sprite->GetSpriteSheet().SetAnimation("Idle", true, true);
-    }
 }

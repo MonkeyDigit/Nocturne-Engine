@@ -2,6 +2,7 @@
 #include "SharedContext.h"
 #include "EntityManager.h"
 #include "StateManager.h"
+#include "CState.h"
 
 Player::Player(EntityManager& entityManager)
     : Character(entityManager)
@@ -32,11 +33,11 @@ Player::~Player()
 
 void Player::OnEntityCollision(EntityBase& collider, bool attack)
 {
-    if (m_state == EntityState::Dying) return;
+    if (this->GetComponent<CState>()->GetState() == EntityState::Dying) return;
 
     if (attack)
     {
-        if (m_state != EntityState::Attacking) return;
+        if (this->GetComponent<CState>()->GetState() != EntityState::Attacking) return;
         if (!m_sprite->GetSpriteSheet().GetCurrentAnim()->IsPlaying()) return;
 
         if (collider.GetType() != EntityType::Enemy && collider.GetType() != EntityType::Player)
@@ -45,7 +46,7 @@ void Player::OnEntityCollision(EntityBase& collider, bool attack)
         }
 
         Character& opponent = static_cast<Character&>(collider);
-        opponent.TakeDamage(1);
+        opponent.GetComponent<CState>()->TakeDamage(1);
 
         if (GetPosition().x > opponent.GetPosition().x)
         {
@@ -73,6 +74,8 @@ void Player::React(EventDetails& details)
     else if (action == "Player_Jump_Cancel")    Character::CancelJump();
 }
 
+// TODO: Implementare altrove ???
+/*
 void Player::Animate()
 {
     EntityState state = GetState();
@@ -140,3 +143,4 @@ void Player::Animate()
         m_sprite->GetSpriteSheet().SetAnimation("Idle", true, true);
     }
 }
+*/

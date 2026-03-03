@@ -14,6 +14,7 @@
 // TODO: Implementare le specifiche del pdf
 // TODO: Non conviene semplicemente accedere alla reference e modificare i componenti direttamente per transform????
 // TODO: Controlla variabili inutilizzate
+// TODO: Includere CState in ogni file cpp di classi derivate o solo in character.h?
 
 int main() {
     Game game;

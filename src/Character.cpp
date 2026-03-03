@@ -1,13 +1,14 @@
-#include "Character.h"
-#include "SharedContext.h"
-#include "EntityManager.h"
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include "Character.h"
+#include "SharedContext.h"
+#include "EntityManager.h"
+#include "CState.h"
 
 Character::Character(EntityManager& entityManager)
     : EntityBase(entityManager),
-    m_jumpVelocity(125.0f), m_maxHitPoints(5), m_hitPoints(5)
+    m_jumpVelocity(125.0f)
 {
     m_name = "Character";
     TextureManager& textures = entityManager.GetContext().m_textureManager;
@@ -20,9 +21,9 @@ void Character::Move(Direction dir)
 {
     SpriteSheet& spriteSheet = m_sprite->GetSpriteSheet();
 
-    if (GetState() == EntityState::Dying) return;
+    if (this->GetComponent<CState>()->GetState() == EntityState::Dying) return;
 
-    if (GetState() == EntityState::Attacking && spriteSheet.GetCurrentAnim()->GetName() == "Attack") return;
+    if (this->GetComponent<CState>()->GetState() == EntityState::Attacking && spriteSheet.GetCurrentAnim()->GetName() == "Attack") return;
 
     spriteSheet.SetDirection(dir);
 
@@ -31,16 +32,16 @@ void Character::Move(Direction dir)
     else 
         AddAcceleration(GetSpeed().x, 0.0f);
 
-    if (GetState() == EntityState::Idle) 
-        SetState(EntityState::Walking);
+    if (this->GetComponent<CState>()->GetState() == EntityState::Idle) 
+        this->GetComponent<CState>()->SetState(EntityState::Walking);
 }
 
 void Character::Jump()
 {
-    if (GetState() == EntityState::Dying || GetState() == EntityState::Hurt || GetState() == EntityState::Jumping)
+    if (this->GetComponent<CState>()->GetState() == EntityState::Dying || this->GetComponent<CState>()->GetState() == EntityState::Hurt || this->GetComponent<CState>()->GetState() == EntityState::Jumping)
         return;
 
-    SetState(EntityState::Jumping);
+    this->GetComponent<CState>()->SetState(EntityState::Jumping);
 
     // Instead of jumping immediately, we buffer the input for 0.15 seconds
     m_jumpBufferTimer = 0.15f;
@@ -58,22 +59,12 @@ void Character::CancelJump()
 
 void Character::Attack()
 {
-    if (GetState() == EntityState::Dying || GetState() == EntityState::Jumping ||
-        GetState() == EntityState::Hurt || GetState() == EntityState::Attacking) return;
+    if (this->GetComponent<CState>()->GetState() == EntityState::Dying || this->GetComponent<CState>()->GetState() == EntityState::Jumping ||
+        this->GetComponent<CState>()->GetState() == EntityState::Hurt || this->GetComponent<CState>()->GetState() == EntityState::Attacking) return;
 
     SetAcceleration(0.0f, 0.0f);
     SetVelocity(0.0f, 0.0f);
-    SetState(EntityState::Attacking);
-}
-
-void Character::TakeDamage(int damage)
-{
-    if (GetState() == EntityState::Dying || GetState() == EntityState::Hurt) return;
-
-    m_hitPoints = (m_hitPoints - damage > 0) ? m_hitPoints - damage : 0;
-
-    if (m_hitPoints > 0) SetState(EntityState::Hurt);
-    else SetState(EntityState::Dying);
+    this->GetComponent<CState>()->SetState(EntityState::Attacking);
 }
 
 void Character::Load(const std::string& path)
@@ -105,8 +96,9 @@ void Character::Load(const std::string& path)
         }
         else if (type == "Hitpoints")
         {
-            keystream >> m_maxHitPoints;
-            m_hitPoints = m_maxHitPoints;
+            int maxHitPoints;
+            keystream >> maxHitPoints;
+            this->GetComponent<CState>()->SetHitPoints(maxHitPoints);
         }
         else if (type == "BoundingBox")
         {
@@ -152,43 +144,11 @@ void Character::UpdateAttackAABB()
     m_attackAABB.position.y = aabb.position.y + m_attackAABBoffset.y;
 }
 
-void Character::Animate()
-{
-    EntityState state = GetState();
-
-    SpriteSheet& spriteSheet = m_sprite->GetSpriteSheet();
-
-    if (state == EntityState::Walking && spriteSheet.GetCurrentAnim()->GetName() != "Walk")
-    {
-        spriteSheet.SetAnimation("Walk", true, true);
-    }
-    else if (state == EntityState::Jumping && spriteSheet.GetCurrentAnim()->GetName() != "Jump")
-    {
-        spriteSheet.SetAnimation("Jump", true, false);
-    }
-    else if (state == EntityState::Attacking && spriteSheet.GetCurrentAnim()->GetName() != "Attack")
-    {
-        spriteSheet.SetAnimation("Attack", true, false);
-    }
-    else if (state == EntityState::Hurt && spriteSheet.GetCurrentAnim()->GetName() != "Hurt")
-    {
-        spriteSheet.SetAnimation("Hurt", true, false);
-    }
-    else if (state == EntityState::Dying && spriteSheet.GetCurrentAnim()->GetName() != "Death")
-    {
-        spriteSheet.SetAnimation("Death", true, false);
-    }
-    else if (state == EntityState::Idle && spriteSheet.GetCurrentAnim()->GetName() != "Idle")
-    {
-        spriteSheet.SetAnimation("Idle", true, true);
-    }
-}
-
 void Character::Update(float deltaTime)
 {
     // Coyote Time
     // If the character is grounded (state is not Jumping), keep the timer full
-    if (GetState() != EntityState::Jumping)
+    if (this->GetComponent<CState>()->GetState() != EntityState::Jumping)
     {
         m_coyoteTimer = 0.1f; // 0.1 seconds of leniency after walking off a ledge
     }
@@ -210,7 +170,7 @@ void Character::Update(float deltaTime)
         m_jumpBufferTimer = 0.0f;
         m_coyoteTimer = 0.0f;
 
-        SetState(EntityState::Jumping);
+        this->GetComponent<CState>()->SetState(EntityState::Jumping);
         SetVelocity(GetVelocity().x, -m_jumpVelocity);
     }
 
@@ -221,38 +181,34 @@ void Character::Update(float deltaTime)
         UpdateAttackAABB();
     }
 
-    if (GetState() != EntityState::Dying && GetState() != EntityState::Attacking && GetState() != EntityState::Hurt)
+    if (this->GetComponent<CState>()->GetState() != EntityState::Dying && this->GetComponent<CState>()->GetState() != EntityState::Attacking && this->GetComponent<CState>()->GetState() != EntityState::Hurt)
     {
         if (std::abs(GetVelocity().y) > 0.01f || !m_collider->GetReferenceTile())
         {
-            SetState(EntityState::Jumping);
+            this->GetComponent<CState>()->SetState(EntityState::Jumping);
         }
         else if (std::abs(GetVelocity().x) > 0.2f && !m_collider->IsCollidingX())
         {
-            SetState(EntityState::Walking);
+            this->GetComponent<CState>()->SetState(EntityState::Walking);
         }
         else
         {
-            SetState(EntityState::Idle);
+            this->GetComponent<CState>()->SetState(EntityState::Idle);
         }
     }
-    else if (GetState() == EntityState::Attacking || GetState() == EntityState::Hurt)
+    else if (this->GetComponent<CState>()->GetState() == EntityState::Attacking || this->GetComponent<CState>()->GetState() == EntityState::Hurt)
     {
         if (!m_sprite->GetSpriteSheet().GetCurrentAnim()->IsPlaying())
         {
-            SetState(EntityState::Idle);
+            this->GetComponent<CState>()->SetState(EntityState::Idle);
         }
     }
-    else if (GetState() == EntityState::Dying)
+    else if (this->GetComponent<CState>()->GetState() == EntityState::Dying)
     {
         m_entityManager.Remove(m_id);
         return;
     }
 
-    Animate();
-    m_sprite->Update(deltaTime);
+    // TODO: Mettere qualcosa qua?
     m_sprite->GetSpriteSheet().SetSpritePosition(GetPosition());
 }
-
-int Character::GetHitPoints() const { return m_hitPoints; }
-int Character::GetMaxHitPoints() const { return m_maxHitPoints; }
