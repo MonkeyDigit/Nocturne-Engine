@@ -19,7 +19,6 @@ public:
 
     virtual void OnEntityCollision(EntityBase& collider, bool attack) = 0;
     virtual void Update(float deltaTime) override;
-    void Draw(sf::RenderWindow& window) override;
 
     int GetHitPoints() const;
     int GetMaxHitPoints() const;

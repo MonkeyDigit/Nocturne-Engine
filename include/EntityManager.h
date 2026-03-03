@@ -7,6 +7,7 @@
 #include <string>
 #include "EntityBase.h"
 #include "PhysicsSystem.h"
+#include "RenderSystem.h"
 
 struct SharedContext;
 
@@ -67,4 +68,5 @@ private:
     std::vector<unsigned int> m_entitiesToRemove;
 
     PhysicsSystem m_physicsSystem;
+    RenderSystem m_renderSystem;
 };

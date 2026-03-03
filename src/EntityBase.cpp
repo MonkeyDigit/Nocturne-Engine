@@ -12,8 +12,7 @@ bool SortCollisions(const CollisionElement& e1, const CollisionElement& e2)
 
 EntityBase::EntityBase(EntityManager& entityManager)
     : m_entityManager(entityManager), m_name("BaseEntity"),
-    m_type(EntityType::Base), m_state(EntityState::Idle), m_id(0),
-    m_jumping(false)
+    m_type(EntityType::Base), m_state(EntityState::Idle), m_id(0)
 {
     // Add the core components and store their shortcuts
     m_transform = AddComponent<CTransform>();

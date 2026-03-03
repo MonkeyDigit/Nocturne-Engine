@@ -58,7 +58,6 @@ public:
 
     void SetState(EntityState state);
     virtual void Update(float deltaTime);
-    virtual void Draw(sf::RenderWindow& window) = 0;
     // Method for what THIS entity does TO the collider entity
     virtual void OnEntityCollision(EntityBase& collider, bool attack) = 0;
 
@@ -112,7 +111,6 @@ protected:
     EntityType m_type;
     unsigned int m_id;
     EntityState m_state;
-    bool m_jumping;
     EntityManager& m_entityManager;
 
     // --- COMPONENT SHORTCUTS ---

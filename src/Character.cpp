@@ -254,10 +254,5 @@ void Character::Update(float deltaTime)
     m_sprite->GetSpriteSheet().SetSpritePosition(GetPosition());
 }
 
-void Character::Draw(sf::RenderWindow& window)
-{
-    m_sprite->Draw(window);
-}
-
 int Character::GetHitPoints() const { return m_hitPoints; }
 int Character::GetMaxHitPoints() const { return m_maxHitPoints; }

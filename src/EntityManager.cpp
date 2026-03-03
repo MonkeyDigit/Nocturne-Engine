@@ -95,16 +95,9 @@ void EntityManager::Update(float deltaTime)
 
 void EntityManager::Draw()
 {
+    // TODO: Avere window come argomento?
     sf::RenderWindow& window = m_context.m_window.GetRenderWindow();
-    sf::FloatRect viewSpace = m_context.m_window.GetViewSpace();
-
-    for (auto& pair : m_entities)
-    {
-        // SFML 3 uses findIntersection instead of intersects!
-        if (!viewSpace.findIntersection(pair.second->m_collider->GetAABB())) continue;
-
-        pair.second->Draw(window);
-    }
+    m_renderSystem.Render(*this, window);
 }
 
 void EntityManager::Purge()

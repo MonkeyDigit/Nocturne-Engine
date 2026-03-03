@@ -155,6 +155,7 @@
     <ClInclude Include="include\Map.h" />
     <ClInclude Include="include\PhysicsSystem.h" />
     <ClInclude Include="include\Player.h" />
+    <ClInclude Include="include\RenderSystem.h" />
     <ClInclude Include="include\ResourceManager.h" />
     <ClInclude Include="include\SharedContext.h" />
     <ClInclude Include="include\SpriteSheet.h" />
@@ -177,6 +178,7 @@
     <ClCompile Include="src\Map.cpp" />
     <ClCompile Include="src\PhysicsSystem.cpp" />
     <ClCompile Include="src\Player.cpp" />
+    <ClCompile Include="src\RenderSystem.cpp" />
     <ClCompile Include="src\SpriteSheet.cpp" />
     <ClCompile Include="src\StateManager.cpp" />
     <ClCompile Include="src\State_Game.cpp" />
