@@ -6,6 +6,7 @@
 #include <memory>
 #include <string>
 #include "EntityBase.h"
+#include "PhysicsSystem.h"
 
 struct SharedContext;
 
@@ -38,6 +39,9 @@ public:
 
     SharedContext& GetContext();
 
+    std::unordered_map<unsigned int, std::unique_ptr<EntityBase>>& GetEntities()
+    { return m_entities; }
+
 private:
     template<class T>
     void RegisterEntity(EntityType type)
@@ -61,4 +65,6 @@ private:
     unsigned int m_idCounter;
     unsigned int m_maxEntities;
     std::vector<unsigned int> m_entitiesToRemove;
+
+    PhysicsSystem m_physicsSystem;
 };

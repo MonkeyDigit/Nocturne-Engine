@@ -57,10 +57,6 @@ public:
     const sf::Vector2f& GetSize() const { return m_transform->GetSize(); }
 
     void SetState(EntityState state);
-    // TODO: Togliere?
-    void Move(float x, float y);
-    void ApplyFriction(float x, float y);
-
     virtual void Update(float deltaTime);
     virtual void Draw(sf::RenderWindow& window) = 0;
     // Method for what THIS entity does TO the collider entity
@@ -111,9 +107,6 @@ public:
     }
 
 protected:
-    void UpdateAABB();
-    void CheckCollisions();
-    void ResolveCollisions();
 
     std::string m_name;
     EntityType m_type;

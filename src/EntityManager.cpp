@@ -81,12 +81,14 @@ void EntityManager::Remove(unsigned int id)
 
 void EntityManager::Update(float deltaTime)
 {
+    // Calculate game physics
+    m_physicsSystem.Update(*this, m_context.m_gameMap, deltaTime);
+
+    // Update each entity
     for (auto& pair : m_entities)
     {
         pair.second->Update(deltaTime);
     }
-
-    EntityCollisionCheck();
 
     ProcessRemovals();
 }

@@ -13,6 +13,7 @@
 // TODO: Impostare jump timer e attack timer da file?
 // TODO: Implementare le specifiche del pdf
 // TODO: Non conviene semplicemente accedere alla reference e modificare i componenti direttamente per transform????
+// TODO: Controlla variabili inutilizzate
 
 int main() {
     Game game;
