@@ -21,6 +21,7 @@ EntityManager::EntityManager(SharedContext& context, unsigned int maxEntities)
 EntityManager::~EntityManager()
 {
     Purge();
+    m_controlSystem.Destroy();
 }
 
 int EntityManager::Add(EntityType type, const std::string& name)
@@ -45,7 +46,7 @@ int EntityManager::Add(EntityType type, const std::string& name)
         // Player needs a Joypad
         entity->AddComponent<CController>();
 
-        // Load player data directly from EntityBase!
+        // Load player data directly from EntityBase
         entity->Load("media/characters/Player.char");
     }
     else if (type == EntityType::Enemy)
@@ -96,9 +97,8 @@ void EntityManager::Update(float deltaTime)
 {
     m_aiSystem.Update(*this, deltaTime);
     m_controlSystem.Update(deltaTime);
-    // Calculate damage and knockbacks before moving
-    m_combatSystem.Update(*this);
     m_physicsSystem.Update(*this, m_context.m_gameMap, deltaTime);
+    m_combatSystem.Update(*this);
     m_animationSystem.Update(*this, deltaTime);
 
     // Update each entity
@@ -122,8 +122,6 @@ void EntityManager::Purge()
     // unique_ptr automatically deletes the memory of all entities!
     m_entities.clear();
     m_idCounter = 0;
-
-    m_controlSystem.Destroy();
 }
 
 SharedContext& EntityManager::GetContext()

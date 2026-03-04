@@ -5,6 +5,7 @@
 #include "SharedContext.h"
 #include "Window.h"
 #include "EntityManager.h"
+#include "CState.h"
 
 State_Game::State_Game(StateManager& stateManager)
     : BaseState(stateManager),
@@ -79,8 +80,12 @@ void State_Game::Update(const sf::Time& time)
             sf::Vector2f playerSize = transform->GetSize();
 
             // --- OUT OF BOUNDS CHECK ---
-            if (playerPos.y > mapHeight + 100.0f)
-                context.m_entityManager.Remove(player->GetId());
+            if (playerPos.y >= mapHeight)
+            {
+                CState* state = player->GetComponent<CState>();
+                if (state && state->GetState() != EntityState::Dying)
+                    state->InstantKill();
+            }
             else
                 m_view.setCenter({ playerPos.x, playerPos.y + playerSize.y * 0.5f });
         }

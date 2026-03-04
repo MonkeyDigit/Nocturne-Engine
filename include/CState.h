@@ -29,6 +29,12 @@ public:
         else SetState(EntityState::Dying);
     }
 
+    void InstantKill()
+    {
+        m_hitPoints = 0;
+        SetState(EntityState::Dying);
+    }
+
     int GetHitPoints() const { return m_hitPoints; }
     int GetMaxHitPoints() const { return m_maxHitPoints; }
     void SetHitPoints(int hp) { m_hitPoints = hp; m_maxHitPoints = hp; }

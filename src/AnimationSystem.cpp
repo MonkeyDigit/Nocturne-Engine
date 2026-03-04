@@ -20,11 +20,15 @@ void AnimationSystem::Update(EntityManager& entityManager, float deltaTime)
 
         // --- STATE TRANSITION LOGIC ---
         // Handle Dying state: Remove entity if death animation finished
-        if (state == EntityState::Dying) {
-            if (!sprite->GetSpriteSheet().GetCurrentAnim()->IsPlaying()) {
+        if (state == EntityState::Dying)
+        {
+            Animation* currAnim = sprite->GetSpriteSheet().GetCurrentAnim();
+
+            if (currAnim && currAnim->GetName() == "Death" && !currAnim->IsPlaying())
                 entityManager.Remove(entity->GetId());
-            }
-            continue;
+            // Emergency fallback in case of missing animation
+            else if(currAnim && currAnim->GetName() != "Death" && !sprite->GetSpriteSheet().SetAnimation("Death", true, false))
+                entityManager.Remove(entity->GetId());
         }
 
         // Return to Idle from one-shot states (Attack/Hurt) when animation ends

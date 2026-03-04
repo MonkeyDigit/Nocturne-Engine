@@ -119,7 +119,6 @@ void Map::LoadMap(const std::string& path)
 
             if (!m_tileMap.emplace(ConvertCoords(tileCoords.x, tileCoords.y), std::move(tile)).second) continue;
 
-            // RISOLTO: Leggiamo la stringa warp, altrimenti sballiamo le righe successive!
             std::string warp;
             keystream >> warp;
             if (warp == "WARP") m_tileMap[ConvertCoords(tileCoords.x, tileCoords.y)]->warp = true;
@@ -135,7 +134,6 @@ void Map::LoadMap(const std::string& path)
                 m_backgroundTexture = m_context.m_textureManager.GetResource(bgName);
                 m_background.emplace(*m_backgroundTexture);
 
-                // RISOLTO: Ripristinata la tua logica di Scaling per eliminare i bordi neri!
                 sf::Vector2f viewSize = m_currentState->GetView().getSize();
                 sf::Vector2u textureSize = m_backgroundTexture->getSize();
                 sf::Vector2f scaleFactors;
