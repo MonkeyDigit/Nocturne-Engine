@@ -1,10 +1,10 @@
+#include <iostream>
+#include <cmath>
 #include "State_Game.h"
 #include "StateManager.h"
 #include "SharedContext.h"
 #include "Window.h"
 #include "EntityManager.h"
-#include <iostream>
-#include <cmath>
 
 State_Game::State_Game(StateManager& stateManager)
     : BaseState(stateManager),
@@ -65,21 +65,37 @@ void State_Game::Update(const sf::Time& time)
     context.m_entityManager.Update(time.asSeconds());
 
     // Camera Tracking & Respawn
-    // TODO: USARE UNA REFERENCE?
-    Character* player = static_cast<Character*>(context.m_entityManager.Find("Player"));
+    EntityBase* player = context.m_entityManager.Find("Player");
+
+    float mapHeight = static_cast<float>(m_gameMap.GetMapSize().y * m_gameMap.GetTileSize());
     if (player)
     {
         // TODO: Mettere l'offset y dell'originale?
         // TODO: HEALTH BAR?
-        sf::Vector2f playerPos = player->GetPosition();
-        m_view.setCenter({ playerPos.x, playerPos.y + player->GetSize().y * 0.5f });
+        CTransform* transform = player->GetComponent<CTransform>();
+        if (transform)
+        {
+            sf::Vector2f playerPos = transform->GetPosition();
+            sf::Vector2f playerSize = transform->GetSize();
+
+            // --- OUT OF BOUNDS CHECK ---
+            if (playerPos.y > mapHeight + 100.0f)
+                context.m_entityManager.Remove(player->GetId());
+            else
+                m_view.setCenter({ playerPos.x, playerPos.y + playerSize.y * 0.5f });
+        }
     }
     else
     {
         std::cout << "Respawning player..." << '\n';
-        context.m_entityManager.Add(EntityType::Player, "Player");
-        player = static_cast<Character*>(context.m_entityManager.Find("Player"));
-        if (player) player->SetPosition(m_gameMap.GetPlayerStart());
+        int playerId = context.m_entityManager.Add(EntityType::Player, "Player");
+        player = context.m_entityManager.Find(playerId);
+
+        if (player)
+        {
+            CTransform* transform = player->GetComponent<CTransform>();
+            if (transform) transform->SetPosition(m_gameMap.GetPlayerStart());
+        }
     }
 
     // --- CLAMPING CAMERA ---
@@ -87,7 +103,6 @@ void State_Game::Update(const sf::Time& time)
     sf::Vector2f viewSize = m_view.getSize();
 
     float mapWidth = static_cast<float>(m_gameMap.GetMapSize().x * m_gameMap.GetTileSize());
-    float mapHeight = static_cast<float>(m_gameMap.GetMapSize().y * m_gameMap.GetTileSize());
 
     // Horizontal bounds
     if (viewCenter.x - viewSize.x * 0.5f < 0.0f)

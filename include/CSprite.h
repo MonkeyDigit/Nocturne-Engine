@@ -6,7 +6,6 @@ class CSprite : public Component
 {
 public:
     // The constructor takes the TextureManager needed to initialize the SpriteSheet
-    // TODO: per le texture ci va il puntatore?
     CSprite(EntityBase* owner, TextureManager& textureManager)
         : Component(owner), m_spriteSheet(textureManager) {
     }

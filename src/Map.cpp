@@ -150,7 +150,7 @@ void Map::LoadMap(const std::string& path)
         else if (type == "NEXTMAP") keystream >> m_nextMap;
         else if (type == "PLAYER")
         {
-            if (m_playerId == -1) m_playerId = m_context.m_entityManager.Add(EntityType::Player);
+            if (m_playerId == -1) m_playerId = m_context.m_entityManager.Add(EntityType::Player, "Player");
 
             keystream >> m_playerStart.x >> m_playerStart.y;
             EntityBase* player = m_context.m_entityManager.Find(m_playerId);

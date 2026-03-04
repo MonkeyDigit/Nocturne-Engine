@@ -28,6 +28,12 @@ public:
     void SetAABB(const sf::FloatRect& rect) { m_AABB = rect; }
     const sf::FloatRect& GetAABB() const { return m_AABB; }
 
+    // --- COMBAT HITBOX SETTERS & GETTERS ---
+    void SetAttackAABB(const sf::FloatRect& rect) { m_attackAABB = rect; }
+    void SetAttackAABBOffset(const sf::Vector2f& offset) { m_attackAABBoffset = offset; }
+    sf::FloatRect GetAttackAABB() const { return m_attackAABB; }
+    sf::Vector2f GetAttackAABBOffset() const { return m_attackAABBoffset; }
+
     void SetCollidingX(bool col) { m_collidingOnX = col; }
     bool IsCollidingX() const { return m_collidingOnX; }
 
@@ -42,6 +48,10 @@ public:
 
 private:
     sf::FloatRect m_AABB;       // The bounding box of the entity
+    // --- COMBAT HITBOX (DamageBox) ---
+    // Stores the dimensions and the offset of the attack hitbox
+    sf::FloatRect m_attackAABB;
+    sf::Vector2f m_attackAABBoffset;
     bool m_collidingOnX;        // Is it touching a wall?
     bool m_collidingOnY;        // Is it touching the floor or ceiling?
     TileInfo* m_referenceTile;  // The tile it's currently standing on

@@ -3,10 +3,11 @@
 #include "EntityManager.h"
 #include "SharedContext.h"
 #include "Utilities.h"
-#include "Player.h"
-#include "Enemy.h"
-#include "Character.h" 
+#include "CSprite.h" 
 #include "Window.h"
+#include "CState.h"
+#include "CController.h"
+#include "CAIPatrol.h"
 
 EntityManager::EntityManager(SharedContext& context, unsigned int maxEntities)
     : m_context(context),
@@ -15,9 +16,6 @@ EntityManager::EntityManager(SharedContext& context, unsigned int maxEntities)
 {
     m_controlSystem.Initialize(this);
     LoadEnemyTypes("media/lists/enemy_list.list");
-
-    RegisterEntity<Player>(EntityType::Player);
-    RegisterEntity<Enemy>(EntityType::Enemy);
 }
 
 EntityManager::~EntityManager()
@@ -27,27 +25,41 @@ EntityManager::~EntityManager()
 
 int EntityManager::Add(EntityType type, const std::string& name)
 {
-    auto factoryItr = m_entityFactory.find(type);
-    if (factoryItr == m_entityFactory.end()) return -1;
-
-    // Create the entity via factory
-    std::unique_ptr<EntityBase> entity = factoryItr->second();
+    // Create a raw, empty entity directly
+    std::unique_ptr<EntityBase> entity = std::make_unique<EntityBase>(*this);
 
     entity->m_id = m_idCounter;
+    entity->SetType(type);
+
     if (!name.empty()) entity->m_name = name;
 
-    if (type == EntityType::Enemy)
+    // Attach the fundamental components (The "Body")
+    entity->AddComponent<CTransform>();
+    entity->AddComponent<CSprite>(m_context.m_textureManager);
+    entity->AddComponent<CBoxCollider>();
+    entity->AddComponent<CState>();
+
+    // Attach specific components and load data
+    if (type == EntityType::Player)
     {
+        // Player needs a Joypad
+        entity->AddComponent<CController>();
+
+        // Load player data directly from EntityBase!
+        entity->Load("media/characters/Player.char");
+    }
+    else if (type == EntityType::Enemy)
+    {
+        // Enemy needs a Joypad and an AI Brain
+        entity->AddComponent<CController>();
+        entity->AddComponent<CAIPatrol>();
+
         auto typeItr = m_enemyTypes.find(name);
         if (typeItr != m_enemyTypes.end())
-        {
-            // dynamic_cast is safer, but static_cast is faster
-            // We use static_cast since we know it's an enemy
-            auto* enemy = static_cast<Enemy*>(entity.get());
-            enemy->Load(typeItr->second);
-        }
+            entity->Load(typeItr->second);
     }
 
+    // Store the entity in the map
     m_entities.emplace(m_idCounter, std::move(entity));
     m_idCounter++;
 

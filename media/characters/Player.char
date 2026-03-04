@@ -1,5 +1,5 @@
 Name Player
-Spritesheet Player.sheet
+Spritesheet media/spritesheets/Player.sheet
 Hitpoints 5
 BoundingBox 16 42
 DamageBox -5 0 13 13

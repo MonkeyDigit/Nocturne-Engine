@@ -9,17 +9,34 @@ void AnimationSystem::Update(EntityManager& entityManager, float deltaTime)
     for (auto& entityPair : entityManager.GetEntities())
     {
         EntityBase* entity = entityPair.second.get();
-
         CSprite* sprite = entity->GetComponent<CSprite>();
         CState* stateComp = entity->GetComponent<CState>();
         CTransform* transform = entity->GetComponent<CTransform>();
+        CBoxCollider* collider = entity->GetComponent<CBoxCollider>();
 
-        // We only process animations for entities with a sprite and a state
-        if (!sprite || !stateComp) continue;
+        if (!sprite || !stateComp || !transform || !collider) continue;
 
         EntityState state = stateComp->GetState();
-        Animation* currentAnimation = sprite->GetSpriteSheet().GetCurrentAnim();
 
+        // --- STATE TRANSITION LOGIC ---
+        // Handle Dying state: Remove entity if death animation finished
+        if (state == EntityState::Dying) {
+            if (!sprite->GetSpriteSheet().GetCurrentAnim()->IsPlaying()) {
+                entityManager.Remove(entity->GetId());
+            }
+            continue;
+        }
+
+        // Return to Idle from one-shot states (Attack/Hurt) when animation ends
+        if (state == EntityState::Attacking || state == EntityState::Hurt) {
+            if (!sprite->GetSpriteSheet().GetCurrentAnim()->IsPlaying()) {
+                stateComp->SetState(EntityState::Idle);
+            }
+        }
+
+        // Update the 'state' variable for the animation selection logic below
+        state = stateComp->GetState();
+        Animation* currentAnimation = sprite->GetSpriteSheet().GetCurrentAnim();
         if (!currentAnimation) continue;
 
         std::string animName = currentAnimation->GetName();

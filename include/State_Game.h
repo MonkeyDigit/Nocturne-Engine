@@ -1,9 +1,6 @@
 #pragma once
 #include "BaseState.h"
 #include "EventManager.h"
-// TODO: Togli
-#include "Player.h"
-#include "Enemy.h"
 #include "Map.h"
 
 class State_Game : public BaseState

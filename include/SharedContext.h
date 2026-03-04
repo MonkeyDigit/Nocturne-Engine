@@ -22,8 +22,8 @@ struct SharedContext {
 
     // --- CORE SYSTEMS (Always exist, cannot be null) ---
     Window& m_window;
-    EventManager& m_eventManager;
     TextureManager& m_textureManager;
+    EventManager& m_eventManager;
     EntityManager& m_entityManager;
 
     // --- DYNAMIC SYSTEMS (Can be null, can be swapped) ---

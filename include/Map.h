@@ -6,7 +6,7 @@
 #include <memory>
 #include <optional>
 
-class SharedContext;
+struct SharedContext;
 class BaseState;
 
 // TODO: Modificare?

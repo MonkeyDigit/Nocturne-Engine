@@ -25,31 +25,33 @@ public:
     EntityBase(EntityManager& entityManager);
     virtual ~EntityBase();
 
+    void SetType(EntityType type) { m_type = type; }
+
     // --- DELEGATED TRANSFORM METHODS ---
-    void SetPosition(float x, float y) { m_transform->SetPosition(x, y); }
-    void SetPosition(const sf::Vector2f& pos) { m_transform->SetPosition(pos); }
-    void AddPosition(float x, float y) { m_transform->AddPosition(x, y); }
-    const sf::Vector2f& GetPosition() const { return m_transform->GetPosition(); }
+    void SetPosition(float x, float y);
+    void SetPosition(const sf::Vector2f& pos);
+    void AddPosition(float x, float y);
+    const sf::Vector2f& GetPosition();
 
-    void SetVelocity(float x, float y) { m_transform->SetVelocity(x, y); }
-    void AddVelocity(float x, float y) { m_transform->AddVelocity(x, y); }
-    const sf::Vector2f& GetVelocity() const { return m_transform->GetVelocity(); }
+    void SetVelocity(float x, float y);
+    void AddVelocity(float x, float y);
+    const sf::Vector2f& GetVelocity();
 
-    void SetMaxVelocity(float x, float y) { m_transform->SetMaxVelocity(x, y); }
-    const sf::Vector2f& GetMaxVelocity() const { return m_transform->GetMaxVelocity(); }
+    void SetMaxVelocity(float x, float y);
+    const sf::Vector2f& GetMaxVelocity();
 
-    void SetAcceleration(float x, float y) { m_transform->SetAcceleration(x, y); }
-    void AddAcceleration(float x, float y) { m_transform->AddAcceleration(x, y); }
-    const sf::Vector2f& GetAcceleration() const { return m_transform->GetAcceleration(); }
+    void SetAcceleration(float x, float y);
+    void AddAcceleration(float x, float y);
+    const sf::Vector2f& GetAcceleration();
 
-    void SetSpeed(float x, float y) { m_transform->SetSpeed(x, y); }
-    const sf::Vector2f& GetSpeed() const { return m_transform->GetSpeed(); }
+    void SetSpeed(float x, float y);
+    const sf::Vector2f& GetSpeed();
 
-    void SetFriction(float x, float y) { m_transform->SetFriction(x, y); }
-    const sf::Vector2f& GetFriction() const { return m_transform->GetFriction(); }
+    void SetFriction(float x, float y);
+    const sf::Vector2f& GetFriction();
 
-    void SetSize(float x, float y) { m_transform->SetSize(x, y); }
-    const sf::Vector2f& GetSize() const { return m_transform->GetSize(); }
+    void SetSize(float x, float y);
+    const sf::Vector2f& GetSize();
 
     virtual void Update(float deltaTime);
 
@@ -96,16 +98,14 @@ public:
         m_components.erase(typeid(T));
     }
 
+    void Load(const std::string& path);
+
 protected:
 
     std::string m_name;
     EntityType m_type;
     unsigned int m_id;
     EntityManager& m_entityManager;
-
-    // --- COMPONENT SHORTCUTS ---
-    CTransform* m_transform;
-    CBoxCollider* m_collider;
 
     // Map storing the components. Uses std::type_index for fast and safe type lookups
     std::unordered_map<std::type_index, std::unique_ptr<Component>> m_components;
