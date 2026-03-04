@@ -112,7 +112,6 @@ void EntityManager::Update(float deltaTime)
 
 void EntityManager::Draw()
 {
-    // TODO: Avere window come argomento?
     sf::RenderWindow& window = m_context.m_window.GetRenderWindow();
     m_renderSystem.Render(*this, window);
 }

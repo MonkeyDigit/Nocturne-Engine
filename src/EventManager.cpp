@@ -29,17 +29,25 @@ namespace
         {"S", sf::Keyboard::Key::S}, {"T", sf::Keyboard::Key::T}, {"U", sf::Keyboard::Key::U},
         {"V", sf::Keyboard::Key::V}, {"W", sf::Keyboard::Key::W}, {"X", sf::Keyboard::Key::X},
         {"Y", sf::Keyboard::Key::Y}, {"Z", sf::Keyboard::Key::Z},
+        // --- Function keys ---
+        {"F1", sf::Keyboard::Key::F1}, {"F2", sf::Keyboard::Key::F2}, {"F3", sf::Keyboard::Key::F3},
+        {"F4", sf::Keyboard::Key::F4}, {"F5", sf::Keyboard::Key::F5}, {"F6", sf::Keyboard::Key::F6},
+        {"F7", sf::Keyboard::Key::F7}, {"F8", sf::Keyboard::Key::F8}, {"F9", sf::Keyboard::Key::F9},
+        {"F10", sf::Keyboard::Key::F10}, {"F11", sf::Keyboard::Key::F11}, {"F12", sf::Keyboard::Key::F12},
+
+        // --- Special keys ---
+        {"Escape", sf::Keyboard::Key::Escape}, {"Space", sf::Keyboard::Key::Space}, 
+        {"Return", sf::Keyboard::Key::Enter}, {"LShift", sf::Keyboard::Key::LShift},
+        {"RShift", sf::Keyboard::Key::RShift}, {"LControl", sf::Keyboard::Key::LControl},
+        {"Tab", sf::Keyboard::Key::Tab},
+
+        // --- Directional keys ---
         {"Left", sf::Keyboard::Key::Left}, {"Right", sf::Keyboard::Key::Right},
-        {"Up", sf::Keyboard::Key::Up}, {"Down", sf::Keyboard::Key::Down},
-        {"Space", sf::Keyboard::Key::Space}, {"Enter", sf::Keyboard::Key::Enter},
-        {"Escape", sf::Keyboard::Key::Escape}, {"LShift", sf::Keyboard::Key::LShift}
-        // TODO: AGGIUNGERE F1 F2 ecc
+        {"Up", sf::Keyboard::Key::Up}, {"Down", sf::Keyboard::Key::Down}
     };
 
     const std::unordered_map<std::string, sf::Mouse::Button> STRING_TO_MOUSE_MAP = {
-        {"Left", sf::Mouse::Button::Left},
-        {"Right", sf::Mouse::Button::Right},
-        {"Middle", sf::Mouse::Button::Middle}
+        {"Left", sf::Mouse::Button::Left}, {"Right", sf::Mouse::Button::Right}, {"Middle", sf::Mouse::Button::Middle}
     };
 }
 
@@ -96,7 +104,6 @@ bool EventManager::RemoveCallback(StateType state, const std::string& name)
 void EventManager::SetCurrentState(StateType type) { m_currentState = type; }
 
 // --- PARSERS FOR HUMAN READABLE CONFIG FILES ---
-// --- PARSER UNIFICATO ---
 int EventManager::ParseEventInfo(EventType evtype, const std::string& evinfoStr)
 {
     // KEYBOARD EVENT
@@ -212,7 +219,6 @@ void EventManager::ProcessPolledEvent(const sf::Event& event)
                     const auto* keyEvent = event.getIf<sf::Event::KeyPressed>();
                     if (e_itr.second == static_cast<int>(keyEvent->code))
                     {
-                        // TODO: CI VA != ?
                         if (bind->m_details.m_keyCode == -1) bind->m_details.m_keyCode = e_itr.second;
                         ++(bind->m_evCount);
                     }
@@ -308,7 +314,6 @@ void EventManager::ProcessRealTimeInput()
                 {
                     if (sf::Keyboard::isKeyPressed(static_cast<sf::Keyboard::Key>(e_itr.second)))
                     {
-                        // TODO: != ?
                         if (bind->m_details.m_keyCode == -1) bind->m_details.m_keyCode = e_itr.second;
                         ++(bind->m_evCount);
                     }

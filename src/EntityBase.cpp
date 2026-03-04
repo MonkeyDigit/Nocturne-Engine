@@ -162,11 +162,11 @@ void EntityBase::Load(const std::string& path)
             float x, y;
             keystream >> x >> y;
 
-            // 1. Set the visual/logical size in Transform
+            // Set the visual/logical size in Transform
             CTransform* transform = this->GetComponent<CTransform>();
             if (transform) { transform->SetSize(x, y); }
 
-            // 2. Set the physical hitbox size in Collider
+            // Set the physical hitbox size in Collider
             CBoxCollider* collider = this->GetComponent<CBoxCollider>();
             if (collider) {
                 // If you don't have SetSize in CBoxCollider, we use the AABB directly

@@ -6,6 +6,7 @@
 #include "Window.h"
 #include "EntityManager.h"
 #include "CState.h"
+#include <SFML/Graphics/RectangleShape.hpp>
 
 State_Game::State_Game(StateManager& stateManager)
     : BaseState(stateManager),
@@ -61,18 +62,12 @@ void State_Game::Update(const sf::Time& time)
     UpdateCursor(time);
     SharedContext& context = m_stateManager.GetContext();
 
-    // TODO: SPOSTARE ENTITIES DOPO IL RESPAWN DEL PLAYER?
-    // Update Entities
-    context.m_entityManager.Update(time.asSeconds());
-
     // Camera Tracking & Respawn
     EntityBase* player = context.m_entityManager.Find("Player");
 
     float mapHeight = static_cast<float>(m_gameMap.GetMapSize().y * m_gameMap.GetTileSize());
     if (player)
     {
-        // TODO: Mettere l'offset y dell'originale?
-        // TODO: HEALTH BAR?
         CTransform* transform = player->GetComponent<CTransform>();
         if (transform)
         {
@@ -103,6 +98,9 @@ void State_Game::Update(const sf::Time& time)
         }
     }
 
+    // Update Entities
+    context.m_entityManager.Update(time.asSeconds());
+
     // --- CLAMPING CAMERA ---
     sf::Vector2f viewCenter = m_view.getCenter();
     sf::Vector2f viewSize = m_view.getSize();
@@ -128,8 +126,6 @@ void State_Game::Update(const sf::Time& time)
 
     // Update the map
     m_gameMap.Update(time.asSeconds());
-
-    // TODO: DEBUG OVERLAY
 }
 
 void State_Game::Draw()
@@ -137,13 +133,76 @@ void State_Game::Draw()
     SharedContext& context = m_stateManager.GetContext();
     sf::RenderWindow& window = context.m_window.GetRenderWindow();
 
-    // Draw the Map first
     m_gameMap.Draw(window);
 
-    // Draw Entities
     context.m_entityManager.Draw();
 
-    // TODO: Draw UI overlay here in the future
+    // --- DEBUG OVERLAY ---
+    if (m_debugMode)
+    {
+        for (auto& entityPair : context.m_entityManager.GetEntities())
+        {
+            EntityBase* entity = entityPair.second.get();
+            CBoxCollider* collider = entity->GetComponent<CBoxCollider>();
+
+            if (collider)
+            {
+                sf::FloatRect aabb = collider->GetAABB();
+
+                sf::RectangleShape rect(aabb.size);
+                rect.setPosition(aabb.position);
+
+                rect.setFillColor(sf::Color::Transparent);
+                rect.setOutlineColor(sf::Color::Cyan);
+                rect.setOutlineThickness(1.0f);
+                window.draw(rect);
+
+                sf::FloatRect attackAABB = collider->GetAttackAABB();
+
+                if (attackAABB.size.x > 0 && attackAABB.size.y > 0)
+                {
+                    sf::RectangleShape attRect(attackAABB.size);
+                    attRect.setPosition(attackAABB.position);
+                    attRect.setFillColor(sf::Color(255, 0, 0, 80));
+                    attRect.setOutlineColor(sf::Color::Red);
+                    attRect.setOutlineThickness(1.0f);
+                    window.draw(attRect);
+                }
+            }
+        }
+    }
+
+    // --- UI OVERLAY ---
+
+    sf::View currentView = window.getView();
+
+    window.setView(window.getDefaultView());
+
+    EntityBase* player = context.m_entityManager.Find("Player");
+    if (player)
+    {
+        CState* state = player->GetComponent<CState>();
+        if (state)
+        {
+            int hp = state->GetHitPoints();
+            int maxHp = state->GetMaxHitPoints();
+
+            float hpPercent = static_cast<float>(hp) / static_cast<float>(maxHp);
+            if (hpPercent < 0.0f) hpPercent = 0.0f;
+
+            sf::RectangleShape bgBar({ 200.0f, 20.0f });
+            bgBar.setPosition({ 20.0f, 20.0f });
+            bgBar.setFillColor(sf::Color(50, 50, 50, 200));
+
+            sf::RectangleShape fgBar({ 200.0f * hpPercent, 20.0f });
+            fgBar.setPosition({ 20.0f, 20.0f });
+            fgBar.setFillColor(sf::Color(220, 50, 50, 255));
+
+            window.draw(bgBar);
+            window.draw(fgBar);
+        }
+    }
+    window.setView(currentView);
 }
 
 void State_Game::MainMenu(EventDetails& details)

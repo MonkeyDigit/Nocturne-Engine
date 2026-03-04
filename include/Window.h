@@ -17,7 +17,6 @@ public:
     void SetResizeable(const bool resizeable);
     void SetFramerateLimit(const int limit);
 
-    // In futuro EventDetails sarà implementato con EventManager, per ora lo lasciamo opzionale
     void Close(EventDetails& details);
     void ToggleFullscreen(EventDetails& details);
 

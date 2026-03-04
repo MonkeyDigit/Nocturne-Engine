@@ -30,7 +30,6 @@ private:
 
     EntityManager m_entityManager;
     StateManager m_stateManager;
-    // TODO: Missing debug overlay
 
     // Constant for a fixed 60 FPS physics simulation (Accumulator Pattern)
     const sf::Time TIME_PER_FRAME = sf::seconds(1.0f / 60.0f);

@@ -75,13 +75,13 @@ void MovementControlSystem::Update(float deltaTime)
         EntityState currentState = state->GetState();
         if (currentState == EntityState::Dying) continue;
 
-        // 1. TIMERS (Coyote & Buffer)
+        // TIMERS (Coyote & Buffer)
         if (currentState != EntityState::Jumping) controller->m_coyoteTimer = 0.1f;
         else controller->m_coyoteTimer -= deltaTime;
 
         controller->m_jumpBufferTimer -= deltaTime;
 
-        // 2. MOVEMENT
+        // MOVEMENT
         if (currentState != EntityState::Attacking && currentState != EntityState::Hurt)
         {
             if (controller->m_moveLeft)
@@ -98,7 +98,7 @@ void MovementControlSystem::Update(float deltaTime)
             }
         }
 
-        // 3. JUMP
+        // JUMP
         if (controller->m_jump)
         {
             if (currentState != EntityState::Hurt && currentState != EntityState::Jumping)
@@ -123,7 +123,7 @@ void MovementControlSystem::Update(float deltaTime)
             controller->m_cancelJump = false; // Consume the input
         }
 
-        // 4. ATTACK
+        // ATTACK
         if (controller->m_attack)
         {
             if (currentState != EntityState::Jumping && currentState != EntityState::Hurt && currentState != EntityState::Attacking)
@@ -135,7 +135,7 @@ void MovementControlSystem::Update(float deltaTime)
             controller->m_attack = false; // Consume the input
         }
 
-        // 5. STATE CLEANUP (Idle detection)
+        // STATE CLEANUP (Idle detection)
         EntityState updatedState = state->GetState();
 
         if (updatedState != EntityState::Dying && updatedState != EntityState::Attacking && updatedState != EntityState::Hurt)
