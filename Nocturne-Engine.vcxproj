@@ -139,10 +139,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="include\AISystem.h" />
     <ClInclude Include="include\Animation.h" />
     <ClInclude Include="include\AnimationSystem.h" />
     <ClInclude Include="include\BaseState.h" />
+    <ClInclude Include="include\CAIPatrol.h" />
     <ClInclude Include="include\CBoxCollider.h" />
+    <ClInclude Include="include\CController.h" />
     <ClInclude Include="include\Character.h" />
     <ClInclude Include="include\Component.h" />
     <ClInclude Include="include\CSprite.h" />
@@ -157,6 +160,7 @@
     <ClInclude Include="include\Map.h" />
     <ClInclude Include="include\PhysicsSystem.h" />
     <ClInclude Include="include\Player.h" />
+    <ClInclude Include="include\MovementControlSystem.h" />
     <ClInclude Include="include\RenderSystem.h" />
     <ClInclude Include="include\ResourceManager.h" />
     <ClInclude Include="include\SharedContext.h" />
@@ -171,6 +175,7 @@
     <ClCompile Include="src\Animation.cpp" />
     <ClCompile Include="src\AnimationSystem.cpp" />
     <ClCompile Include="src\BaseState.cpp" />
+    <ClCompile Include="src\CAISystem.cpp" />
     <ClCompile Include="src\Character.cpp" />
     <ClCompile Include="src\Enemy.cpp" />
     <ClCompile Include="src\EntityBase.cpp" />
@@ -181,6 +186,7 @@
     <ClCompile Include="src\Map.cpp" />
     <ClCompile Include="src\PhysicsSystem.cpp" />
     <ClCompile Include="src\Player.cpp" />
+    <ClCompile Include="src\MovementControlSystem.cpp" />
     <ClCompile Include="src\RenderSystem.cpp" />
     <ClCompile Include="src\SpriteSheet.cpp" />
     <ClCompile Include="src\StateManager.cpp" />

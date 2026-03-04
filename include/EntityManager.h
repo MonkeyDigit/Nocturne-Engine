@@ -9,6 +9,8 @@
 #include "PhysicsSystem.h"
 #include "RenderSystem.h"
 #include "AnimationSystem.h"
+#include "MovementControlSystem.h"
+#include "AISystem.h"
 
 struct SharedContext;
 
@@ -71,4 +73,6 @@ private:
     PhysicsSystem m_physicsSystem;
     RenderSystem m_renderSystem;
     AnimationSystem m_animationSystem;
+    MovementControlSystem m_controlSystem;
+    AISystem m_aiSystem;
 };

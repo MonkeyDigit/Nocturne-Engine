@@ -3,11 +3,15 @@
 #include "Enemy.h"
 #include "EntityManager.h"
 #include "CState.h"
+#include "CController.h"
+#include "CAIPatrol.h"
 
 Enemy::Enemy(EntityManager& entityManager)
-    : Character(entityManager), m_hasDestination(false), m_elapsed(0.0f)
+    : Character(entityManager)
 {
     m_type = EntityType::Enemy;
+    AddComponent<CController>();
+    AddComponent<CAIPatrol>();
 }
 
 Enemy::~Enemy() {}
@@ -35,40 +39,4 @@ void Enemy::OnEntityCollision(EntityBase& collider, bool attack)
         player.AddVelocity(GetSpeed().x, 0.0f);
         m_sprite->GetSpriteSheet().SetDirection(Direction::Right);
     }
-}
-
-void Enemy::Update(float deltaTime)
-{
-    Character::Update(deltaTime);
-
-    if (m_hasDestination)
-    {
-        if (std::abs(m_destination.x - GetPosition().x) < 16.0f)
-        {
-            m_hasDestination = false;
-            return;
-        }
-
-        if (m_destination.x - GetPosition().x > 0.0f) Move(Direction::Right);
-        else Move(Direction::Left);
-
-        if (m_collider->IsCollidingX()) m_hasDestination = false;
-
-        return;
-    }
-
-    m_elapsed += deltaTime;
-
-    if (m_elapsed < 1.0f) return;
-
-    m_elapsed -= 1.0f;
-
-    int newX = rand() % 64 + 1;
-    if (rand() % 2) newX = -newX;
-
-    m_destination.x = GetPosition().x + static_cast<float>(newX);
-
-    if (m_destination.x < 0.0f) m_destination.x = 0.0f;
-
-    m_hasDestination = true;
 }

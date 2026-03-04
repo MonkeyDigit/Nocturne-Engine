@@ -7,11 +7,6 @@ public:
     Enemy(EntityManager& entityManager);
     ~Enemy() override;
 
+    // TODO: Cosa fare di questo?
     void OnEntityCollision(EntityBase& collider, bool attack) override;
-    void Update(float deltaTime) override;
-
-private:
-    sf::Vector2f m_destination;
-    bool m_hasDestination;
-    float m_elapsed;
 };

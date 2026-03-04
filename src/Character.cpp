@@ -5,10 +5,10 @@
 #include "SharedContext.h"
 #include "EntityManager.h"
 #include "CState.h"
+#include "CController.h"
 
 Character::Character(EntityManager& entityManager)
-    : EntityBase(entityManager),
-    m_jumpVelocity(125.0f)
+    : EntityBase(entityManager)
 {
     m_name = "Character";
     TextureManager& textures = entityManager.GetContext().m_textureManager;
@@ -16,56 +16,6 @@ Character::Character(EntityManager& entityManager)
 }
 
 Character::~Character() {}
-
-void Character::Move(Direction dir)
-{
-    SpriteSheet& spriteSheet = m_sprite->GetSpriteSheet();
-
-    if (this->GetComponent<CState>()->GetState() == EntityState::Dying) return;
-
-    if (this->GetComponent<CState>()->GetState() == EntityState::Attacking && spriteSheet.GetCurrentAnim()->GetName() == "Attack") return;
-
-    spriteSheet.SetDirection(dir);
-
-    if (dir == Direction::Left) 
-        AddAcceleration(-GetSpeed().x, 0.0f);
-    else 
-        AddAcceleration(GetSpeed().x, 0.0f);
-
-    if (this->GetComponent<CState>()->GetState() == EntityState::Idle) 
-        this->GetComponent<CState>()->SetState(EntityState::Walking);
-}
-
-void Character::Jump()
-{
-    if (this->GetComponent<CState>()->GetState() == EntityState::Dying || this->GetComponent<CState>()->GetState() == EntityState::Hurt || this->GetComponent<CState>()->GetState() == EntityState::Jumping)
-        return;
-
-    this->GetComponent<CState>()->SetState(EntityState::Jumping);
-
-    // Instead of jumping immediately, we buffer the input for 0.15 seconds
-    m_jumpBufferTimer = 0.15f;
-}
-
-void Character::CancelJump()
-{
-    // VJH (Variable Jump Height)
-    // Cut the upward velocity in half if the jump button is released early
-    if (GetVelocity().y < 0.0f)
-    {
-        SetVelocity(GetVelocity().x, GetVelocity().y * 0.5f);
-    }
-}
-
-void Character::Attack()
-{
-    if (this->GetComponent<CState>()->GetState() == EntityState::Dying || this->GetComponent<CState>()->GetState() == EntityState::Jumping ||
-        this->GetComponent<CState>()->GetState() == EntityState::Hurt || this->GetComponent<CState>()->GetState() == EntityState::Attacking) return;
-
-    SetAcceleration(0.0f, 0.0f);
-    SetVelocity(0.0f, 0.0f);
-    this->GetComponent<CState>()->SetState(EntityState::Attacking);
-}
 
 void Character::Load(const std::string& path)
 {
@@ -86,6 +36,7 @@ void Character::Load(const std::string& path)
 
         keystream >> type;
 
+        // TODO: Spostare ?
         if (type == "Name") 
             keystream >> m_name;
         else if (type == "Spritesheet")
@@ -122,9 +73,17 @@ void Character::Load(const std::string& path)
             keystream >> x >> y;
             SetMaxVelocity(x, y);
         }
-        // TODO: Togliere?
-        else if (type == "JumpVelocity") keystream >> m_jumpVelocity;
-        else std::cerr << "! Unknown type in character file: " << type << '\n';
+        else if (type == "JumpVelocity")
+        {
+            float jv;
+            keystream >> jv;
+
+            CController* controller = GetComponent<CController>();
+            if (controller)
+                controller->m_jumpVelocity = jv;
+        }
+        else
+            std::cerr << "! Unknown type in character file: " << type << '\n';
 
     }
     file.close();
@@ -146,34 +105,6 @@ void Character::UpdateAttackAABB()
 
 void Character::Update(float deltaTime)
 {
-    // Coyote Time
-    // If the character is grounded (state is not Jumping), keep the timer full
-    if (this->GetComponent<CState>()->GetState() != EntityState::Jumping)
-    {
-        m_coyoteTimer = 0.1f; // 0.1 seconds of leniency after walking off a ledge
-    }
-    else
-    {
-        // Decrease the timer while in the air
-        m_coyoteTimer -= deltaTime;
-    }
-
-    // Jump Buffer
-    // Decrease the jump buffer timer
-    m_jumpBufferTimer -= deltaTime;
-
-    // Jump Execution
-    // If the player wants to jump (buffer active) AND can jump (coyote time active)
-    if (m_jumpBufferTimer > 0.0f && m_coyoteTimer > 0.0f)
-    {
-        // Reset timers to prevent double jumps
-        m_jumpBufferTimer = 0.0f;
-        m_coyoteTimer = 0.0f;
-
-        this->GetComponent<CState>()->SetState(EntityState::Jumping);
-        SetVelocity(GetVelocity().x, -m_jumpVelocity);
-    }
-
     EntityBase::Update(deltaTime);
 
     if (m_attackAABB.size.x != 0.0f && m_attackAABB.size.y != 0.0f)

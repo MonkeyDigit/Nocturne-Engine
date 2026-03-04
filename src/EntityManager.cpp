@@ -13,6 +13,7 @@ EntityManager::EntityManager(SharedContext& context, unsigned int maxEntities)
     m_maxEntities(maxEntities),
     m_idCounter(0)
 {
+    m_controlSystem.Initialize(this);
     LoadEnemyTypes("media/lists/enemy_list.list");
 
     RegisterEntity<Player>(EntityType::Player);
@@ -81,7 +82,8 @@ void EntityManager::Remove(unsigned int id)
 
 void EntityManager::Update(float deltaTime)
 {
-    // Calculate game physics
+    m_aiSystem.Update(*this, deltaTime);
+    m_controlSystem.Update(deltaTime);
     m_physicsSystem.Update(*this, m_context.m_gameMap, deltaTime);
     m_animationSystem.Update(*this, deltaTime);
 
@@ -106,6 +108,8 @@ void EntityManager::Purge()
     // unique_ptr automatically deletes the memory of all entities!
     m_entities.clear();
     m_idCounter = 0;
+
+    m_controlSystem.Destroy();
 }
 
 SharedContext& EntityManager::GetContext()
