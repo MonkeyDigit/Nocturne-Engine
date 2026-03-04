@@ -84,6 +84,8 @@ void EntityManager::Update(float deltaTime)
 {
     m_aiSystem.Update(*this, deltaTime);
     m_controlSystem.Update(deltaTime);
+    // Calculate damage and knockbacks before moving
+    m_combatSystem.Update(*this);
     m_physicsSystem.Update(*this, m_context.m_gameMap, deltaTime);
     m_animationSystem.Update(*this, deltaTime);
 
@@ -131,50 +133,6 @@ void EntityManager::ProcessRemovals()
         }
 
         m_entitiesToRemove.pop_back();
-    }
-}
-
-void EntityManager::EntityCollisionCheck()
-{
-    if (m_entities.empty()) return;
-
-    for (auto itr = m_entities.begin(); std::next(itr) != m_entities.end(); ++itr)
-    {
-        for (auto itr2 = std::next(itr); itr2 != m_entities.end(); ++itr2)
-        {
-            if (itr->first == itr2->first) continue;
-
-            EntityBase* e1 = itr->second.get();
-            EntityBase* e2 = itr2->second.get();
-
-            // SFML 3: findIntersection instead of intersects
-            if (e1->m_collider->GetAABB().findIntersection(e2->m_collider->GetAABB()))
-            {
-                e1->OnEntityCollision(*e2, false);
-                e2->OnEntityCollision(*e1, false);
-            }
-
-            EntityType t1 = e1->GetType();
-            EntityType t2 = e2->GetType();
-
-            if (t1 == EntityType::Player || t1 == EntityType::Enemy)
-            {
-                auto* c1 = static_cast<Character*>(e1);
-                if (c1->m_attackAABB.findIntersection(e2->m_collider->GetAABB()))
-                {
-                    c1->OnEntityCollision(*e2, true);
-                }
-            }
-
-            if (t2 == EntityType::Player || t2 == EntityType::Enemy)
-            {
-                auto* c2 = static_cast<Character*>(e2);
-                if (c2->m_attackAABB.findIntersection(e1->m_collider->GetAABB()))
-                {
-                    c2->OnEntityCollision(*e1, true);
-                }
-            }
-        }
     }
 }
 

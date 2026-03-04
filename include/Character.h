@@ -10,10 +10,8 @@ public:
     Character(EntityManager& entityManager);
     virtual ~Character();
 
-    void Attack();
     void Load(const std::string& path);
 
-    virtual void OnEntityCollision(EntityBase& collider, bool attack) = 0;
     virtual void Update(float deltaTime) override;
 
 protected:

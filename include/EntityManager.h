@@ -11,6 +11,7 @@
 #include "AnimationSystem.h"
 #include "MovementControlSystem.h"
 #include "AISystem.h"
+#include "CombatSystem.h"
 
 struct SharedContext;
 
@@ -58,7 +59,6 @@ private:
 
     void ProcessRemovals();
     void LoadEnemyTypes(const std::string& path);
-    void EntityCollisionCheck();
 
     EntityContainer m_entities;
     EnemyTypes m_enemyTypes;
@@ -75,4 +75,5 @@ private:
     AnimationSystem m_animationSystem;
     MovementControlSystem m_controlSystem;
     AISystem m_aiSystem;
+    CombatSystem m_combatSystem;
 };

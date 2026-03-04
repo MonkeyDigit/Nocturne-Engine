@@ -52,8 +52,6 @@ public:
     const sf::Vector2f& GetSize() const { return m_transform->GetSize(); }
 
     virtual void Update(float deltaTime);
-    // Method for what THIS entity does TO the collider entity
-    virtual void OnEntityCollision(EntityBase& collider, bool attack) = 0;
 
     EntityType GetType() const;
     std::string GetName() const;
