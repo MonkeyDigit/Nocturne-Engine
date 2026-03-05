@@ -40,7 +40,7 @@ void State_Game::OnCreate()
 
     m_stateManager.GetContext().m_window.GetRenderWindow().setView(m_view);
 
-    m_gameMap.LoadMap("media/maps/map1.map");
+    m_gameMap.LoadMap("media/maps/new_map.tmj");
 
     // TODO: AGGIUNGERE L'HEALTH BAR
 }

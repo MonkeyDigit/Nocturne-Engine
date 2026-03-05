@@ -9,7 +9,6 @@
 struct SharedContext;
 class BaseState;
 
-// TODO: Modificare?
 namespace Sheet
 {
     constexpr unsigned int TILE_SIZE = 16;
@@ -21,21 +20,20 @@ using TileID = unsigned int;
 
 struct TileInfo
 {
-    unsigned int id;
-    std::string name;
-    sf::Vector2f friction;
-    bool deadly;
-    sf::IntRect textureRect; // Holds the exact crop coordinates from the tilesheet
+    unsigned int id = 0;
+    std::string name = "";
+    sf::Vector2f friction = { 0.0f, 0.0f };
+    bool deadly = false;
+    sf::IntRect textureRect = {}; // Holds the exact crop coordinates from the tilesheet
 };
 
 struct Tile
 {
-    TileInfo* properties; // Pointer to the shared TileInfo (owned by the TileSet)
-    bool warp;
+    TileInfo properties;
+    bool warp = false;
 };
 
 using TileMap = std::unordered_map<TileID, std::unique_ptr<Tile>>;
-using TileSet = std::unordered_map<TileID, std::unique_ptr<TileInfo>>;
 
 class Map
 {
@@ -57,15 +55,11 @@ public:
 
 private:
     unsigned int ConvertCoords(unsigned int x, unsigned int y) const;
-    void LoadTiles(const std::string& path);
     void PurgeMap();
-    void PurgeTileSet();
-
     // Bakes the map into a single GPU call
     void BuildVertexArray();
 
     int m_playerId;
-    TileSet m_tileSet;
     TileMap m_tileMap;
 
     sf::Texture* m_tileTexture;

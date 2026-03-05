@@ -156,6 +156,7 @@
     <ClInclude Include="include\EntityManager.h" />
     <ClInclude Include="include\EventManager.h" />
     <ClInclude Include="include\Game.h" />
+    <ClInclude Include="include\json.hpp" />
     <ClInclude Include="include\Map.h" />
     <ClInclude Include="include\PhysicsSystem.h" />
     <ClInclude Include="include\MovementControlSystem.h" />

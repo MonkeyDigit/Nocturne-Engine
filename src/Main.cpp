@@ -14,6 +14,7 @@
 // TODO: Controlla variabili inutilizzate
 // TODO: Includere CState in ogni file cpp di classi derivate o solo in character.h?
 // TODO: Multiplayer?
+// TODO: Togliere dati hardcoded
 
 int main() {
     Game game;

@@ -1,3 +1,6 @@
+#include <fstream>
+#include <iostream>
+#include "json.hpp" // JSON parser
 #include "Map.h"
 #include "EntityManager.h"
 #include "SharedContext.h"
@@ -6,9 +9,6 @@
 #include "StateManager.h"
 #include "TextureManager.h"
 #include "Window.h"
-#include <fstream>
-#include <sstream>
-#include <iostream>
 
 Map::Map(SharedContext& context, BaseState* currentState)
     : m_context(context),
@@ -26,14 +26,11 @@ Map::Map(SharedContext& context, BaseState* currentState)
     m_defaultTile.deadly = false;
 
     m_vertices.setPrimitiveType(sf::PrimitiveType::Triangles);
-
-    LoadTiles("config/tiles.cfg");
 }
 
 Map::~Map()
 {
     PurgeMap();
-    PurgeTileSet();
     m_context.m_gameMap = nullptr;
 }
 
@@ -54,130 +51,124 @@ unsigned int Map::GetTileSize() const { return Sheet::TILE_SIZE; }
 const sf::Vector2u& Map::GetMapSize() const { return m_maxMapSize; }
 const sf::Vector2f& Map::GetPlayerStart() const { return m_playerStart; }
 
-void Map::LoadTiles(const std::string& path)
-{
-    std::ifstream file{ Utils::GetWorkingDirectory() + path };
-    if (!file.is_open()) return;
-
-    std::string line;
-    while (std::getline(file, line))
-    {
-        if (line.empty() || line[0] == '|') continue;
-
-        std::stringstream keystream(line);
-        int tileId;
-        keystream >> tileId;
-        if (tileId < 0) continue;
-
-        auto tile = std::make_unique<TileInfo>();
-        tile->id = tileId;
-
-        keystream >> tile->name >> tile->friction.x >> tile->friction.y >> tile->deadly;
-
-        tile->textureRect = sf::IntRect(
-            { static_cast<int>((tileId % (Sheet::SHEET_WIDTH / Sheet::TILE_SIZE)) * Sheet::TILE_SIZE),
-             static_cast<int>((tileId / (Sheet::SHEET_HEIGHT / Sheet::TILE_SIZE)) * Sheet::TILE_SIZE) },
-            { Sheet::TILE_SIZE, Sheet::TILE_SIZE }
-        );
-
-        m_tileSet.emplace(tileId, std::move(tile));
-    }
-    file.close();
-}
-
 void Map::LoadMap(const std::string& path)
 {
-    std::ifstream file{ Utils::GetWorkingDirectory() + path };
-    if (!file.is_open()) return;
-
-    std::string line;
-    while (std::getline(file, line))
+    std::ifstream file(Utils::GetWorkingDirectory() + path);
+    if (!file.is_open())
     {
-        if (line.empty() || line[0] == '|') continue;
+        std::cerr << "! Failed loading map file: " << path << '\n';
+        return;
+    }
 
-        std::stringstream keystream(line);
-        std::string type;
-        keystream >> type;
-
-        if (type == "TILE")
-        {
-            int tileId = 0;
-            keystream >> tileId;
-            if (tileId < 0) continue;
-
-            auto itr = m_tileSet.find(tileId);
-            if (itr == m_tileSet.end()) continue;
-
-            sf::Vector2i tileCoords;
-            keystream >> tileCoords.x >> tileCoords.y;
-
-            if (tileCoords.x >= static_cast<int>(m_maxMapSize.x) || tileCoords.y >= static_cast<int>(m_maxMapSize.y)) continue;
-
-            auto tile = std::make_unique<Tile>();
-            tile->properties = itr->second.get();
-            tile->warp = false;
-
-            if (!m_tileMap.emplace(ConvertCoords(tileCoords.x, tileCoords.y), std::move(tile)).second) continue;
-
-            std::string warp;
-            keystream >> warp;
-            if (warp == "WARP") m_tileMap[ConvertCoords(tileCoords.x, tileCoords.y)]->warp = true;
-        }
-        else if (type == "BACKGROUND")
-        {
-            std::string bgName;
-            keystream >> bgName;
-
-            if (m_context.m_textureManager.RequireResource(bgName))
-            {
-                m_backgroundTextureName = bgName;
-                m_backgroundTexture = m_context.m_textureManager.GetResource(bgName);
-                m_background.emplace(*m_backgroundTexture);
-
-                sf::Vector2f viewSize = m_currentState->GetView().getSize();
-                sf::Vector2u textureSize = m_backgroundTexture->getSize();
-                sf::Vector2f scaleFactors;
-                scaleFactors.y = viewSize.y / textureSize.y;
-                scaleFactors.x = scaleFactors.y;
-                m_background->setScale(scaleFactors);
-            }
-        }
-        else if (type == "SIZE") keystream >> m_maxMapSize.x >> m_maxMapSize.y;
-        else if (type == "GRAVITY") keystream >> m_mapGravity;
-        else if (type == "DEFAULT_FRICTION") keystream >> m_defaultTile.friction.x >> m_defaultTile.friction.y;
-        else if (type == "NEXTMAP") keystream >> m_nextMap;
-        else if (type == "PLAYER")
-        {
-            if (m_playerId == -1) m_playerId = m_context.m_entityManager.Add(EntityType::Player, "Player");
-
-            keystream >> m_playerStart.x >> m_playerStart.y;
-            EntityBase* player = m_context.m_entityManager.Find(m_playerId);
-            if (player) player->SetPosition(m_playerStart);
-        }
-        else if (type == "ENEMY")
-        {
-            std::string enemyName;
-            keystream >> enemyName;
-            int enemyId = m_context.m_entityManager.Add(EntityType::Enemy, enemyName);
-            if (enemyId < 0) continue;
-
-            sf::Vector2f enemyPos;
-            keystream >> enemyPos.x >> enemyPos.y;
-            EntityBase* enemy = m_context.m_entityManager.Find(enemyId);
-            if (enemy) enemy->SetPosition(enemyPos);
-        }
+    nlohmann::json mapData;
+    try {
+        file >> mapData;
+    }
+    catch (const nlohmann::json::parse_error& e) {
+        std::cerr << "! JSON Parse Error: " << e.what() << '\n';
+        return;
     }
     file.close();
+
+    // Safely extract values with fallbacks to prevent crashes
+    m_maxMapSize.x = mapData.value("width", 32);
+    m_maxMapSize.y = mapData.value("height", 32);
+
+    if (!mapData.contains("layers") || !mapData["layers"].is_array()) return;
+
+    for (const auto& layer : mapData["layers"])
+    {
+        std::string layerType = layer.value("type", "");
+
+        // ==========================================
+        // --- TILE LAYER ---
+        // ==========================================
+        if (layerType == "tilelayer")
+        {
+            if (!layer.contains("data") || !layer["data"].is_array()) continue;
+
+            const auto& data = layer["data"];
+            unsigned int x = 0;
+            unsigned int y = 0;
+
+            // Calculate how many tiles fit in a single row of the texture sheet
+            int tilesPerRow = Sheet::SHEET_WIDTH / Sheet::TILE_SIZE;
+
+            for (int tileID : data)
+            {
+                if (tileID > 0)
+                {
+                    int actualID = tileID - 1;
+
+                    auto tile = std::make_unique<Tile>();
+                    tile->warp = false;
+
+                    // Assign properties dynamically
+                    tile->properties.id = actualID;
+                    tile->properties.friction = m_defaultTile.friction;
+                    tile->properties.deadly = false;
+
+                    // The Magic Math: calculate crop coordinates without tiles.cfg!
+                    tile->properties.textureRect = sf::IntRect(
+                        { static_cast<int>((actualID % tilesPerRow) * Sheet::TILE_SIZE),
+                          static_cast<int>((actualID / tilesPerRow) * Sheet::TILE_SIZE) },
+                        { static_cast<int>(Sheet::TILE_SIZE), static_cast<int>(Sheet::TILE_SIZE) }
+                    );
+
+                    m_tileMap.emplace(ConvertCoords(x, y), std::move(tile));
+                }
+
+                x++;
+                if (x >= m_maxMapSize.x) {
+                    x = 0;
+                    y++;
+                }
+            }
+        }
+        // ==========================================
+        // --- OBJECT LAYER ---
+        // ==========================================
+        else if (layerType == "objectgroup")
+        {
+            if (!layer.contains("objects") || !layer["objects"].is_array()) continue;
+
+            for (const auto& object : layer["objects"])
+            {
+                // Support both new Tiled ("class") and old Tiled ("type")
+                std::string typeStr = object.value("class", object.value("type", ""));
+                std::string name = object.value("name", "Unknown");
+                float objX = object.value("x", 0.0f);
+                float objY = object.value("y", 0.0f);
+
+                if (typeStr == "Player")
+                {
+                    if (m_playerId == -1) m_playerId = m_context.m_entityManager.Add(EntityType::Player, name);
+
+                    m_playerStart = sf::Vector2f(objX, objY);
+
+                    EntityBase* player = m_context.m_entityManager.Find(m_playerId);
+                    if (player) player->SetPosition(m_playerStart);
+                }
+                else if (typeStr == "Enemy")
+                {
+                    int enemyId = m_context.m_entityManager.Add(EntityType::Enemy, name);
+                    if (enemyId >= 0)
+                    {
+                        EntityBase* enemy = m_context.m_entityManager.Find(enemyId);
+                        if (enemy) enemy->SetPosition(sf::Vector2f(objX, objY));
+                    }
+                }
+            }
+        }
+    }
 
     BuildVertexArray();
 }
 
 void Map::BuildVertexArray()
 {
-    if (m_context.m_textureManager.RequireResource("TileSheet"))
-    {
-        m_tileTexture = m_context.m_textureManager.GetResource("TileSheet");
-    }
+    if (m_context.m_textureManager.RequireResource("MapTileSet"))
+        m_tileTexture = m_context.m_textureManager.GetResource("MapTileSet");
 
     m_vertices.clear();
     m_vertices.resize(m_tileMap.size() * 6);
@@ -188,9 +179,10 @@ void Map::BuildVertexArray()
         unsigned int x = pair.first / m_maxMapSize.x;
         unsigned int y = pair.first % m_maxMapSize.x;
 
-        TileInfo* info = pair.second->properties;
+        // Note the '&' here! We are getting a pointer to the value stored in the struct
+        TileInfo* info = &pair.second->properties;
 
-        sf::Vector2f pos(x * Sheet::TILE_SIZE, y * Sheet::TILE_SIZE);
+        sf::Vector2f pos(static_cast<float>(x * Sheet::TILE_SIZE), static_cast<float>(y * Sheet::TILE_SIZE));
         float size = static_cast<float>(Sheet::TILE_SIZE);
 
         sf::FloatRect texCoords(
@@ -262,5 +254,3 @@ void Map::PurgeMap()
         m_background.reset();
     }
 }
-
-void Map::PurgeTileSet() { m_tileSet.clear(); }
