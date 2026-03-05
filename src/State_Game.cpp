@@ -1,12 +1,12 @@
 #include <iostream>
 #include <cmath>
+#include <SFML/Graphics/RectangleShape.hpp>
 #include "State_Game.h"
 #include "StateManager.h"
 #include "SharedContext.h"
 #include "Window.h"
 #include "EntityManager.h"
 #include "CState.h"
-#include <SFML/Graphics/RectangleShape.hpp>
 
 State_Game::State_Game(StateManager& stateManager)
     : BaseState(stateManager),
@@ -42,7 +42,7 @@ void State_Game::OnCreate()
 
     m_gameMap.LoadMap("media/maps/new_map.tmj");
 
-    // TODO: AGGIUNGERE L'HEALTH BAR
+    m_hud = std::make_unique<HUD>(m_stateManager.GetContext().m_entityManager);
 }
 
 void State_Game::OnDestroy()
@@ -91,6 +91,8 @@ void State_Game::Update(const sf::Time& time)
     context.m_entityManager.Update(time.asSeconds());
     // Update the map
     m_gameMap.Update(time.asSeconds());
+    // Update HUD overlay
+    m_hud->Update();
 }
 
 void State_Game::Draw()
@@ -137,37 +139,8 @@ void State_Game::Draw()
         }
     }
 
-    // --- UI OVERLAY ---
-
-    sf::View currentView = window.getView();
-
-    window.setView(window.getDefaultView());
-
-    EntityBase* player = context.m_entityManager.Find("Player");
-    if (player)
-    {
-        CState* state = player->GetComponent<CState>();
-        if (state)
-        {
-            int hp = state->GetHitPoints();
-            int maxHp = state->GetMaxHitPoints();
-
-            float hpPercent = static_cast<float>(hp) / static_cast<float>(maxHp);
-            if (hpPercent < 0.0f) hpPercent = 0.0f;
-
-            sf::RectangleShape bgBar({ 200.0f, 20.0f });
-            bgBar.setPosition({ 20.0f, 20.0f });
-            bgBar.setFillColor(sf::Color(50, 50, 50, 200));
-
-            sf::RectangleShape fgBar({ 200.0f * hpPercent, 20.0f });
-            fgBar.setPosition({ 20.0f, 20.0f });
-            fgBar.setFillColor(sf::Color(220, 50, 50, 255));
-
-            window.draw(bgBar);
-            window.draw(fgBar);
-        }
-    }
-    window.setView(currentView);
+    if (m_hud) 
+        m_hud->Draw(m_stateManager.GetContext().m_window.GetRenderWindow());
 }
 
 void State_Game::MainMenu(EventDetails& details)

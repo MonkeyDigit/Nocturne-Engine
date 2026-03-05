@@ -1,7 +1,9 @@
 #pragma once
+#include <memory>
 #include "BaseState.h"
 #include "EventManager.h"
 #include "Map.h"
+#include "HUD.h"
 
 class State_Game : public BaseState
 {
@@ -30,5 +32,6 @@ private:
     bool m_cursorVisible;
 
     Map m_gameMap;
+    std::unique_ptr<HUD> m_hud;
     bool m_debugMode;
 };
