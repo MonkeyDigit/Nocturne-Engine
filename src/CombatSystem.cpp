@@ -1,9 +1,11 @@
 #include "CombatSystem.h"
 #include "EntityManager.h"
+#include "EntityBase.h"
 #include "CBoxCollider.h"
 #include "CTransform.h"
 #include "CState.h"
 #include "CSprite.h"
+#include "CProjectile.h"
 
 void CombatSystem::Update(EntityManager& entityManager)
 {
@@ -13,6 +15,8 @@ void CombatSystem::Update(EntityManager& entityManager)
     for (auto it1 = entities.begin(); it1 != entities.end(); ++it1)
     {
         EntityBase* e1 = it1->second.get();
+        if (!e1) continue;
+
         CBoxCollider* col1 = e1->GetComponent<CBoxCollider>();
         CTransform* trans1 = e1->GetComponent<CTransform>();
         CState* state1 = e1->GetComponent<CState>();
@@ -23,6 +27,8 @@ void CombatSystem::Update(EntityManager& entityManager)
         for (auto it2 = std::next(it1); it2 != entities.end(); ++it2)
         {
             EntityBase* e2 = it2->second.get();
+            if (!e2) continue;
+
             CBoxCollider* col2 = e2->GetComponent<CBoxCollider>();
             CTransform* trans2 = e2->GetComponent<CTransform>();
             CState* state2 = e2->GetComponent<CState>();
@@ -32,6 +38,38 @@ void CombatSystem::Update(EntityManager& entityManager)
             // If the bounding boxes intersect, a physical collision has occurred!
             if (col1->GetAABB().findIntersection(col2->GetAABB()).has_value())
             {
+                // ==========================================
+                // --- PROJECTILE LOGIC ---
+                // ==========================================
+                bool isE1Projectile = (e1->GetType() == EntityType::Projectile);
+                bool isE2Projectile = (e2->GetType() == EntityType::Projectile);
+
+                if (isE1Projectile || isE2Projectile)
+                {
+                    EntityBase* projEntity = isE1Projectile ? e1 : e2;
+                    EntityBase* targetEntity = isE1Projectile ? e2 : e1;
+
+                    CProjectile* projComp = projEntity->GetComponent<CProjectile>();
+                    CState* targetState = targetEntity->GetComponent<CState>();
+
+                    // Check if the target is valid (Not a projectile itself, and not the one who shot it)
+                    if (projComp && targetState && targetEntity->GetType() != EntityType::Projectile)
+                    {
+                        if (targetEntity->GetType() != projComp->GetShooterType())
+                        {
+                            // It's a valid hit! Deal damage and destroy the projectile
+                            targetState->TakeDamage(projComp->GetDamage());
+                            projEntity->Destroy();
+                        }
+                    }
+
+                    // Skip the melee logic below if one of the two was a projectile
+                    continue;
+                }
+
+                // ==========================================
+                // --- MELEE LOGIC (Enemy vs Player) ---
+                // ==========================================
                 EntityBase* enemy = nullptr;
                 EntityBase* player = nullptr;
 

@@ -8,6 +8,7 @@
 #include "CState.h"
 #include "CController.h"
 #include "CAIPatrol.h"
+#include "CProjectile.h"
 
 EntityManager::EntityManager(SharedContext& context, unsigned int maxEntities)
     : m_context(context),
@@ -107,6 +108,9 @@ void EntityManager::Update(float deltaTime)
         pair.second->Update(deltaTime);
     }
 
+    // Camera updates last, after all movements are resolved
+    m_cameraSystem.Update(*this, *m_context.m_gameMap);
+
     ProcessRemovals();
 }
 
@@ -126,6 +130,37 @@ void EntityManager::Purge()
 SharedContext& EntityManager::GetContext()
 {
     return m_context;
+}
+
+int EntityManager::SpawnProjectile(EntityBase* shooter, const sf::Vector2f& position, const sf::Vector2f& velocity, int damage, float lifespan)
+{
+    std::unique_ptr<EntityBase> entity = std::make_unique<EntityBase>(*this);
+    entity->m_id = m_idCounter;
+    entity->SetType(EntityType::Projectile);
+    entity->m_name = "Projectile";
+
+    // Transform: Set starting position and flying velocity
+    CTransform* transform = entity->AddComponent<CTransform>();
+    transform->SetPosition(position);
+    transform->SetVelocity(velocity.x, velocity.y);
+    transform->SetSize(16.0f, 16.0f); // Default size of the fireball
+
+    CSprite* sprite = entity->AddComponent<CSprite>(m_context.m_textureManager);
+    sprite->Load("media/spritesheets/Player.sheet");
+
+    // Collider: So it can hit things
+    CBoxCollider* collider = entity->AddComponent<CBoxCollider>();
+
+    // Projectile Brain: Defines damage, lifespan, and who shot it
+    CProjectile* proj = entity->AddComponent<CProjectile>();
+    proj->SetShooterType(shooter->GetType());
+    proj->SetDamage(damage);
+
+    // Save and return
+    m_entities.emplace(m_idCounter, std::move(entity));
+    m_idCounter++;
+
+    return m_idCounter - 1;
 }
 
 void EntityManager::ProcessRemovals()

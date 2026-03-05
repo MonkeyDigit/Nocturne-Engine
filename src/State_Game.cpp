@@ -62,27 +62,16 @@ void State_Game::Update(const sf::Time& time)
     UpdateCursor(time);
     SharedContext& context = m_stateManager.GetContext();
 
-    // Camera Tracking & Respawn
     EntityBase* player = context.m_entityManager.Find("Player");
-
     float mapHeight = static_cast<float>(m_gameMap.GetMapSize().y * m_gameMap.GetTileSize());
     if (player)
     {
         CTransform* transform = player->GetComponent<CTransform>();
-        if (transform)
+        if (transform && transform->GetPosition().y >= mapHeight)
         {
-            sf::Vector2f playerPos = transform->GetPosition();
-            sf::Vector2f playerSize = transform->GetSize();
-
-            // --- OUT OF BOUNDS CHECK ---
-            if (playerPos.y >= mapHeight)
-            {
-                CState* state = player->GetComponent<CState>();
-                if (state && state->GetState() != EntityState::Dying)
-                    state->InstantKill();
-            }
-            else
-                m_view.setCenter({ playerPos.x, playerPos.y + playerSize.y * 0.5f });
+            CState* state = player->GetComponent<CState>();
+            if (state && state->GetState() != EntityState::Dying)
+                state->InstantKill();
         }
     }
     else
@@ -100,30 +89,6 @@ void State_Game::Update(const sf::Time& time)
 
     // Update Entities
     context.m_entityManager.Update(time.asSeconds());
-
-    // --- CLAMPING CAMERA ---
-    sf::Vector2f viewCenter = m_view.getCenter();
-    sf::Vector2f viewSize = m_view.getSize();
-
-    float mapWidth = static_cast<float>(m_gameMap.GetMapSize().x * m_gameMap.GetTileSize());
-
-    // Horizontal bounds
-    if (viewCenter.x - viewSize.x * 0.5f < 0.0f)
-        viewCenter.x = viewSize.x * 0.5f;
-    else if (viewCenter.x + viewSize.x * 0.5f > mapWidth)
-        viewCenter.x = mapWidth - viewSize.x * 0.5f;
-
-    // Vertical bounds
-    if (viewCenter.y + viewSize.y * 0.5f > mapHeight)
-        viewCenter.y = mapHeight - viewSize.y * 0.5f;
-    else if (viewCenter.y - viewSize.y * 0.5f < 0.0f)
-        viewCenter.y = viewSize.y * 0.5f;
-
-    m_view.setCenter(viewCenter);
-
-    // Apply view
-    context.m_window.GetRenderWindow().setView(m_view);
-
     // Update the map
     m_gameMap.Update(time.asSeconds());
 }

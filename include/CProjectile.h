@@ -1,0 +1,34 @@
+#pragma once
+#include "Component.h"
+#include "EntityBase.h"
+
+class CProjectile : public Component
+{
+public:
+    CProjectile(EntityBase* owner)
+        : Component(owner), m_damage(10), m_lifespan(2.0f), m_shooterType(EntityType::Base)
+    {}
+
+    void Awake() override {}
+
+    void Update(float deltaTime) override
+    {
+        m_lifespan -= deltaTime;
+        if (m_lifespan <= 0.0f)
+        {
+            m_owner->Destroy();
+        }
+    }
+
+    // --- GETTERS & SETTERS ---
+    void SetShooterType(EntityType type) { m_shooterType = type; }
+    EntityType GetShooterType() const { return m_shooterType; }
+
+    void SetDamage(int dmg) { m_damage = dmg; }
+    int GetDamage() const { return m_damage; }
+
+private:
+    int m_damage;
+    float m_lifespan;
+    EntityType m_shooterType;
+};

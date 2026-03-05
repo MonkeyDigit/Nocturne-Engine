@@ -19,6 +19,7 @@ void MovementControlSystem::Initialize(EntityManager* entityManager)
     events.AddCallback(StateType::Game, "Player_Jump", &MovementControlSystem::React, *this);
     events.AddCallback(StateType::Game, "Player_Jump_Cancel", &MovementControlSystem::React, *this);
     events.AddCallback(StateType::Game, "Player_Attack", &MovementControlSystem::React, *this);
+    events.AddCallback(StateType::Game, "Attack_Ranged", &MovementControlSystem::Player_AttackRanged, *this);
 }
 
 void MovementControlSystem::Destroy()
@@ -31,6 +32,7 @@ void MovementControlSystem::Destroy()
     events.RemoveCallback(StateType::Game, "Player_Jump");
     events.RemoveCallback(StateType::Game, "Player_Jump_Cancel");
     events.RemoveCallback(StateType::Game, "Player_Attack");
+    events.RemoveCallback(StateType::Game, "Attack_Ranged");
 }
 
 void MovementControlSystem::React(EventDetails& details)
@@ -55,6 +57,29 @@ void MovementControlSystem::React(EventDetails& details)
             else if (action == "Player_Attack")         controller->m_attack = true;
         }
     }
+}
+
+void MovementControlSystem::Player_AttackRanged(EventDetails& details)
+{
+    EntityBase* player = m_entityManager->Find("Player");
+    if (!player) return;
+
+    CTransform* transform = player->GetComponent<CTransform>();
+    CSprite* sprite = player->GetComponent<CSprite>();
+    if (!transform || !sprite) return;
+
+    // Calcoliamo da dove parte la palla di fuoco e in che direzione va
+    sf::Vector2f startPos = transform->GetPosition();
+    sf::Vector2f velocity(300.0f, 0.0f); // Velocità base verso destra
+
+    // Se il giocatore è girato a sinistra, invertiamo la velocità!
+    if (sprite->GetSpriteSheet().GetDirection() == Direction::Left)
+    {
+        velocity.x = -300.0f;
+    }
+
+    // Spawniamo il proiettile! (10 danni, 1.5 secondi di vita)
+    m_entityManager->SpawnProjectile(player, startPos, velocity, 10, 1.5f);
 }
 
 void MovementControlSystem::Update(float deltaTime)

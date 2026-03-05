@@ -12,6 +12,7 @@
 #include "MovementControlSystem.h"
 #include "AISystem.h"
 #include "CombatSystem.h"
+#include "CameraSystem.h"
 
 struct SharedContext;
 
@@ -44,6 +45,9 @@ public:
     std::unordered_map<unsigned int, std::unique_ptr<EntityBase>>& GetEntities()
     { return m_entities; }
 
+    // Spawns a projectile dynamically during gameplay
+    int SpawnProjectile(EntityBase* shooter, const sf::Vector2f& position, const sf::Vector2f& velocity, int damage, float lifespan);
+
 private:
 
     void ProcessRemovals();
@@ -64,4 +68,5 @@ private:
     MovementControlSystem m_controlSystem;
     AISystem m_aiSystem;
     CombatSystem m_combatSystem;
+    CameraSystem m_cameraSystem;
 };

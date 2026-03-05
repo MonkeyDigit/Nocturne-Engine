@@ -15,7 +15,7 @@ bool SortCollisions(const CollisionElement& e1, const CollisionElement& e2);
 // Moved here to solve circular dependency issues
 enum class EntityType
 {
-    Base = 0, Enemy, Player
+    Base = 0, Enemy, Player, Projectile
 };
 
 class EntityBase
@@ -99,6 +99,7 @@ public:
     }
 
     void Load(const std::string& path);
+    void Destroy();
 
 protected:
 

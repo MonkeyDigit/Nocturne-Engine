@@ -212,3 +212,8 @@ void EntityBase::Load(const std::string& path)
         sprite->GetSpriteSheet().SetAnimation("Idle", true, true);
     }
 }
+
+void EntityBase::Destroy()
+{
+    m_entityManager.Remove(m_id);
+}
