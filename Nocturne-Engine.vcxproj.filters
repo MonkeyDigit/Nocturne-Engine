@@ -167,9 +167,6 @@
     <ClCompile Include="src\MovementControlSystem.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\CAISystem.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\CombatSystem.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -183,6 +180,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\AudioManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\AISystem.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

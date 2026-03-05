@@ -74,7 +74,7 @@ void MovementControlSystem::Player_AttackRanged(EventDetails& details)
     sf::Vector2f velocity(300.0f, 0.0f); // Velocità base verso destra
 
     // Se il giocatore è girato a sinistra, invertiamo la velocità!
-    if (sprite->GetSpriteSheet().GetDirection() == Direction::Left)
+    if (sprite->GetDirection() == Direction::Left)
     {
         velocity.x = -300.0f;
     }
@@ -116,13 +116,13 @@ void MovementControlSystem::Update(float deltaTime)
         {
             if (controller->m_moveLeft)
             {
-                if (sprite) sprite->GetSpriteSheet().SetDirection(Direction::Left);
+                if (sprite) sprite->SetDirection(Direction::Left);
                 transform->AddAcceleration(-transform->GetSpeed().x, 0.0f);
                 if (currentState == EntityState::Idle) state->SetState(EntityState::Walking);
             }
             else if (controller->m_moveRight)
             {
-                if (sprite) sprite->GetSpriteSheet().SetDirection(Direction::Right);
+                if (sprite) sprite->SetDirection(Direction::Right);
                 transform->AddAcceleration(transform->GetSpeed().x, 0.0f);
                 if (currentState == EntityState::Idle) state->SetState(EntityState::Walking);
             }

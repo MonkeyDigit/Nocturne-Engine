@@ -25,6 +25,11 @@ public:
     void Load(const std::string& path) { m_spriteSheet.LoadSheet(path); }
     SpriteSheet& GetSpriteSheet() { return m_spriteSheet; }
 
+    // --- Wrapper methods for Direction ---
+    // Allows other systems to get/set direction without accessing the SpriteSheet directly
+    Direction GetDirection() const { return m_spriteSheet.GetDirection(); }
+    void SetDirection(Direction dir) { m_spriteSheet.SetDirection(dir); }
+
 private:
     SpriteSheet m_spriteSheet;
 };

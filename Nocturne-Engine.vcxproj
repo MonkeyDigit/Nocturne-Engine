@@ -175,11 +175,11 @@
     <ClInclude Include="include\Window.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\AISystem.cpp" />
     <ClCompile Include="src\Animation.cpp" />
     <ClCompile Include="src\AnimationSystem.cpp" />
     <ClCompile Include="src\AudioManager.cpp" />
     <ClCompile Include="src\BaseState.cpp" />
-    <ClCompile Include="src\CAISystem.cpp" />
     <ClCompile Include="src\CameraSystem.cpp" />
     <ClCompile Include="src\CombatSystem.cpp" />
     <ClCompile Include="src\EntityBase.cpp" />

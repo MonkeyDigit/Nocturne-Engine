@@ -102,12 +102,12 @@ void CombatSystem::Update(EntityManager& entityManager)
                         if (enemyTrans->GetPosition().x > playerTrans->GetPosition().x)
                         {
                             playerTrans->AddVelocity(-playerTrans->GetSpeed().x, 0.0f);
-                            if (enemySprite) enemySprite->GetSpriteSheet().SetDirection(Direction::Left);
+                            if (enemySprite) enemySprite->SetDirection(Direction::Left);
                         }
                         else
                         {
                             playerTrans->AddVelocity(playerTrans->GetSpeed().x, 0.0f);
-                            if (enemySprite) enemySprite->GetSpriteSheet().SetDirection(Direction::Right);
+                            if (enemySprite) enemySprite->SetDirection(Direction::Right);
                         }
                     }
                 }

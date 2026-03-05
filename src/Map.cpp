@@ -155,6 +155,8 @@ void Map::LoadMap(const std::string& path)
                 std::string name = object.value("name", "Unknown");
                 float objX = object.value("x", 0.0f);
                 float objY = object.value("y", 0.0f);
+                float objW = object.value("width", 32.0f);
+                float objH = object.value("height", 32.0f);
 
                 if (typeStr == "Player")
                 {
@@ -174,6 +176,10 @@ void Map::LoadMap(const std::string& path)
                         if (enemy) enemy->SetPosition(sf::Vector2f(objX, objY));
                     }
                 }
+                else if (typeStr == "Door")
+                    m_doorRect = { {objX, objY}, {objW, objH} };
+                else if (typeStr == "Trap")
+                    m_traps.push_back({ {objX, objY}, {objW, objH} });
             }
         }
     }
@@ -269,4 +275,7 @@ void Map::PurgeMap()
         m_backgroundTexture = nullptr;
         m_background.reset();
     }
+
+    m_doorRect = sf::FloatRect();
+    m_traps.clear();
 }

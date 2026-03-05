@@ -67,11 +67,32 @@ void State_Game::Update(const sf::Time& time)
     if (player)
     {
         CTransform* transform = player->GetComponent<CTransform>();
-        if (transform && transform->GetPosition().y >= mapHeight)
+        CBoxCollider* collider = player->GetComponent<CBoxCollider>();
+        CState* state = player->GetComponent<CState>();
+
+        // Check if player components exist and player is not already dying
+        if (transform && collider && state && state->GetState() != EntityState::Dying)
         {
-            CState* state = player->GetComponent<CState>();
-            if (state && state->GetState() != EntityState::Dying)
+            // Here is pBounds! We get the AABB (Axis-Aligned Bounding Box) from the collider
+            sf::FloatRect pBounds = collider->GetAABB();
+
+            // Fall death check
+            if (transform->GetPosition().y >= mapHeight)
                 state->InstantKill();
+
+            // Level Transition (Touching the Door)
+            if (m_gameMap.GetDoorRect().findIntersection(pBounds))
+                m_gameMap.LoadNext();
+
+            // Trap collision check
+            for (const auto& trap : m_gameMap.GetTraps())
+            {
+                if (trap.findIntersection(pBounds))
+                {
+                    state->InstantKill();
+                    break;
+                }
+            }
         }
     }
     else

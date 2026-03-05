@@ -53,6 +53,9 @@ public:
     const sf::Vector2u& GetMapSize() const;
     const sf::Vector2f& GetPlayerStart() const;
 
+    const sf::FloatRect& GetDoorRect() const { return m_doorRect; }
+    const std::vector<sf::FloatRect>& GetTraps() const { return m_traps; }
+
 private:
     unsigned int ConvertCoords(unsigned int x, unsigned int y) const;
     void PurgeMap();
@@ -72,6 +75,9 @@ private:
 
     sf::Vector2u m_maxMapSize;
     sf::Vector2f m_playerStart;
+
+    sf::FloatRect m_doorRect;
+    std::vector<sf::FloatRect> m_traps;
 
     float m_mapGravity;
     std::string m_nextMap;
