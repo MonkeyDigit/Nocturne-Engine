@@ -47,7 +47,7 @@
                  "type":"Player",
                  "visible":true,
                  "width":0,
-                 "x":55.8181818181818,
+                 "x":55.8182,
                  "y":248
                 }, 
                 {
@@ -60,7 +60,7 @@
                  "visible":true,
                  "width":0,
                  "x":180,
-                 "y":249.272727272727
+                 "y":249.273
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -71,6 +71,17 @@
  "nextlayerid":3,
  "nextobjectid":8,
  "orientation":"orthogonal",
+ "properties":[
+        {
+         "name":"Friction_X",
+         "type":"float",
+         "value":0.9
+        }, 
+        {
+         "name":"Gravity",
+         "type":"float",
+         "value":1280
+        }],
  "renderorder":"right-down",
  "tiledversion":"1.11.2",
  "tileheight":16,

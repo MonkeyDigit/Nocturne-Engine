@@ -5,7 +5,7 @@ Game::Game()
     // m_textureManager default constructor is called implicitly
 
     // Initialize the context passing references to the core systems
-    m_context(m_window, m_window.GetEventManager(), m_textureManager, m_entityManager),
+    m_context(m_window, m_window.GetEventManager(), m_textureManager, m_entityManager, m_audioManager),
 
     // Advanced systems are instantiated receiving the complete context
     m_entityManager(m_context, 100),
@@ -48,6 +48,8 @@ void Game::Update(sf::Time deltaTime)
     // Delegate the update logic to the State Machine
     // (It will update the EntityManager if the current state is State_Game)
     m_stateManager.Update(deltaTime);
+    // TODO: Spostare da qua?
+    m_context.m_audioManager.Update();
 }
 
 void Game::Render()

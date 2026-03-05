@@ -1,10 +1,11 @@
 #pragma once
 #include <SFML/Graphics.hpp>
 #include "Window.h"
+#include "SharedContext.h"
 #include "TextureManager.h"
 #include "EntityManager.h"
 #include "StateManager.h"
-#include "SharedContext.h"
+#include "AudioManager.h"
 
 class Game
 {
@@ -30,6 +31,7 @@ private:
 
     EntityManager m_entityManager;
     StateManager m_stateManager;
+    AudioManager m_audioManager;
 
     // Constant for a fixed 60 FPS physics simulation (Accumulator Pattern)
     const sf::Time TIME_PER_FRAME = sf::seconds(1.0f / 60.0f);

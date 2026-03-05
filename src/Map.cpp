@@ -15,6 +15,7 @@ Map::Map(SharedContext& context, BaseState* currentState)
     m_currentState(currentState),
     m_maxMapSize({ 32, 32 }),
     m_mapGravity(512.0f),
+    m_nextMap(""),
     m_loadNextMap(false),
     m_tileTexture(nullptr),
     m_backgroundTexture(nullptr),
@@ -73,6 +74,21 @@ void Map::LoadMap(const std::string& path)
     // Safely extract values with fallbacks to prevent crashes
     m_maxMapSize.x = mapData.value("width", 32);
     m_maxMapSize.y = mapData.value("height", 32);
+
+    if (mapData.contains("properties") && mapData["properties"].is_array())
+    {
+        for (const auto& prop : mapData["properties"])
+        {
+            std::string propName = prop.value("name", "");
+
+            if (propName == "Gravity")
+                m_mapGravity = prop.value("value", 512.0f);
+            else if (propName == "NextMap")
+                m_nextMap = prop.value("value", "");
+            else if (propName == "Friction_X")
+                m_defaultTile.friction.x = prop.value("value", 0.9f);
+        }
+    }
 
     if (!mapData.contains("layers") || !mapData["layers"].is_array()) return;
 

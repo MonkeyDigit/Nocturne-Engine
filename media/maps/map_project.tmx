@@ -3,6 +3,10 @@
  <editorsettings>
   <export target="new_map.tmj" format="json"/>
  </editorsettings>
+ <properties>
+  <property name="Friction_X" type="float" value="0.9"/>
+  <property name="Gravity" type="float" value="1280"/>
+ </properties>
  <tileset firstgid="1" source="map_tiled.tsx"/>
  <layer id="1" name="Tile Layer 1" width="30" height="20">
   <data encoding="csv">

@@ -15,6 +15,7 @@
 // TODO: Includere CState in ogni file cpp di classi derivate o solo in character.h?
 // TODO: Multiplayer?
 // TODO: Togliere dati hardcoded
+// TODO: Sistema proiettile
 
 int main() {
     Game game;

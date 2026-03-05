@@ -142,6 +142,7 @@
     <ClInclude Include="include\AISystem.h" />
     <ClInclude Include="include\Animation.h" />
     <ClInclude Include="include\AnimationSystem.h" />
+    <ClInclude Include="include\AudioManager.h" />
     <ClInclude Include="include\BaseState.h" />
     <ClInclude Include="include\CAIPatrol.h" />
     <ClInclude Include="include\CameraSystem.h" />
@@ -176,6 +177,7 @@
   <ItemGroup>
     <ClCompile Include="src\Animation.cpp" />
     <ClCompile Include="src\AnimationSystem.cpp" />
+    <ClCompile Include="src\AudioManager.cpp" />
     <ClCompile Include="src\BaseState.cpp" />
     <ClCompile Include="src\CAISystem.cpp" />
     <ClCompile Include="src\CameraSystem.cpp" />

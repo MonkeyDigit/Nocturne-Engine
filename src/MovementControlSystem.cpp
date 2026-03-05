@@ -6,6 +6,7 @@
 #include "CState.h"
 #include "CSprite.h"
 #include "StateManager.h"
+#include "AudioManager.h"
 
 void MovementControlSystem::Initialize(EntityManager* entityManager)
 {
@@ -80,6 +81,10 @@ void MovementControlSystem::Player_AttackRanged(EventDetails& details)
 
     // Spawniamo il proiettile! (10 danni, 1.5 secondi di vita)
     m_entityManager->SpawnProjectile(player, startPos, velocity, 10, 1.5f);
+
+    // TODO: Impostare audio
+    //m_entityManager->GetContext().m_audioManager.LoadSound("Shoot", "media/sounds/shoot.wav");
+    //m_entityManager->GetContext().m_audioManager.PlaySound("Shoot");
 }
 
 void MovementControlSystem::Update(float deltaTime)
