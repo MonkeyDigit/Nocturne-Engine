@@ -126,6 +126,12 @@
     <ClInclude Include="include\State_Intro.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\State_Credits.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\State_Settings.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Game.cpp">
@@ -201,6 +207,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\State_Intro.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\State_Credits.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\State_Settings.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

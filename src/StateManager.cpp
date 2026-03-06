@@ -5,9 +5,8 @@
 #include "State_MainMenu.h"
 #include "State_Game.h"
 #include "State_Paused.h"
-// TODO: Uncomment these as we refactor each state
-// #include "State_Settings.h"
-// #include "State_Credits.h"
+#include "State_Settings.h"
+#include "State_Credits.h"
 
 StateManager::StateManager(SharedContext& shared)
     : m_shared(shared)
@@ -16,9 +15,8 @@ StateManager::StateManager(SharedContext& shared)
     RegisterState<State_MainMenu>(StateType::MainMenu);
     RegisterState<State_Game>(StateType::Game);
     RegisterState<State_Paused>(StateType::Paused);
-    // TODO: Uncomment these as we recreate the specific states
-    // RegisterState<State_Settings>(StateType::Settings);
-    // RegisterState<State_Credits>(StateType::Credits);
+    RegisterState<State_Settings>(StateType::Settings);
+    RegisterState<State_Credits>(StateType::Credits);
 }
 
 StateManager::~StateManager()

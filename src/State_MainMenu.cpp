@@ -128,15 +128,14 @@ void State_MainMenu::MouseClick(EventDetails& details)
     {
         if (m_buttons[i].rect.getGlobalBounds().contains(mousePos))
         {
-            // TODO: SBLOCCA
             if (i == 0) { // PLAY
                 m_stateManager.SwitchTo(StateType::Game);
             }
             else if (i == 1) { // CREDITS
-                // m_stateManager.SwitchTo(StateType::Credits);
+                m_stateManager.SwitchTo(StateType::Credits);
             }
             else if (i == 2) { // SETTINGS
-                // m_stateManager.SwitchTo(StateType::Settings);
+                m_stateManager.SwitchTo(StateType::Settings);
             }
             else if (i == 3) { // EXIT
                 m_stateManager.GetContext().m_window.Close(details);
