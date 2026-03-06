@@ -7,6 +7,7 @@
 #include "Window.h"
 #include "EntityManager.h"
 #include "CState.h"
+#include "CSprite.h"
 
 State_Game::State_Game(StateManager& stateManager)
     : BaseState(stateManager),
@@ -31,7 +32,7 @@ void State_Game::OnCreate()
     // TODO: Make sure "Pause" and "ToggleDebug" are in your Bindings.cfg
     // TODO: OPEN MENU
     evMgr.AddCallback(StateType::Game, "Pause", &State_Game::Pause, *this);
-    evMgr.AddCallback(StateType::Game, "ToggleDebug", &State_Game::ToggleOverlay, *this);
+    evMgr.AddCallback(StateType::Game, "ToggleDebug", &State_Game::ToggleDebugOverlay, *this);
 
     // Mouse logic
     m_stillCursorTime = 0.0f;
@@ -132,29 +133,53 @@ void State_Game::Draw()
         {
             EntityBase* entity = entityPair.second.get();
             CBoxCollider* collider = entity->GetComponent<CBoxCollider>();
+            CSprite* sprite = entity->GetComponent<CSprite>();
+            CState* state = entity->GetComponent<CState>();
 
-            if (collider)
+            if (collider && sprite)
             {
-                sf::FloatRect aabb = collider->GetAABB();
+                sf::FloatRect bodyRect = collider->GetAABB();
 
-                sf::RectangleShape rect(aabb.size);
-                rect.setPosition(aabb.position);
+                sf::RectangleShape bodyShape(bodyRect.size);
+                bodyShape.setPosition(bodyRect.position);
 
-                rect.setFillColor(sf::Color::Transparent);
-                rect.setOutlineColor(sf::Color::Cyan);
-                rect.setOutlineThickness(1.0f);
-                window.draw(rect);
+                bodyShape.setFillColor(sf::Color::Transparent);
+                bodyShape.setOutlineColor(sf::Color::Cyan);
+                bodyShape.setOutlineThickness(1.0f);
+                window.draw(bodyShape);
 
-                sf::FloatRect attackAABB = collider->GetAttackAABB();
+                sf::FloatRect attackRect = collider->GetAttackAABB();
+                sf::Vector2f offset = collider->GetAttackAABBOffset();
 
-                if (attackAABB.size.x > 0 && attackAABB.size.y > 0)
+                if (attackRect.size.x > 0 && attackRect.size.y > 0)
                 {
-                    sf::RectangleShape attRect(attackAABB.size);
-                    attRect.setPosition(attackAABB.position);
-                    attRect.setFillColor(sf::Color(255, 0, 0, 80));
-                    attRect.setOutlineColor(sf::Color::Red);
-                    attRect.setOutlineThickness(1.0f);
-                    window.draw(attRect);
+                    float attackX = 0.0f;
+
+                    // Stessa identica matematica che usiamo nel CombatSystem!
+                    if (sprite->GetDirection() == Direction::Right) {
+                        attackX = (bodyRect.position.x + bodyRect.size.x) + offset.x;
+                    }
+                    else {
+                        attackX = bodyRect.position.x - offset.x - attackRect.size.x;
+                    }
+
+                    // La Y parte dalla cima della Hitbox del corpo!
+                    float attackY = bodyRect.position.y + offset.y;
+
+                    sf::RectangleShape attackShape({ attackRect.size.x, attackRect.size.y });
+                    attackShape.setPosition({ attackX, attackY });
+                    attackShape.setFillColor(sf::Color::Transparent);
+
+                    if (state->GetState() == EntityState::Attacking) {
+                        attackShape.setOutlineColor(sf::Color::Red);
+                        attackShape.setOutlineThickness(2.0f);
+                    }
+                    else {
+                        attackShape.setOutlineColor(sf::Color::Yellow);
+                        attackShape.setOutlineThickness(1.0f);
+                    }
+
+                    window.draw(attackShape);
                 }
             }
         }
@@ -179,7 +204,7 @@ void State_Game::Pause(EventDetails& details)
     m_stateManager.SwitchTo(StateType::Paused);
 }
 
-void State_Game::ToggleOverlay(EventDetails& details)
+void State_Game::ToggleDebugOverlay(EventDetails& details)
 {
     m_debugMode = !m_debugMode;
     std::cout << "Debug Mode: " << (m_debugMode ? "ON" : "OFF") << "\n";

@@ -7,7 +7,6 @@ class TextureManager;
 class EntityManager;
 class AudioManager;
 class Map;
-class DebugOverlay;
 
 struct SharedContext {
     // Constructor requires all core systems to be passed as references
@@ -18,8 +17,7 @@ struct SharedContext {
         m_textureManager(textureManager),
         m_entityManager(entityManager),
         m_audioManager(audioManager),
-        m_gameMap(nullptr),
-        m_debugOverlay(nullptr)
+        m_gameMap(nullptr)
     {}
 
     // --- CORE SYSTEMS (Always exist, cannot be null) ---
@@ -31,5 +29,4 @@ struct SharedContext {
 
     // --- DYNAMIC SYSTEMS (Can be null, can be swapped) ---
     Map* m_gameMap;
-    DebugOverlay* m_debugOverlay;
 };

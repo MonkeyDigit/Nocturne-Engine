@@ -21,7 +21,7 @@ public:
     // Callbacks for EventManager
     void MainMenu(EventDetails& details);
     void Pause(EventDetails& details);
-    void ToggleOverlay(EventDetails& details);
+    void ToggleDebugOverlay(EventDetails& details);
 
 private:
     void UpdateCursor(const sf::Time& time);

@@ -16,6 +16,7 @@
 // TODO: Multiplayer?
 // TODO: Togliere dati hardcoded
 // TODO: Sistema proiettile
+// TODO: Impedisci doppia direzione
 
 int main() {
     Game game;
