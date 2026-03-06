@@ -170,6 +170,7 @@
     <ClInclude Include="include\SpriteSheet.h" />
     <ClInclude Include="include\StateManager.h" />
     <ClInclude Include="include\State_Game.h" />
+    <ClInclude Include="include\State_Intro.h" />
     <ClInclude Include="include\State_MainMenu.h" />
     <ClInclude Include="include\State_Paused.h" />
     <ClInclude Include="include\TextureManager.h" />
@@ -197,6 +198,7 @@
     <ClCompile Include="src\SpriteSheet.cpp" />
     <ClCompile Include="src\StateManager.cpp" />
     <ClCompile Include="src\State_Game.cpp" />
+    <ClCompile Include="src\State_Intro.cpp" />
     <ClCompile Include="src\State_MainMenu.cpp" />
     <ClCompile Include="src\State_Paused.cpp" />
     <ClCompile Include="src\Utilities.cpp" />

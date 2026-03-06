@@ -11,9 +11,8 @@ Game::Game()
     m_entityManager(m_context, 100),
     m_stateManager(m_context)
 {
-    // Start the game directly
-    // TODO: Once the menus are fixed, you can change this to StateType::Intro
-    m_stateManager.SwitchTo(StateType::MainMenu);
+    // Start from game intro
+    m_stateManager.SwitchTo(StateType::Intro);
 }
 
 void Game::Run()
