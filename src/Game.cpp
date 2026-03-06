@@ -13,7 +13,7 @@ Game::Game()
 {
     // Start the game directly
     // TODO: Once the menus are fixed, you can change this to StateType::Intro
-    m_stateManager.SwitchTo(StateType::Game);
+    m_stateManager.SwitchTo(StateType::MainMenu);
 }
 
 void Game::Run()

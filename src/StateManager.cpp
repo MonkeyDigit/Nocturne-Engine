@@ -3,7 +3,7 @@
 #include "Window.h"
 // TODO: Uncomment these as we refactor each state
 // #include "State_Intro.h"
-// #include "State_MainMenu.h"
+#include "State_MainMenu.h"
 // #include "State_Settings.h"
 #include "State_Game.h"
 #include "State_Paused.h"
@@ -14,7 +14,7 @@ StateManager::StateManager(SharedContext& shared)
 {
     // TODO: Uncomment these as we recreate the specific states
     // RegisterState<State_Intro>(StateType::Intro);
-    // RegisterState<State_MainMenu>(StateType::MainMenu);
+    RegisterState<State_MainMenu>(StateType::MainMenu);
     // RegisterState<State_Settings>(StateType::Settings);
     RegisterState<State_Game>(StateType::Game);
     RegisterState<State_Paused>(StateType::Paused);

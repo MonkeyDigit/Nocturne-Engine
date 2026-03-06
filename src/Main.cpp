@@ -18,6 +18,7 @@
 // TODO: Sistema proiettile
 // TODO: Impedisci doppia direzione
 // TODO: Usa solo il font 8 bit
+// TODO: Si può fare refactoring? BEST PRACTICE
 
 int main() {
     Game game;
