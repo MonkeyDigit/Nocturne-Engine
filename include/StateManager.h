@@ -15,7 +15,8 @@ enum class StateType
     Game,
     Paused,
     Settings,
-    Credits
+    Credits,
+    GameOver
 };
 
 // Aliases

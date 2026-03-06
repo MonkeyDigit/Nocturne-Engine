@@ -6,7 +6,7 @@
 // #include "State_MainMenu.h"
 // #include "State_Settings.h"
 #include "State_Game.h"
-// #include "State_Paused.h"
+#include "State_Paused.h"
 // #include "State_Credits.h"
 
 StateManager::StateManager(SharedContext& shared)
@@ -17,7 +17,7 @@ StateManager::StateManager(SharedContext& shared)
     // RegisterState<State_MainMenu>(StateType::MainMenu);
     // RegisterState<State_Settings>(StateType::Settings);
     RegisterState<State_Game>(StateType::Game);
-    // RegisterState<State_Paused>(StateType::Paused);
+    RegisterState<State_Paused>(StateType::Paused);
     // RegisterState<State_Credits>(StateType::Credits);
 }
 
@@ -55,17 +55,12 @@ void StateManager::Draw()
         for (; itr != m_states.end(); ++itr)
         {
             if (adjustView) itr->second->AdjustView();
-            m_shared.m_window.GetRenderWindow().setView(itr->second->GetView());
             itr->second->Draw();
         }
     }
     else
     {
-        if (adjustView)
-        {
-            m_states.back().second->AdjustView();
-            m_shared.m_window.GetRenderWindow().setView(m_states.back().second->GetView());
-        }
+        if (adjustView) m_states.back().second->AdjustView();
         m_states.back().second->Draw();
     }
 }
@@ -112,7 +107,6 @@ void StateManager::SwitchTo(StateType type)
 
             m_states.back().second->Activate();
             m_states.back().second->AdjustView();
-            m_shared.m_window.GetRenderWindow().setView(m_states.back().second->GetView());
             return;
         }
     }
@@ -126,7 +120,6 @@ void StateManager::SwitchTo(StateType type)
     {
         m_states.back().second->Activate();
         m_states.back().second->AdjustView();
-        m_shared.m_window.GetRenderWindow().setView(m_states.back().second->GetView());
     }
 }
 
