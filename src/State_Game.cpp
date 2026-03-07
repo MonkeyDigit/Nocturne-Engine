@@ -117,7 +117,9 @@ void State_Game::Draw()
 {
     SharedContext& context = m_stateManager.GetContext();
     sf::RenderWindow& window = context.m_window.GetRenderWindow();
-    window.setView(m_stateManager.GetContext().m_entityManager.GetCameraView());
+    sf::View gameView = m_stateManager.GetContext().m_entityManager.GetCameraView();
+    gameView.setViewport(m_stateManager.GetContext().m_window.GetGameView().getViewport());
+    window.setView(gameView);
 
     m_gameMap.Draw(window);
 
