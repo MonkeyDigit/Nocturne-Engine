@@ -41,7 +41,7 @@ void State_Game::OnCreate()
 
     m_stateManager.GetContext().m_window.GetRenderWindow().setView(m_view);
 
-    m_gameMap.LoadMap("media/maps/new_map.tmj");
+    m_gameMap.LoadMap("media/maps/map_1.tmj");
 
     m_hud = std::make_unique<HUD>(m_stateManager.GetContext().m_entityManager);
 }

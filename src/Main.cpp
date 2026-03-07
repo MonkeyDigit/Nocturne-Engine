@@ -19,6 +19,10 @@
 // TODO: Impedisci doppia direzione
 // TODO: Usa solo il font 8 bit
 // TODO: Si può fare refactoring? BEST PRACTICE
+// TODO: unificare file con dati dei character?
+// TODO: Togli magic numbers e roba hardcoded, devo poter caricare sheet di dimensioni diverse, anche la viewspace dev'essere dinamica
+// TODO: Creare specifiche con tutte le istruzioni per creare la mappa
+// TODO: Va tutto standardizzato: pensa a friction y, non viene utilizzato spesso, ma volendo deve essere implementabile
 
 int main() {
     Game game;

@@ -14,19 +14,18 @@ Map::Map(SharedContext& context, BaseState* currentState)
     : m_context(context),
     m_currentState(currentState),
     m_maxMapSize({ 32, 32 }),
+    m_tileWidth(16),  // Default, will be overwritten by JSON
+    m_tileHeight(16), // Default, will be overwritten by JSON
     m_mapGravity(512.0f),
     m_nextMap(""),
     m_loadNextMap(false),
     m_tileTexture(nullptr),
-    m_backgroundTexture(nullptr),
     m_playerId(-1)
 {
     m_context.m_gameMap = this;
 
     m_defaultTile.friction = sf::Vector2f(0.9f, 0.9f);
     m_defaultTile.deadly = false;
-
-    m_vertices.setPrimitiveType(sf::PrimitiveType::Triangles);
 }
 
 Map::~Map()
@@ -48,7 +47,6 @@ Tile* Map::GetTile(unsigned int x, unsigned int y) const
 
 TileInfo* Map::GetDefaultTile() { return &m_defaultTile; }
 float Map::GetGravity() const { return m_mapGravity; }
-unsigned int Map::GetTileSize() const { return Sheet::TILE_SIZE; }
 const sf::Vector2u& Map::GetMapSize() const { return m_maxMapSize; }
 const sf::Vector2f& Map::GetPlayerStart() const { return m_playerStart; }
 
@@ -62,10 +60,9 @@ void Map::LoadMap(const std::string& path)
     }
 
     nlohmann::json mapData;
-    try {
-        file >> mapData;
-    }
-    catch (const nlohmann::json::parse_error& e) {
+    try { file >> mapData; }
+    catch (const nlohmann::json::parse_error& e)
+    {
         std::cerr << "! JSON Parse Error: " << e.what() << '\n';
         return;
     }
@@ -74,41 +71,125 @@ void Map::LoadMap(const std::string& path)
     // Safely extract values with fallbacks to prevent crashes
     m_maxMapSize.x = mapData.value("width", 32);
     m_maxMapSize.y = mapData.value("height", 32);
+    // Dynamically read tile sizes from the JSON file
+    m_tileWidth = mapData.value("tilewidth", 16);
+    m_tileHeight = mapData.value("tileheight", 16);
 
+    // Load the tileset texture immediately to calculate crop coordinates
+    if (m_context.m_textureManager.RequireResource("MapTileSet"))
+        m_tileTexture = m_context.m_textureManager.GetResource("MapTileSet");
+
+    int tilesPerRow = 1; // Prevent division by zero
+    if (m_tileTexture && m_tileWidth > 0)
+        tilesPerRow = m_tileTexture->getSize().x / m_tileWidth; // Calculate how many tiles fit in a single row of the texture sheet
+
+    // LOADING PROPERTIES AND BACKGROUNDS
     if (mapData.contains("properties") && mapData["properties"].is_array())
     {
         for (const auto& prop : mapData["properties"])
         {
             std::string propName = prop.value("name", "");
-
-            if (propName == "Gravity")
-                m_mapGravity = prop.value("value", 512.0f);
-            else if (propName == "NextMap")
-                m_nextMap = prop.value("value", "");
-            else if (propName == "Friction_X")
-                m_defaultTile.friction.x = prop.value("value", 0.9f);
+            if (propName == "Gravity") m_mapGravity = prop.value("value", 512.0f);
+            else if (propName == "NextMap") m_nextMap = prop.value("value", "");
+            // TODO: Friction va messa come proprietà dei blocchi
+            else if (propName == "Friction_X") m_defaultTile.friction.x = prop.value("value", 0.9f);
+            // Load backgrounds
+            else if (propName.find("Bg_") == 0)
+            {
+                std::string texName = prop.value("value", "");
+                m_context.m_textureManager.RequireResource(texName);
+                sf::Texture* tex = m_context.m_textureManager.GetResource(texName);
+                if (tex) m_backgrounds.emplace_back(*tex, texName);  // emplace_back calls the custom BackgroundLayer constructor
+            }
         }
     }
 
+    // ==========================================
+    // --- READING TILE PROPERTIES ---
+    // ==========================================
+    // Temporary map to store properties
+    std::unordered_map<int, TileInfo> tileTemplates;
+
+    if (mapData.contains("tilesets") && mapData["tilesets"].is_array())
+    {
+        for (const auto& tileset : mapData["tilesets"])
+        {
+            // Give warning if not embedded
+            if (tileset.contains("source") && tileset["source"].get<std::string>().find(".tsx") != std::string::npos)
+                std::cerr << "! WARNING: Tileset is external (.tsx). Please EMBED it in Tiled to read tile properties!\n";
+
+            // Read tile properties
+            if (tileset.contains("tiles") && tileset["tiles"].is_array())
+            {
+                for (const auto& tile : tileset["tiles"])
+                {
+                    int id = tile.value("id", -1);
+                    if (id >= 0 && tile.contains("properties") && tile["properties"].is_array())
+                    {
+                        // Create base model for tile
+                        TileInfo infoTemplate;
+                        infoTemplate.id = id;
+                        infoTemplate.friction = m_defaultTile.friction;
+                        infoTemplate.deadly = false;
+                        infoTemplate.collision = TileCollision::Solid;
+
+                        // Read each custom property
+                        for (const auto& prop : tile["properties"])
+                        {
+                            std::string pName = prop.value("name", "");
+
+                            if (pName == "Deadly") infoTemplate.deadly = prop.value("value", false);
+                            else if (pName == "Friction_X")
+                            {
+                                infoTemplate.friction.x = prop.value("value", 0.9f);
+                                infoTemplate.friction.y = infoTemplate.friction.x;
+                            }
+                            else if (pName == "Collision")
+                            {
+                                std::string val = prop.value("value", "Solid");
+                                if (val == "OneWay") infoTemplate.collision = TileCollision::OneWay;
+                                else if (val == "None") infoTemplate.collision = TileCollision::None;
+                                else infoTemplate.collision = TileCollision::Solid;
+                            }
+                        }
+                        // Save model in our dictionary
+                        tileTemplates[id] = infoTemplate;
+                    }
+                }
+            }
+        }
+    }
+
+    // ==========================================
+    // --- LAYER GENERATION ---
+    // ==========================================
     if (!mapData.contains("layers") || !mapData["layers"].is_array()) return;
 
     for (const auto& layer : mapData["layers"])
     {
         std::string layerType = layer.value("type", "");
 
-        // ==========================================
-        // --- TILE LAYER ---
-        // ==========================================
         if (layerType == "tilelayer")
         {
             if (!layer.contains("data") || !layer["data"].is_array()) continue;
 
+            // Does the layer generate collisions or is it only decor?
+            bool layerHasCollisions = true;
+            if (layer.contains("properties"))
+            {
+                for (const auto& prop : layer["properties"])
+                {
+                    if (prop.value("name", "") == "HasCollisions")
+                    {
+                        layerHasCollisions = prop.value("value", true);
+                    }
+                }
+            }
+
+            sf::VertexArray vertexArray(sf::PrimitiveType::Triangles);
             const auto& data = layer["data"];
             unsigned int x = 0;
             unsigned int y = 0;
-
-            // Calculate how many tiles fit in a single row of the texture sheet
-            int tilesPerRow = Sheet::SHEET_WIDTH / Sheet::TILE_SIZE;
 
             for (int tileID : data)
             {
@@ -116,30 +197,57 @@ void Map::LoadMap(const std::string& path)
                 {
                     int actualID = tileID - 1;
 
-                    auto tile = std::make_unique<Tile>();
-                    tile->warp = false;
+                    // Generate graphics
+                    sf::Vector2f pos(static_cast<float>(x * m_tileWidth), static_cast<float>(y * m_tileHeight));
+                    sf::Vector2f size(static_cast<float>(m_tileWidth), static_cast<float>(m_tileHeight));
+                    sf::Vector2f texPos(static_cast<float>((actualID % tilesPerRow) * m_tileWidth),
+                        static_cast<float>((actualID / tilesPerRow) * m_tileHeight));
 
-                    // Assign properties dynamically
-                    tile->properties.id = actualID;
-                    tile->properties.friction = m_defaultTile.friction;
-                    tile->properties.deadly = false;
+                    // Append the 6 vertices required to draw a quad (two triangles)
+                    vertexArray.append(sf::Vertex(pos, sf::Color::White, texPos));
+                    vertexArray.append(sf::Vertex({ pos.x + size.x, pos.y }, sf::Color::White, { texPos.x + size.x, texPos.y }));
+                    vertexArray.append(sf::Vertex({ pos.x, pos.y + size.y }, sf::Color::White, { texPos.x, texPos.y + size.y }));
 
-                    // The Magic Math: calculate crop coordinates without tiles.cfg!
-                    tile->properties.textureRect = sf::IntRect(
-                        { static_cast<int>((actualID % tilesPerRow) * Sheet::TILE_SIZE),
-                          static_cast<int>((actualID / tilesPerRow) * Sheet::TILE_SIZE) },
-                        { static_cast<int>(Sheet::TILE_SIZE), static_cast<int>(Sheet::TILE_SIZE) }
-                    );
+                    vertexArray.append(sf::Vertex({ pos.x, pos.y + size.y }, sf::Color::White, { texPos.x, texPos.y + size.y }));
+                    vertexArray.append(sf::Vertex({ pos.x + size.x, pos.y }, sf::Color::White, { texPos.x + size.x, texPos.y }));
+                    vertexArray.append(sf::Vertex({ pos.x + size.x, pos.y + size.y }, sf::Color::White, { texPos.x + size.x, texPos.y + size.y }));
 
-                    m_tileMap.emplace(ConvertCoords(x, y), std::move(tile));
+                    // ==========================================
+                    // --- APPLY TILE PROPERTIES ---
+                    // ==========================================
+                    // Start from a default set of properties
+                    TileInfo currentTileInfo;
+                    currentTileInfo.id = actualID;
+                    currentTileInfo.friction = m_defaultTile.friction;
+                    currentTileInfo.deadly = false;
+                    currentTileInfo.collision = TileCollision::Solid;
+
+                    if (tileTemplates.find(actualID) != tileTemplates.end())
+                        currentTileInfo = tileTemplates[actualID];
+
+                    if (layerHasCollisions && currentTileInfo.collision != TileCollision::None)
+                    {
+                        auto tile = std::make_unique<Tile>();
+                        tile->warp = false;
+                        tile->properties = currentTileInfo;
+                        tile->properties.textureRect = sf::IntRect(
+                            { static_cast<int>(texPos.x), static_cast<int>(texPos.y) },
+                            { static_cast<int>(size.x), static_cast<int>(size.y) });
+
+                        m_tileMap.emplace(ConvertCoords(x, y), std::move(tile));
+                    }
                 }
 
                 x++;
-                if (x >= m_maxMapSize.x) {
+                if (x >= m_maxMapSize.x)
+                {
                     x = 0;
                     y++;
                 }
             }
+
+            // Store the rendered geometry for this layer
+            m_layerVertices.push_back(vertexArray);
         }
         // ==========================================
         // --- OBJECT LAYER ---
@@ -152,6 +260,19 @@ void Map::LoadMap(const std::string& path)
             {
                 // Support both new Tiled ("class") and old Tiled ("type")
                 std::string typeStr = object.value("class", object.value("type", ""));
+
+                if (typeStr.empty() && object.contains("properties") && object["properties"].is_array())
+                {
+                    for (const auto& prop : object["properties"])
+                    {
+                        if (prop.value("name", "") == "Class" || prop.value("name", "") == "Type")
+                        {
+                            typeStr = prop.value("value", "");
+                            break;
+                        }
+                    }
+                }
+
                 std::string name = object.value("name", "Unknown");
                 float objX = object.value("x", 0.0f);
                 float objY = object.value("y", 0.0f);
@@ -176,61 +297,14 @@ void Map::LoadMap(const std::string& path)
                         if (enemy) enemy->SetPosition(sf::Vector2f(objX, objY));
                     }
                 }
-                else if (typeStr == "Door")
+                else if (typeStr == "Door") {
                     m_doorRect = { {objX, objY}, {objW, objH} };
-                else if (typeStr == "Trap")
+                }
+                else if (typeStr == "Trap") {
                     m_traps.push_back({ {objX, objY}, {objW, objH} });
+                }
             }
         }
-    }
-
-    BuildVertexArray();
-}
-
-void Map::BuildVertexArray()
-{
-    if (m_context.m_textureManager.RequireResource("MapTileSet"))
-        m_tileTexture = m_context.m_textureManager.GetResource("MapTileSet");
-
-    m_vertices.clear();
-    m_vertices.resize(m_tileMap.size() * 6);
-    int vertexIndex = 0;
-
-    for (const auto& pair : m_tileMap)
-    {
-        unsigned int x = pair.first / m_maxMapSize.x;
-        unsigned int y = pair.first % m_maxMapSize.x;
-
-        // Note the '&' here! We are getting a pointer to the value stored in the struct
-        TileInfo* info = &pair.second->properties;
-
-        sf::Vector2f pos(static_cast<float>(x * Sheet::TILE_SIZE), static_cast<float>(y * Sheet::TILE_SIZE));
-        float size = static_cast<float>(Sheet::TILE_SIZE);
-
-        sf::FloatRect texCoords(
-            { static_cast<float>(info->textureRect.position.x), static_cast<float>(info->textureRect.position.y) },
-            { static_cast<float>(info->textureRect.size.x), static_cast<float>(info->textureRect.size.y) }
-        );
-
-        sf::Vertex* quad = &m_vertices[vertexIndex];
-
-        quad[0].position = pos;
-        quad[1].position = sf::Vector2f(pos.x + size, pos.y);
-        quad[2].position = sf::Vector2f(pos.x, pos.y + size);
-
-        quad[0].texCoords = sf::Vector2f(texCoords.position.x, texCoords.position.y);
-        quad[1].texCoords = sf::Vector2f(texCoords.position.x + texCoords.size.x, texCoords.position.y);
-        quad[2].texCoords = sf::Vector2f(texCoords.position.x, texCoords.position.y + texCoords.size.y);
-
-        quad[3].position = sf::Vector2f(pos.x, pos.y + size);
-        quad[4].position = sf::Vector2f(pos.x + size, pos.y);
-        quad[5].position = sf::Vector2f(pos.x + size, pos.y + size);
-
-        quad[3].texCoords = sf::Vector2f(texCoords.position.x, texCoords.position.y + texCoords.size.y);
-        quad[4].texCoords = sf::Vector2f(texCoords.position.x + texCoords.size.x, texCoords.position.y);
-        quad[5].texCoords = sf::Vector2f(texCoords.position.x + texCoords.size.x, texCoords.position.y + texCoords.size.y);
-
-        vertexIndex += 6;
     }
 }
 
@@ -246,35 +320,49 @@ void Map::Update(float deltaTime)
         m_nextMap = "";
     }
 
+    // Fixed background position
     sf::FloatRect viewSpace = m_context.m_window.GetViewSpace();
-    if (m_background)
-        m_background->setPosition({ viewSpace.position.x, viewSpace.position.y });
+    for (auto& bg : m_backgrounds)
+    {
+        // Follow the viewspace
+        bg.sprite.setPosition({ viewSpace.position.x, viewSpace.position.y });
+
+        // TODO: Ha senso ???
+        // Scale image
+        sf::Vector2u texSize = bg.sprite.getTexture().getSize();
+        if (texSize.x > 0 && texSize.y > 0)
+            bg.sprite.setScale({ viewSpace.size.x / texSize.x, viewSpace.size.y / texSize.y });
+    }
 }
 
 void Map::Draw(sf::RenderWindow& window)
 {
-    if (m_background) window.draw(*m_background);
+    for (const auto& bg : m_backgrounds)
+        window.draw(bg.sprite);
+
     if (m_tileTexture)
     {
         sf::RenderStates states;
         states.texture = m_tileTexture;
-        window.draw(m_vertices, states);
+
+        for (const auto& layer : m_layerVertices)
+            window.draw(layer, states);
     }
 }
 
 void Map::PurgeMap()
 {
     m_tileMap.clear();
+    m_layerVertices.clear();
+
     m_context.m_entityManager.Purge();
     m_playerId = -1;
 
-    if (!m_backgroundTextureName.empty())
-    {
-        m_context.m_textureManager.ReleaseResource(m_backgroundTextureName);
-        m_backgroundTextureName = "";
-        m_backgroundTexture = nullptr;
-        m_background.reset();
+    // Safely release textures for all backgrounds
+    for (auto& bg : m_backgrounds) {
+        m_context.m_textureManager.ReleaseResource(bg.textureName);
     }
+    m_backgrounds.clear();
 
     m_doorRect = sf::FloatRect();
     m_traps.clear();

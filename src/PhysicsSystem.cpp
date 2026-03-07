@@ -196,6 +196,23 @@ void PhysicsSystem::ResolveMapCollisions(EntityBase* entity, Map* map)
         deltaDiff.x = std::abs(delta.x) - (aabb.size.x * 0.5f + itr.m_tileBounds.size.x * 0.5f);
         deltaDiff.y = std::abs(delta.y) - (aabb.size.y * 0.5f + itr.m_tileBounds.size.y * 0.5f);
 
+        // --- ONEWAY PLATFORMS LOGIC ---
+        if (itr.m_tile->collision == TileCollision::OneWay)
+        {
+            // Ignore if player is going up or is stationary
+            if (transform->GetVelocity().y <= 0.0f) continue;
+
+            // Ignore if coming frome the side
+            if (deltaDiff.x > deltaDiff.y) continue;
+
+            // Ignore if coming from below
+            if (delta.y > 0.0f) continue;
+
+            // Prevent "snapping" (teletrasporto in cima) if the player is intersecting the platform
+            // intersection->size.y represents how many pixels are intersecting
+            // 12.0f is a safe margin
+            if (intersection->size.y > 12.0f) continue;
+        }
         double resolve = 0.0;
 
         // Push to the side
