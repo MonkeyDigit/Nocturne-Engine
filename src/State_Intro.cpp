@@ -16,11 +16,10 @@ State_Intro::~State_Intro() {}
 
 void State_Intro::OnCreate()
 {
-    sf::Vector2f windowSize(m_stateManager.GetContext().m_window.GetWindowSize());
-    m_view.setSize(windowSize);
-    m_view.setCenter({ windowSize.x * 0.5f, windowSize.y * 0.5f });
-
     SharedContext& context = m_stateManager.GetContext();
+
+    sf::Vector2f uiRes = context.m_window.GetUIResolution();
+
     TextureManager& textureMgr = context.m_textureManager;
 
     textureMgr.RequireResource("Intro");
@@ -29,10 +28,8 @@ void State_Intro::OnCreate()
     sf::Texture* bgTex = textureMgr.GetResource("MenuBg");
     if (bgTex) {
         m_backgroundSprite.emplace(*bgTex);
-        float scale = windowSize.y / bgTex->getSize().y;
-        m_backgroundSprite->setScale({ scale, scale });
         m_backgroundSprite->setOrigin({ m_backgroundSprite->getLocalBounds().size.x * 0.5f, m_backgroundSprite->getLocalBounds().size.y * 0.5f });
-        m_backgroundSprite->setPosition(m_view.getCenter());
+        m_backgroundSprite->setPosition(uiRes * 0.5f);
     }
 
     sf::Texture* introText = textureMgr.GetResource("Intro");
@@ -40,7 +37,7 @@ void State_Intro::OnCreate()
     {
         m_introSprite.emplace(*introText);
         m_introSprite->setOrigin({ introText->getSize().x * 0.5f, introText->getSize().y * 0.5f });
-        m_introSprite->setPosition({ m_view.getCenter().x, -(int)introText->getSize().y * 0.5f });
+        m_introSprite->setPosition({ uiRes.x * 0.5f, -(int)introText->getSize().y * 0.5f });
     }
 
     if (!m_font.openFromFile("media/fonts/EightBitDragon.ttf")) {
@@ -52,7 +49,7 @@ void State_Intro::OnCreate()
     sf::FloatRect textRect = m_text.getLocalBounds();
     m_text.setOrigin({ textRect.position.x + textRect.size.x * 0.5f,
                        textRect.position.y + textRect.size.y * 0.5f });
-    m_text.setPosition({ m_view.getCenter().x, m_view.getSize().y * 0.8f });
+    m_text.setPosition({ uiRes.x * 0.5f, uiRes.y * 0.8f });
 
     context.m_eventManager.AddCallback(StateType::Intro, "Intro_Continue", &State_Intro::Continue, *this);
 }
@@ -70,14 +67,17 @@ void State_Intro::Deactivate() {}
 
 void State_Intro::Update(const sf::Time& time)
 {
+    sf::Vector2f uiRes = m_stateManager.GetContext().m_window.GetUIResolution();
+
     float dt = time.asSeconds();
     m_timePassed += dt;
 
-    if (m_introSprite) {
+    if (m_introSprite)
+    {
         if (m_timePassed < ANIMATION_DURATION)
         {
 
-            float targetY = m_view.getSize().y * 0.5f;
+            float targetY = uiRes.y * 0.5f;
             float startY = -(int)m_introSprite->getTexture().getSize().y * 0.5f;
             float distance = targetY - startY;
             float speed = distance / ANIMATION_DURATION;
@@ -86,7 +86,7 @@ void State_Intro::Update(const sf::Time& time)
         }
         else
         {
-            m_introSprite->setPosition({ m_introSprite->getPosition().x, m_view.getSize().y * 0.5f });
+            m_introSprite->setPosition({ m_introSprite->getPosition().x, uiRes.y * 0.5f });
 
             m_alpha += PULSE_SPEED * dt;
             std::uint8_t alphaVal = static_cast<std::uint8_t>(255 * std::abs(std::sin(m_alpha * 3.14159f / 180.0f)));
@@ -98,7 +98,8 @@ void State_Intro::Update(const sf::Time& time)
 void State_Intro::Draw()
 {
     sf::RenderWindow& window = m_stateManager.GetContext().m_window.GetRenderWindow();
-    window.setView(m_view);
+    // Intro always uses UI View
+    window.setView(m_stateManager.GetContext().m_window.GetUIView());
 
     if (m_backgroundSprite) window.draw(*m_backgroundSprite);
     if (m_introSprite) window.draw(*m_introSprite);

@@ -51,16 +51,10 @@ void StateManager::Draw()
         }
 
         for (; itr != m_states.end(); ++itr)
-        {
-            if (adjustView) itr->second->AdjustView();
             itr->second->Draw();
-        }
     }
     else
-    {
-        if (adjustView) m_states.back().second->AdjustView();
         m_states.back().second->Draw();
-    }
 }
 
 void StateManager::ProcessRequests()
@@ -104,7 +98,6 @@ void StateManager::SwitchTo(StateType type)
             m_states.emplace_back(tmpType, std::move(tmpState));
 
             m_states.back().second->Activate();
-            m_states.back().second->AdjustView();
             return;
         }
     }
@@ -117,7 +110,6 @@ void StateManager::SwitchTo(StateType type)
     if (!m_states.empty())
     {
         m_states.back().second->Activate();
-        m_states.back().second->AdjustView();
     }
 }
 
@@ -132,7 +124,8 @@ void StateManager::CreateState(StateType type)
     if (factory == m_stateFactory.end()) return;
 
     std::unique_ptr<BaseState> state = factory->second();
-    state->SetView(m_shared.m_window.GetRenderWindow().getDefaultView());
+    // TODO: Cosa fare?
+    //state->SetView(m_shared.m_window.GetRenderWindow().getDefaultView());
 
     m_states.emplace_back(type, std::move(state));
     m_states.back().second->OnCreate();

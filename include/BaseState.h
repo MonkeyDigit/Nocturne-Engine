@@ -21,22 +21,15 @@ public:
 
     void SetTransparent(bool transparent);
     void SetTranscendent(bool transcendence);
-    void SetView(const sf::View& view);
 
     bool IsTransparent() const;
     bool IsTranscendent() const;
 
     // Returning references
     StateManager& GetStateManager();
-    sf::View& GetView();
-
-    // Adjusts the view to preserve aspect ratio (letterboxing)
-    void AdjustView();
-    void AdjustView(sf::View& view);
 
 protected:
     StateManager& m_stateManager;
     bool m_transparent;
     bool m_transcendent;
-    sf::View m_view;
 };

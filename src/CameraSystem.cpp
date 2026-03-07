@@ -8,6 +8,7 @@
 
 void CameraSystem::Update(EntityManager& entityManager, const Map& map)
 {
+    // TODO: non fare hardcoded
     // Find the target entity to follow (currently hardcoded to "Player")
     EntityBase* target = entityManager.Find("Player");
     if (!target) return;
@@ -16,7 +17,7 @@ void CameraSystem::Update(EntityManager& entityManager, const Map& map)
     if (!transform) return;
 
     sf::RenderWindow& window = entityManager.GetContext().m_window.GetRenderWindow();
-    sf::View view = window.getView();
+    sf::View view = entityManager.GetContext().m_window.GetGameView();
 
     // Center the camera on the target's center position
     sf::Vector2f targetPos = transform->GetPosition();
@@ -43,6 +44,8 @@ void CameraSystem::Update(EntityManager& entityManager, const Map& map)
         viewCenter.y = viewSize.y * 0.5f;
 
     // Apply clamped view
+    // TODO: Sistemare
     view.setCenter(viewCenter);
-    window.setView(view);
+    m_currentView = view;
+    window.setView(m_currentView);
 }

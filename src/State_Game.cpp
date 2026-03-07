@@ -21,11 +21,6 @@ State_Game::~State_Game() {}
 
 void State_Game::OnCreate()
 {
-    // Using half the resolution for a pixel-perfect 2x zoom look
-    m_view.setSize({ 480.0f, 270.0f });
-    m_view.setCenter(m_view.getSize() * 0.5f);
-    AdjustView();
-
     EventManager& evMgr = m_stateManager.GetContext().m_eventManager;
 
     // Registering callbacks using the modern EventDetails reference
@@ -38,8 +33,6 @@ void State_Game::OnCreate()
     m_stillCursorTime = 0.0f;
     m_mousePos = evMgr.GetMousePos();
     m_cursorVisible = true;
-
-    m_stateManager.GetContext().m_window.GetRenderWindow().setView(m_view);
 
     m_gameMap.LoadMap("media/maps/map_1.tmj");
 
@@ -115,12 +108,16 @@ void State_Game::Update(const sf::Time& time)
     m_gameMap.Update(time.asSeconds());
     // Update HUD overlay
     m_hud->Update();
+
+    // TODO: Delegare a camera system
+    //m_gameCameraView = m_stateManager.GetContext().m_window.GetRenderWindow().getView();
 }
 
 void State_Game::Draw()
 {
     SharedContext& context = m_stateManager.GetContext();
     sf::RenderWindow& window = context.m_window.GetRenderWindow();
+    window.setView(m_stateManager.GetContext().m_entityManager.GetCameraView());
 
     m_gameMap.Draw(window);
 
@@ -185,8 +182,11 @@ void State_Game::Draw()
         }
     }
 
-    if (m_hud) 
+    if (m_hud)
+    {
+        window.setView(m_stateManager.GetContext().m_window.GetUIView());
         m_hud->Draw(m_stateManager.GetContext().m_window.GetRenderWindow());
+    }
 }
 
 void State_Game::MainMenu(EventDetails& details)

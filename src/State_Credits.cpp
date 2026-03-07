@@ -22,39 +22,37 @@ State_Credits::~State_Credits() {}
 void State_Credits::OnCreate()
 {
     sf::Vector2f windowSize(m_stateManager.GetContext().m_window.GetWindowSize());
-    m_view.setSize(windowSize);
-    m_view.setCenter({ windowSize.x * 0.5f, windowSize.y * 0.5f });
 
     SharedContext& context = m_stateManager.GetContext();
+    sf::Vector2f uiRes = context.m_window.GetUIResolution();
 
     // Background and overlay
     context.m_textureManager.RequireResource("MenuBg");
     sf::Texture* bgTex = context.m_textureManager.GetResource("MenuBg");
-    if (bgTex) {
+    if (bgTex)
+    {
         m_backgroundSprite.emplace(*bgTex);
         float scale = windowSize.y / bgTex->getSize().y;
         m_backgroundSprite->setScale({ scale, scale });
         m_backgroundSprite->setOrigin({ m_backgroundSprite->getLocalBounds().size.x * 0.5f, m_backgroundSprite->getLocalBounds().size.y * 0.5f });
-        m_backgroundSprite->setPosition(m_view.getCenter());
+        m_backgroundSprite->setPosition(uiRes * 0.5f);
     }
 
     m_overlay.setSize(windowSize);
     m_overlay.setFillColor(sf::Color(0, 0, 0, 180));
 
     // Load fonts
-    if (!m_fontTitle.openFromFile("media/fonts/OLDENGL.ttf")) {
+    if (!m_fontTitle.openFromFile("media/fonts/OLDENGL.ttf"))
         std::cerr << "! Failed to load title font\n";
-    }
-    if (!m_fontBody.openFromFile("media/fonts/EightBitDragon.ttf")) {
+    if (!m_fontBody.openFromFile("media/fonts/EightBitDragon.ttf"))
         std::cerr << "! Failed to load body font\n";
-    }
 
     // Text setup
     m_title.setString("CREDITS");
     m_title.setCharacterSize(80);
     sf::FloatRect titleRect = m_title.getLocalBounds();
     m_title.setOrigin({ titleRect.position.x + titleRect.size.x * 0.5f, titleRect.position.y + titleRect.size.y * 0.5f });
-    m_title.setPosition({ m_view.getSize().x * 0.5f, m_view.getSize().y * 0.15f });
+    m_title.setPosition(uiRes * 0.5f);
 
     m_creditsText.setString(CREDITS_CONTENT);
     m_creditsText.setCharacterSize(30);
@@ -62,15 +60,15 @@ void State_Credits::OnCreate()
     sf::FloatRect textRect = m_creditsText.getLocalBounds();
     m_creditsText.setOrigin({ textRect.position.x + textRect.size.x * 0.5f, 0.0f });
 
-    m_scrollPos = m_view.getSize().y;
-    m_creditsText.setPosition({ m_view.getSize().x * 0.5f, m_scrollPos });
+    m_scrollPos = uiRes.y;
+    m_creditsText.setPosition({ uiRes.x * 0.5f, m_scrollPos });
 
     // Exit key
     m_promptText.setString("PRESS ESC TO RETURN");
     m_promptText.setCharacterSize(25);
     sf::FloatRect promptRect = m_promptText.getLocalBounds();
     m_promptText.setOrigin({ promptRect.position.x + promptRect.size.x * 0.5f, promptRect.position.y + promptRect.size.y * 0.5f });
-    m_promptText.setPosition({ m_view.getSize().x * 0.5f, m_view.getSize().y * 0.9f });
+    m_promptText.setPosition({ uiRes.x * 0.5f, uiRes.y * 0.9f });
 
     // Exit callback
     context.m_eventManager.AddCallback(StateType::Credits, "Credits_Back", &State_Credits::ReturnToMenu, *this);
@@ -97,7 +95,7 @@ void State_Credits::Update(const sf::Time& time)
 
     // Animation loop
     if (m_scrollPos < -m_creditsText.getLocalBounds().size.y) {
-        m_scrollPos = m_view.getSize().y;
+        m_scrollPos = m_stateManager.GetContext().m_window.GetUIResolution().y;
     }
 
     // Blinking effect
@@ -108,7 +106,7 @@ void State_Credits::Update(const sf::Time& time)
 void State_Credits::Draw()
 {
     sf::RenderWindow& window = m_stateManager.GetContext().m_window.GetRenderWindow();
-    window.setView(m_view);
+    window.setView(m_stateManager.GetContext().m_window.GetUIView());
 
     if (m_backgroundSprite) window.draw(*m_backgroundSprite);
     window.draw(m_overlay);

@@ -13,11 +13,9 @@ State_MainMenu::~State_MainMenu() {}
 
 void State_MainMenu::OnCreate()
 {
-    sf::Vector2f windowSize(m_stateManager.GetContext().m_window.GetWindowSize());
-    m_view.setSize(windowSize);
-    m_view.setCenter({ windowSize.x * 0.5f, windowSize.y * 0.5f });
-
     SharedContext& context = m_stateManager.GetContext();
+
+    sf::Vector2f uiRes = context.m_window.GetUIResolution();
 
     // Load Background
     context.m_textureManager.RequireResource("MenuBg");
@@ -25,30 +23,31 @@ void State_MainMenu::OnCreate()
     if (texture)
     {
         m_backgroundSprite.emplace(*texture);
-        float scale = windowSize.y / texture->getSize().y;
-        m_backgroundSprite->setScale({ scale, scale });
         m_backgroundSprite->setOrigin({ m_backgroundSprite->getLocalBounds().size.x * 0.5f, m_backgroundSprite->getLocalBounds().size.y * 0.5f });
-        m_backgroundSprite->setPosition(m_view.getCenter());
+        m_backgroundSprite->setPosition(uiRes * 0.5f);
     }
 
     // Load fonts
-    if (!m_fontTitle.openFromFile("media/fonts/OLDENGL.ttf"))
+    if (!m_fontTitle.openFromFile("media/fonts/EightBitDragon.ttf"))
         std::cerr << "! Failed to load title font\n";
 
     if (!m_fontButton.openFromFile("media/fonts/EightBitDragon.ttf"))
         std::cerr << "! Failed to load button font\n";
 
-    m_title.setString("NOCTURNE ENGINE");
+    m_title.setString("Nocturne Engine");
     m_title.setCharacterSize(80);
     m_title.setStyle(sf::Text::Bold);
+    m_title.setOutlineThickness(2);
+    m_title.setFillColor(sf::Color::Yellow);
+    m_title.setOutlineColor(sf::Color::Red);
     sf::FloatRect textRect = m_title.getLocalBounds();
     m_title.setOrigin({ textRect.position.x + textRect.size.x * 0.5f,
                        textRect.position.y + textRect.size.y * 0.5f });
-    m_title.setPosition({ m_view.getSize().x * 0.5f, m_view.getSize().y * 0.2f });
+    m_title.setPosition({ uiRes.x * 0.5f, uiRes.y * 0.2f });
 
     // Buttons
     m_buttonSize = sf::Vector2f(300.0f, 60.0f);
-    m_buttonPos = sf::Vector2f(m_view.getSize().x * 0.5f, m_view.getSize().y * 0.4f);
+    m_buttonPos = sf::Vector2f(uiRes.x * 0.5f, uiRes.y * 0.4f);
 
     std::vector<std::string> buttonNames = { "PLAY", "CREDITS", "SETTINGS", "EXIT" };
 
@@ -90,8 +89,9 @@ void State_MainMenu::Update(const sf::Time& time)
 {
     // Hover effect
     sf::RenderWindow& window = m_stateManager.GetContext().m_window.GetRenderWindow();
+    sf::View uiView = m_stateManager.GetContext().m_window.GetUIView();
     sf::Vector2i mousePos = sf::Mouse::getPosition(window);
-    sf::Vector2f mouseWorldPos = window.mapPixelToCoords(mousePos, m_view);
+    sf::Vector2f mouseWorldPos = window.mapPixelToCoords(mousePos, uiView);
 
     for (auto& btn : m_buttons) {
         if (btn.rect.getGlobalBounds().contains(mouseWorldPos))
@@ -105,7 +105,7 @@ void State_MainMenu::Draw()
 {
     sf::RenderWindow& window = m_stateManager.GetContext().m_window.GetRenderWindow();
 
-    window.setView(m_view);
+    window.setView(m_stateManager.GetContext().m_window.GetUIView());
 
     if (m_backgroundSprite)
         window.draw(*m_backgroundSprite);
@@ -121,8 +121,8 @@ void State_MainMenu::Draw()
 void State_MainMenu::MouseClick(EventDetails& details)
 {
     sf::RenderWindow& window = m_stateManager.GetContext().m_window.GetRenderWindow();
-
-    sf::Vector2f mousePos = window.mapPixelToCoords(sf::Vector2i(details.m_mouse.x, details.m_mouse.y), m_view);
+    sf::View uiView = m_stateManager.GetContext().m_window.GetUIView();
+    sf::Vector2f mousePos = window.mapPixelToCoords(sf::Vector2i(details.m_mouse.x, details.m_mouse.y), uiView);
 
     for (size_t i = 0; i < m_buttons.size(); ++i)
     {

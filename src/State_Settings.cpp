@@ -18,24 +18,22 @@ State_Settings::~State_Settings() {}
 
 void State_Settings::OnCreate()
 {
-    sf::Vector2f windowSize(m_stateManager.GetContext().m_window.GetWindowSize());
-    m_view.setSize(windowSize);
-    m_view.setCenter({ windowSize.x * 0.5f, windowSize.y * 0.5f });
-
     SharedContext& context = m_stateManager.GetContext();
+
+    sf::Vector2f uiRes = context.m_window.GetUIResolution();
 
     // Background and overlay
     context.m_textureManager.RequireResource("MenuBg");
     sf::Texture* bgTex = context.m_textureManager.GetResource("MenuBg");
     if (bgTex) {
         m_backgroundSprite.emplace(*bgTex);
-        float scale = windowSize.y / bgTex->getSize().y;
+        float scale = uiRes.y / bgTex->getSize().y;
         m_backgroundSprite->setScale({ scale, scale });
         m_backgroundSprite->setOrigin({ m_backgroundSprite->getLocalBounds().size.x * 0.5f, m_backgroundSprite->getLocalBounds().size.y * 0.5f });
-        m_backgroundSprite->setPosition(m_view.getCenter());
+        m_backgroundSprite->setPosition(uiRes * 0.5f);
     }
 
-    m_overlay.setSize(windowSize);
+    m_overlay.setSize(uiRes);
     m_overlay.setFillColor(sf::Color(0, 0, 0, 150));
 
     // Load fonts
@@ -51,21 +49,21 @@ void State_Settings::OnCreate()
     m_title.setCharacterSize(80);
     sf::FloatRect titleRect = m_title.getLocalBounds();
     m_title.setOrigin({ titleRect.position.x + titleRect.size.x * 0.5f, titleRect.position.y + titleRect.size.y * 0.5f });
-    m_title.setPosition({ m_view.getSize().x * 0.5f, m_view.getSize().y * TITLE_Y_RATIO });
+    m_title.setPosition({ uiRes.x * 0.5f, uiRes.y * TITLE_Y_RATIO });
 
     // Volume label on center
     m_volumeLabel.setCharacterSize(40);
     UpdateVolumeText();
-    m_volumeLabel.setPosition({ m_view.getSize().x * 0.5f, m_view.getSize().y * CONTROLS_Y_RATIO });
+    m_volumeLabel.setPosition({ uiRes.x * 0.5f, uiRes.y * CONTROLS_Y_RATIO });
 
     // Buttons
     std::vector<std::string> btnNames = { "-", "+", "BACK TO MENU" };
     sf::Vector2f btnSizes[] = { {60.f, 60.f}, {60.f, 60.f}, {300.f, 60.f} };
 
     // Dynamic layout
-    float centerX = m_view.getSize().x * 0.5f;
-    float controlsY = m_view.getSize().y * CONTROLS_Y_RATIO;
-    float backBtnY = m_view.getSize().y * BACK_BTN_Y_RATIO;
+    float centerX = uiRes.x * 0.5f;
+    float controlsY = uiRes.y * CONTROLS_Y_RATIO;
+    float backBtnY = uiRes.y * BACK_BTN_Y_RATIO;
 
     sf::Vector2f btnPos[] = {
         { centerX - 300.f, controlsY }, // Minus button
@@ -107,7 +105,8 @@ void State_Settings::Update(const sf::Time& time)
 {
     sf::RenderWindow& window = m_stateManager.GetContext().m_window.GetRenderWindow();
     sf::Vector2i mousePos = sf::Mouse::getPosition(window);
-    sf::Vector2f mouseWorldPos = window.mapPixelToCoords(mousePos, m_view);
+    sf::View uiView = m_stateManager.GetContext().m_window.GetUIView();
+    sf::Vector2f mouseWorldPos = window.mapPixelToCoords(mousePos, uiView);
 
     for (auto& btn : m_buttons) {
         if (btn.rect.getGlobalBounds().contains(mouseWorldPos))
@@ -120,7 +119,6 @@ void State_Settings::Update(const sf::Time& time)
 void State_Settings::Draw()
 {
     sf::RenderWindow& window = m_stateManager.GetContext().m_window.GetRenderWindow();
-    window.setView(m_view);
 
     if (m_backgroundSprite) window.draw(*m_backgroundSprite);
     window.draw(m_overlay);
@@ -136,7 +134,8 @@ void State_Settings::Draw()
 void State_Settings::MouseClick(EventDetails& details)
 {
     sf::RenderWindow& window = m_stateManager.GetContext().m_window.GetRenderWindow();
-    sf::Vector2f mousePos = window.mapPixelToCoords(sf::Vector2i(details.m_mouse.x, details.m_mouse.y), m_view);
+    sf::View uiView = m_stateManager.GetContext().m_window.GetUIView();
+    sf::Vector2f mousePos = window.mapPixelToCoords(sf::Vector2i(details.m_mouse.x, details.m_mouse.y), uiView);
 
     for (size_t i = 0; i < m_buttons.size(); ++i)
     {

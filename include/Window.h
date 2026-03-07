@@ -30,11 +30,22 @@ public:
     bool IsDone() const;
     bool IsFullscreen() const;
 
+    sf::View GetGameView() const;
+    sf::View GetUIView() const;
+
+    const sf::Vector2f& GetGameResolution() const { return m_gameResolution; }
+    const sf::Vector2f& GetUIResolution() const { return m_uiResolution; }
+
 private:
     void Setup(const std::string& title, const sf::Vector2u& size);
     void Destroy();
     void Create();
+    void LoadConfig();
+    sf::FloatRect CalculateViewport(const sf::Vector2f& size) const;
 
+    sf::Vector2f m_gameResolution;
+    sf::Vector2f m_uiResolution;
+    sf::FloatRect m_viewport;
     sf::RenderWindow m_window;
     sf::Vector2u m_windowSize;
     std::string m_windowTitle;
@@ -45,4 +56,5 @@ private:
     bool m_isFullscreen;
     bool m_isResizeable;
     int m_frameRateLimit;
+
 };

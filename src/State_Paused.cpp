@@ -14,10 +14,7 @@ State_Paused::~State_Paused() {}
 
 void State_Paused::OnCreate()
 {
-    sf::Vector2f windowSize(m_stateManager.GetContext().m_window.GetWindowSize());
-
-    m_view.setSize(windowSize);
-    m_view.setCenter({ windowSize.x * 0.5f, windowSize.y * 0.5f });
+    sf::Vector2f uiRes = m_stateManager.GetContext().m_window.GetUIResolution();
 
     SetTransparent(true);
 
@@ -31,9 +28,9 @@ void State_Paused::OnCreate()
     sf::FloatRect textRect = m_text.getLocalBounds();
     m_text.setOrigin({ textRect.position.x + textRect.size.x * 0.5f,
                        textRect.position.y + textRect.size.y * 0.5f });
-    m_text.setPosition(m_view.getCenter());
+    m_text.setPosition(uiRes * 0.5f);
 
-    m_rect.setSize(windowSize);
+    m_rect.setSize(uiRes);
     m_rect.setPosition({ 0.0f, 0.0f });
     m_rect.setFillColor(sf::Color(0, 0, 0, 150));
 
@@ -54,13 +51,9 @@ void State_Paused::Update(const sf::Time& time) {}
 void State_Paused::Draw()
 {
     sf::RenderWindow& window = m_stateManager.GetContext().m_window.GetRenderWindow();
-    sf::View oldView = window.getView();
-    window.setView(m_view);
-
+    window.setView(m_stateManager.GetContext().m_window.GetUIView());
     window.draw(m_rect);
     window.draw(m_text);
-
-    window.setView(oldView);
 }
 
 void State_Paused::Unpause(EventDetails& details)

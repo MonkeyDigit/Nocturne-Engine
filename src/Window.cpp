@@ -1,8 +1,12 @@
+#include <fstream>
+#include <sstream>
+#include <iostream>
 #include "Window.h"
 
 Window::Window() { Setup("Project Nocturne", { 1280, 720 }); }
 
-Window::Window(const std::string& title, const sf::Vector2u& size) {
+Window::Window(const std::string& title, const sf::Vector2u& size)
+{
     Setup(title, size);
 }
 
@@ -12,7 +16,8 @@ Window::~Window()
     Destroy();
 }
 
-void Window::Setup(const std::string& title, const sf::Vector2u& size) {
+void Window::Setup(const std::string& title, const sf::Vector2u& size)
+{
     m_windowTitle = title;
     m_windowSize = size;
     m_isFullscreen = false;
@@ -21,8 +26,9 @@ void Window::Setup(const std::string& title, const sf::Vector2u& size) {
     m_isFocused = true; // Default
     m_frameRateLimit = 60;
 
-    Create();
+    LoadConfig();
 
+    Create();
     // TODO: Add callback functions ???
 }
 
@@ -37,9 +43,70 @@ void Window::Create()
     // TODO: Gestire le varie clausole di isfullscreen, isresizeable ecc...
 }
 
+void Window::LoadConfig()
+{
+    // Default values
+    m_gameResolution = { 640.0f, 360.0f };
+    m_uiResolution = { 1280.0f, 720.0f };
+
+    std::ifstream file("config/window.cfg");
+    if (!file.is_open())
+    {
+        std::cerr << "! Failed to load window.cfg. Using defaults.\n";
+        return;
+    }
+
+    std::string line;
+    while (std::getline(file, line))
+    {
+        std::stringstream keystream(line);
+        std::string type;
+        keystream >> type;
+
+        if (type == "GameRes") {
+            keystream >> m_gameResolution.x >> m_gameResolution.y;
+        }
+        else if (type == "UIRes") {
+            keystream >> m_uiResolution.x >> m_uiResolution.y;
+        }
+    }
+    file.close();
+}
+
+sf::FloatRect Window::CalculateViewport(const sf::Vector2f& size) const
+{
+    // Avoid division by zero
+    if (m_windowSize.y == 0 || size.y == 0.0f) return sf::FloatRect();
+
+    float windowRatio = static_cast<float>(m_windowSize.x) / static_cast<float>(m_windowSize.y);
+    float targetRatio = size.x / size.y;
+
+    float sizeX = 1.0f;
+    float sizeY = 1.0f;
+    float posX = 0.0f;
+    float posY = 0.0f;
+
+    // Compare aspect ratio
+    if (windowRatio > targetRatio)
+    {
+        // Window too large
+        sizeX = targetRatio / windowRatio;
+        posX = (1.0f - sizeX) * 0.5f;
+    }
+    else
+    {
+        // Window too long
+        sizeY = windowRatio / targetRatio;
+        posY = (1.0f - sizeY) * 0.5f;
+    }
+
+    return sf::FloatRect({ posX, posY }, { sizeX, sizeY });
+}
+
 void Window::Destroy() { m_window.close(); }
 
-void Window::Update() {
+void Window::Update()
+{
     // In SFML 3, pollEvent returns std::optional<sf::Event>
     // TODO: Singolo = ???
     while (const std::optional<sf::Event> event = m_window.pollEvent()) {
@@ -111,7 +178,22 @@ bool Window::IsFocused() const { return m_isFocused; }
 bool Window::IsDone() const { return m_isDone; }
 bool Window::IsFullscreen() const { return m_isFullscreen; }
 
-sf::FloatRect Window::GetViewSpace() const {
+sf::View Window::GetGameView() const
+{
+    sf::View view(sf::FloatRect({ 0.0f, 0.0f }, m_gameResolution));
+    view.setViewport(CalculateViewport(m_gameResolution));
+    return view;
+}
+
+sf::View Window::GetUIView() const
+{
+    sf::View view(sf::FloatRect({ 0.0f, 0.0f }, m_uiResolution));
+    view.setViewport(CalculateViewport(m_uiResolution));
+    return view;
+}
+
+sf::FloatRect Window::GetViewSpace() const
+{
     sf::Vector2f viewCenter = m_window.getView().getCenter();
     sf::Vector2f viewSize = m_window.getView().getSize();
     // SFML 3 style vector calculations
