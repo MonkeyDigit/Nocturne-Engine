@@ -50,16 +50,7 @@ void HUD::Update()
 
 void HUD::Draw(sf::RenderWindow& window)
 {
-    // Save the current camera view (the one following the player)
-    sf::View cameraView = window.getView();
-
-    // Switch to the default view (fixed to the window's top-left corner)
-    window.setView(window.getDefaultView());
-
     // Draw the UI
     window.draw(m_healthBarBackground);
     window.draw(m_healthBar);
-
-    // Restore the camera view for the rest of the game
-    window.setView(cameraView);
 }

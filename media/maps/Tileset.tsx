@@ -4,31 +4,31 @@
  <tile id="0">
   <properties>
    <property name="Collision" value="OneWay"/>
-   <property name="Friction_X" type="float" value="1"/>
+   <property name="Friction_X" type="float" value="4"/>
   </properties>
  </tile>
  <tile id="1">
   <properties>
    <property name="Collision" value="OneWay"/>
-   <property name="Friction_X" type="float" value="1"/>
+   <property name="Friction_X" type="float" value="4"/>
   </properties>
  </tile>
  <tile id="2">
   <properties>
    <property name="Collision" value="OneWay"/>
-   <property name="Friction_X" type="float" value="1"/>
+   <property name="Friction_X" type="float" value="4"/>
   </properties>
  </tile>
  <tile id="3">
   <properties>
    <property name="Collision" value="OneWay"/>
-   <property name="Friction_X" type="float" value="1"/>
+   <property name="Friction_X" type="float" value="4"/>
   </properties>
  </tile>
  <tile id="4">
   <properties>
    <property name="Collision" value="OneWay"/>
-   <property name="Friction_X" type="float" value="1"/>
+   <property name="Friction_X" type="float" value="4"/>
   </properties>
  </tile>
  <tile id="5">
@@ -99,19 +99,19 @@
  <tile id="19">
   <properties>
    <property name="Collision" value="OneWay"/>
-   <property name="Friction_X" type="float" value="1"/>
+   <property name="Friction_X" type="float" value="4"/>
   </properties>
  </tile>
  <tile id="20">
   <properties>
    <property name="Collision" value="OneWay"/>
-   <property name="Friction_X" type="float" value="1"/>
+   <property name="Friction_X" type="float" value="4"/>
   </properties>
  </tile>
  <tile id="21">
   <properties>
    <property name="Collision" value="OneWay"/>
-   <property name="Friction_X" type="float" value="1"/>
+   <property name="Friction_X" type="float" value="4"/>
   </properties>
  </tile>
  <tile id="24">
