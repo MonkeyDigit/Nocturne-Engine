@@ -21,8 +21,6 @@ State_Credits::~State_Credits() {}
 
 void State_Credits::OnCreate()
 {
-    sf::Vector2f windowSize(m_stateManager.GetContext().m_window.GetWindowSize());
-
     SharedContext& context = m_stateManager.GetContext();
     sf::Vector2f uiRes = context.m_window.GetUIResolution();
 
@@ -32,17 +30,15 @@ void State_Credits::OnCreate()
     if (bgTex)
     {
         m_backgroundSprite.emplace(*bgTex);
-        float scale = windowSize.y / bgTex->getSize().y;
-        m_backgroundSprite->setScale({ scale, scale });
         m_backgroundSprite->setOrigin({ m_backgroundSprite->getLocalBounds().size.x * 0.5f, m_backgroundSprite->getLocalBounds().size.y * 0.5f });
         m_backgroundSprite->setPosition(uiRes * 0.5f);
     }
 
-    m_overlay.setSize(windowSize);
+    m_overlay.setSize(uiRes);
     m_overlay.setFillColor(sf::Color(0, 0, 0, 180));
 
     // Load fonts
-    if (!m_fontTitle.openFromFile("media/fonts/OLDENGL.ttf"))
+    if (!m_fontTitle.openFromFile("media/fonts/EightBitDragon.ttf"))
         std::cerr << "! Failed to load title font\n";
     if (!m_fontBody.openFromFile("media/fonts/EightBitDragon.ttf"))
         std::cerr << "! Failed to load body font\n";
@@ -52,7 +48,7 @@ void State_Credits::OnCreate()
     m_title.setCharacterSize(80);
     sf::FloatRect titleRect = m_title.getLocalBounds();
     m_title.setOrigin({ titleRect.position.x + titleRect.size.x * 0.5f, titleRect.position.y + titleRect.size.y * 0.5f });
-    m_title.setPosition(uiRes * 0.5f);
+    m_title.setPosition({ uiRes.x * 0.5f, uiRes.y * 0.2f });
 
     m_creditsText.setString(CREDITS_CONTENT);
     m_creditsText.setCharacterSize(30);

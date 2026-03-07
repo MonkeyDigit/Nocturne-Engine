@@ -23,7 +23,6 @@
 // TODO: Togli magic numbers e roba hardcoded, devo poter caricare sheet di dimensioni diverse, anche la viewspace dev'essere dinamica
 // TODO: Creare specifiche con tutte le istruzioni per creare la mappa
 // TODO: Va tutto standardizzato: pensa a friction y, non viene utilizzato spesso, ma volendo deve essere implementabile
-// TODO: Pause continua a stretchare
 
 int main() {
     Game game;

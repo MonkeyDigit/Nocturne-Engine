@@ -199,19 +199,30 @@ void PhysicsSystem::ResolveMapCollisions(EntityBase* entity, Map* map)
         // --- ONEWAY PLATFORMS LOGIC ---
         if (itr.m_tile->collision == TileCollision::OneWay)
         {
-            // Ignore if player is going up or is stationary
+            // Ignore if the player is jumping upwards or is stationary
             if (transform->GetVelocity().y <= 0.0f) continue;
 
-            // Ignore if coming frome the side
-            if (deltaDiff.x > deltaDiff.y) continue;
-
-            // Ignore if coming from below
+            // Ignore if hitting from BELOW (player center is below tile center)
             if (delta.y > 0.0f) continue;
 
-            // Prevent "snapping" (teletrasporto in cima) if the player is intersecting the platform
-            // intersection->size.y represents how many pixels are intersecting
-            // 12.0f is a safe margin
-            if (intersection->size.y > 12.0f) continue;
+            // ROBUST LOGIC: Calculate where the feet were in the PREVIOUS FRAME.
+            // Since the engine uses a fixed timestep of 60 FPS, we can use 1.0f / 60.0f
+            // TODO: Get frame time?
+            float moveY = transform->GetVelocity().y * (1.0f / 60.0f);
+
+            float previousBottom = (aabb.position.y + aabb.size.y) - moveY;
+            float tileTop = itr.m_tileBounds.position.y;
+
+            // If the feet were ALREADY below the platform's edge in the last frame, 
+            // it means we were inside and are falling through it. Ignore
+            // (Adding 1.0f as a safe tolerance for floating point calculations)
+            if (previousBottom > tileTop + 1.0f) continue;
+
+            // FORCE VERTICAL RESOLUTION
+            // By setting deltaDiff.x to a tiny negative value, we fake the condition
+            // 'if (deltaDiff.x > deltaDiff.y)'. This FORCES the engine to apply 
+            // the upward push (Y) and prevents the player from slipping off tile edges.
+            deltaDiff.x = -1000.0f;
         }
         double resolve = 0.0;
 
