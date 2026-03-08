@@ -1,29 +1,5 @@
 #include "Game.h"
 
-// TODO: SISTEMA COMMENTI
-// TODO: CONTROLLA EVENTUALI BUG DI BOUND E OUTLINE
-// TODO: Sfrutta linguaggio di scripting
-// TODO: CONVIENE TRASFORMARE / 2 in * 0.5f?
-// TODO: Posso gestire meglio le inclusioni circolari?
-// TODO: Cambiare il motore random?
-// TODO: Reference o ptr
-// TODO: Guarda i todo dell'originale
-// TODO: Impostare jump timer e attack timer da file?
-// TODO: Implementare le specifiche del pdf
-// TODO: Non conviene semplicemente accedere alla reference e modificare i componenti direttamente per transform????
-// TODO: Controlla variabili inutilizzate
-// TODO: Includere CState in ogni file cpp di classi derivate o solo in character.h?
-// TODO: Multiplayer?
-// TODO: Togliere dati hardcoded
-// TODO: Sistema proiettile
-// TODO: Impedisci doppia direzione
-// TODO: Usa solo il font 8 bit
-// TODO: Si può fare refactoring? BEST PRACTICE
-// TODO: unificare file con dati dei character?
-// TODO: Togli magic numbers e roba hardcoded, devo poter caricare sheet di dimensioni diverse, anche la viewspace dev'essere dinamica
-// TODO: Creare specifiche con tutte le istruzioni per creare la mappa
-// TODO: Va tutto standardizzato: pensa a friction y, non viene utilizzato spesso, ma volendo deve essere implementabile
-
 int main()
 {
     Game game;

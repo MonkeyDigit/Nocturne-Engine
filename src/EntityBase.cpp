@@ -201,9 +201,86 @@ void EntityBase::Load(const std::string& path)
             CController* controller = this->GetComponent<CController>();
             if (controller) { controller->m_jumpVelocity = jv; }
         }
-        else {
-            EngineLog::WarnOnce("char.unknown_type", "Unknown type in character file: " + type);
+        else if (type == "RangedCooldown") {
+            float value;
+            keystream >> value;
+            CController* controller = this->GetComponent<CController>();
+            if (controller && value >= 0.0f) { controller->m_rangedCooldown = value; }
         }
+        else if (type == "RangedSpeed") {
+            float speed;
+            keystream >> speed;
+            CController* controller = this->GetComponent<CController>();
+            if (controller && speed > 0.0f) { controller->m_rangedSpeed = speed; }
+        }
+        else if (type == "RangedLifetime") {
+            float lifetime;
+            keystream >> lifetime;
+            CController* controller = this->GetComponent<CController>();
+            if (controller && lifetime > 0.0f) { controller->m_rangedLifetime = lifetime; }
+        }
+        else if (type == "RangedDamage") {
+            int damage;
+            keystream >> damage;
+            CController* controller = this->GetComponent<CController>();
+            if (controller && damage > 0) { controller->m_rangedDamage = damage; }
+        }
+        else if (type == "CoyoteTime") {
+            float value;
+            keystream >> value;
+            CController* controller = this->GetComponent<CController>();
+            if (controller && value >= 0.0f) { controller->m_coyoteTimeWindow = value; }
+        }
+        else if (type == "JumpBufferTime") {
+            float value;
+            keystream >> value;
+            CController* controller = this->GetComponent<CController>();
+            if (controller && value >= 0.0f) { controller->m_jumpBufferWindow = value; }
+        }
+        else if (type == "AttackCooldown") {
+            float value;
+            keystream >> value;
+            CController* controller = this->GetComponent<CController>();
+            if (controller && value >= 0.0f) { controller->m_attackCooldown = value; }
+        }
+        else if (type == "AttackDamage") {
+            int damage;
+            keystream >> damage;
+            CState* state = this->GetComponent<CState>();
+            if (state) { state->SetAttackDamage(damage); }
+        }
+        else if (type == "TouchDamage") {
+            int damage;
+            keystream >> damage;
+            CState* state = this->GetComponent<CState>();
+            if (state) { state->SetTouchDamage(damage); }
+        }
+        else if (type == "InvulnerabilityTime") {
+            float seconds;
+            keystream >> seconds;
+            CState* state = this->GetComponent<CState>();
+            if (state) { state->SetInvulnerabilityTime(seconds); }
+        }
+        else if (type == "JumpCancelMultiplier") {
+            float value;
+            keystream >> value;
+            CController* controller = this->GetComponent<CController>();
+            if (controller && value > 0.0f && value <= 1.0f) { controller->m_jumpCancelMultiplier = value; }
+        }
+        else if (type == "VerticalAirThreshold") {
+            float value;
+            keystream >> value;
+            CController* controller = this->GetComponent<CController>();
+            if (controller && value >= 0.0f) { controller->m_verticalAirThreshold = value; }
+        }
+        else if (type == "HorizontalWalkThreshold") {
+            float value;
+            keystream >> value;
+            CController* controller = this->GetComponent<CController>();
+            if (controller && value >= 0.0f) { controller->m_horizontalWalkThreshold = value; }
+        }
+        else
+            EngineLog::WarnOnce("char.unknown_type", "Unknown type in character file: " + type);
     }
 
     // Set default animation to ensure the character is visible

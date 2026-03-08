@@ -7,10 +7,52 @@
 #include "CSprite.h"
 #include "CProjectile.h"
 
-sf::FloatRect GetWorldAttackAABB(EntityBase* entity)
+namespace
+{
+    inline bool HasIntersection(const sf::FloatRect& a, const sf::FloatRect& b)
+    {
+        return a.findIntersection(b).has_value();
+    }
+
+    inline void ApplyKnockbackAwayFrom(
+        CTransform& target,
+        const CTransform& source,
+        float horizontalForce,
+        float verticalForce)
+    {
+        const float direction = (source.GetPosition().x < target.GetPosition().x) ? 1.0f : -1.0f;
+        target.AddVelocity(direction * horizontalForce, verticalForce);
+    }
+
+    inline void FaceTarget(CSprite& sprite, const CTransform& from, const CTransform& to)
+    {
+        sprite.SetDirection((from.GetPosition().x > to.GetPosition().x) ? Direction::Left : Direction::Right);
+    }
+
+    enum class ProjectileHitPolicy
+    {
+        ConsumeAlways,
+        ConsumeOnDamage
+    };
+
+    // Choose one policy explicitly
+    constexpr ProjectileHitPolicy kProjectileHitPolicy = ProjectileHitPolicy::ConsumeOnDamage;
+
+    inline bool ShouldConsumeProjectile(bool damageApplied)
+    {
+        return (kProjectileHitPolicy == ProjectileHitPolicy::ConsumeAlways) || damageApplied;
+    }
+
+    constexpr float kPlayerSwordKnockbackX = 200.0f;
+    constexpr float kPlayerSwordKnockbackY = -100.0f;
+    constexpr float kEnemyAttackKnockbackY = 0.0f;
+}
+
+static sf::FloatRect GetWorldAttackAABB(EntityBase* entity)
 {
     CBoxCollider* collider = entity->GetComponent<CBoxCollider>();
     CSprite* sprite = entity->GetComponent<CSprite>();
+    if (!collider || !sprite) return sf::FloatRect();
 
     sf::FloatRect bodyAABB = collider->GetAABB();
     sf::FloatRect attackRect = collider->GetAttackAABB();
@@ -22,8 +64,7 @@ sf::FloatRect GetWorldAttackAABB(EntityBase* entity)
     else
         attackX = bodyAABB.position.x - offset.x - attackRect.size.x;
 
-    float attackY = bodyAABB.position.y + offset.y;
-
+    const float attackY = bodyAABB.position.y + offset.y;
     return sf::FloatRect({ attackX, attackY }, { attackRect.size.x, attackRect.size.y });
 }
 
@@ -75,6 +116,8 @@ void CombatSystem::ResolveProjectiles(
         CBoxCollider* projCol = projEntity->GetComponent<CBoxCollider>();
         if (!projComp || !projCol) continue;
 
+        const sf::FloatRect projAABB = projCol->GetAABB();
+
         for (EntityBase* target : targets)
         {
             if (target->GetType() == EntityType::Projectile) continue;
@@ -84,9 +127,12 @@ void CombatSystem::ResolveProjectiles(
             CBoxCollider* targetCol = target->GetComponent<CBoxCollider>();
             if (!targetState || !targetCol || targetState->GetState() == EntityState::Dying) continue;
 
-            if (projCol->GetAABB().findIntersection(targetCol->GetAABB()).has_value())
+            if (!HasIntersection(projAABB, targetCol->GetAABB()))
+                continue;
+
+            const bool damageApplied = targetState->TakeDamage(projComp->GetDamage());
+            if (ShouldConsumeProjectile(damageApplied))
             {
-                targetState->TakeDamage(projComp->GetDamage());
                 projEntity->Destroy();
                 break;
             }
@@ -103,9 +149,8 @@ void CombatSystem::ResolveEnemyVsPlayer(
     CState* playerState = player->GetComponent<CState>();
     CTransform* playerTrans = player->GetComponent<CTransform>();
     CBoxCollider* playerCol = player->GetComponent<CBoxCollider>();
-    CSprite* playerSprite = player->GetComponent<CSprite>();
 
-    if (!playerState || !playerTrans || !playerCol || !playerSprite) return;
+    if (!playerState || !playerTrans || !playerCol) return;
     if (playerState->GetState() == EntityState::Dying) return;
 
     for (EntityBase* enemy : enemies)
@@ -118,47 +163,50 @@ void CombatSystem::ResolveEnemyVsPlayer(
         if (!enemyState || !enemyTrans || !enemyCol || !enemySprite) continue;
         if (enemyState->GetState() == EntityState::Dying) continue;
 
-        const bool bodiesTouching =
-            enemyCol->GetAABB().findIntersection(playerCol->GetAABB()).has_value();
-
-        if (playerState->GetState() == EntityState::Attacking &&
-            enemyState->GetState() != EntityState::Hurt)
+        // Player sword hit
+        if (playerState->GetState() == EntityState::Attacking)
         {
-            sf::FloatRect playerSwordBox = GetWorldAttackAABB(player);
-            if (playerSwordBox.findIntersection(enemyCol->GetAABB()).has_value())
+            const unsigned int playerAttackInstance = playerState->GetAttackInstance();
+            const sf::FloatRect playerSwordBox = GetWorldAttackAABB(player);
+
+            if (HasIntersection(playerSwordBox, enemyCol->GetAABB()) &&
+                enemyState->TakeDamageFromAttack(
+                    player->GetId(),
+                    playerAttackInstance,
+                    playerState->GetAttackDamage()))
             {
-                enemyState->TakeDamage(1);
-                enemyTrans->AddVelocity(
-                    (playerTrans->GetPosition().x < enemyTrans->GetPosition().x) ? 200.0f : -200.0f,
-                    -100.0f);
+                ApplyKnockbackAwayFrom(*enemyTrans, *playerTrans, kPlayerSwordKnockbackX, kPlayerSwordKnockbackY);
             }
         }
 
-        if (enemyState->GetState() == EntityState::Attacking &&
-            playerState->GetState() != EntityState::Hurt)
+        // Enemy active attack hitbox
+        if (enemyState->GetState() == EntityState::Attacking)
         {
-            sf::FloatRect enemyAttackBox = GetWorldAttackAABB(enemy);
-            if (enemyAttackBox.findIntersection(playerCol->GetAABB()).has_value())
-            {
-                playerState->TakeDamage(1);
+            const unsigned int enemyAttackInstance = enemyState->GetAttackInstance();
+            const sf::FloatRect enemyAttackBox = GetWorldAttackAABB(enemy);
 
-                if (enemyTrans->GetPosition().x > playerTrans->GetPosition().x)
-                {
-                    playerTrans->AddVelocity(-playerTrans->GetSpeed().x, 0.0f);
-                    enemySprite->SetDirection(Direction::Left);
-                }
-                else
-                {
-                    playerTrans->AddVelocity(playerTrans->GetSpeed().x, 0.0f);
-                    enemySprite->SetDirection(Direction::Right);
-                }
+            if (HasIntersection(enemyAttackBox, playerCol->GetAABB()) &&
+                playerState->TakeDamageFromAttack(
+                    enemy->GetId(),
+                    enemyAttackInstance,
+                    enemyState->GetAttackDamage()))
+            {
+                ApplyKnockbackAwayFrom(*playerTrans, *enemyTrans, playerTrans->GetSpeed().x, kEnemyAttackKnockbackY);
+                FaceTarget(*enemySprite, *enemyTrans, *playerTrans);
             }
+
+            continue;
         }
-        else if (enemyState->GetState() != EntityState::Attacking &&
-            enemyState->GetState() != EntityState::Hurt)
-        {
-            if (bodiesTouching)
-                enemyState->SetState(EntityState::Attacking);
-        }
+
+        // Passive body-contact damage
+        if (!HasIntersection(enemyCol->GetAABB(), playerCol->GetAABB()))
+            continue;
+
+        const int touchDamage = enemyState->GetTouchDamage();
+        if (touchDamage > 0)
+            playerState->TakeDamage(touchDamage);
+
+        if (enemyState->GetState() != EntityState::Hurt)
+            enemyState->SetState(EntityState::Attacking);
     }
 }

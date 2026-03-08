@@ -106,7 +106,6 @@ void Map::LoadMap(const std::string& path)
             std::string propName = prop.value("name", "");
             if (propName == "Gravity") m_mapGravity = prop.value("value", 512.0f);
             else if (propName == "NextMap") m_nextMap = prop.value("value", "");
-            // TODO: Friction va messa come proprietà dei blocchi
             else if (propName == "Friction_X") m_defaultTile.friction.x = prop.value("value", 0.9f);
             // Load backgrounds
             else if (propName.find("Bg_") == 0)

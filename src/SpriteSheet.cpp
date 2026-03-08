@@ -90,12 +90,32 @@ bool SpriteSheet::LoadSheet(const std::string& file)
         }
         else if (type == "Animation")
         {
-            // TODO: Clausola duplicate e invalid ?
             Animation anim;
             keystream.clear();
             keystream.seekg(0);
-            keystream >> anim;      // Use overloaded operator
-            m_animations.emplace(anim.GetName(), anim);
+
+            if (!(keystream >> anim))
+            {
+                EngineLog::Warn("Invalid Animation entry in sheet: " + file);
+                continue;
+            }
+
+            const std::string animName = anim.GetName();
+            if (animName.empty())
+            {
+                EngineLog::Warn("Animation with empty name in sheet: " + file);
+                continue;
+            }
+
+            const bool existed = (m_animations.find(animName) != m_animations.end());
+            m_animations.insert_or_assign(animName, anim);
+
+            if (existed)
+            {
+                EngineLog::WarnOnce(
+                    "sheet.duplicate_anim." + file + "." + animName,
+                    "Duplicate animation '" + animName + "' in sheet '" + file + "'. Last definition wins.");
+            }
         }
     }
     sheetFile.close();
@@ -147,13 +167,6 @@ bool SpriteSheet::SetAnimation(const std::string& name, bool play, bool loop)
     if (m_animationCurrent && m_animationCurrent->GetName() == name) return false;
 
     auto it = m_animations.find(name);
-
-    /* TODO: Aggiungere questa clausola ?
-    if (l_name == m_animationCurrent.GetName() &&
-		l_play == m_animationCurrent.IsPlaying() && 
-		l_loop == m_animationCurrent.IsLooped())
-		return false;
-    */
 
     if (it != m_animations.end())
     {

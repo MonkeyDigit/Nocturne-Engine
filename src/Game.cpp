@@ -64,7 +64,6 @@ void Game::Update(sf::Time deltaTime)
     // (It will update the EntityManager if the current state is State_Game)
     m_stateManager.Update(deltaTime);
     m_stateManager.ProcessRequests();
-    // TODO: Spostare da qua?
     m_context.m_audioManager.Update();
 }
 
@@ -77,5 +76,3 @@ void Game::Render()
 
     m_window.EndDraw();
 }
-
-// TODO: Aggiungere late update?

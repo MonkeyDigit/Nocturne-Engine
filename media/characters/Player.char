@@ -6,3 +6,16 @@ DamageBox -5 0 13 13
 Speed 800 128
 JumpVelocity 400
 MaxVelocity 128 512
+RangedCooldown 0.20
+RangedSpeed 300
+RangedLifetime 1.5
+RangedDamage 10
+CoyoteTime 0.10
+JumpBufferTime 0.15
+AttackCooldown 0.00
+AttackDamage 1
+TouchDamage 0
+InvulnerabilityTime 0.20
+JumpCancelMultiplier 0.50
+VerticalAirThreshold 0.01
+HorizontalWalkThreshold 0.20

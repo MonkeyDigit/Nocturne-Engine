@@ -18,8 +18,6 @@ public:
     // The callback triggered by SFML events
     void React(EventDetails& details);
 
-    void Player_AttackRanged(EventDetails&);
-
 private:
     EntityManager* m_entityManager = nullptr; // Keeps track of the manager
 };

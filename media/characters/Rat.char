@@ -6,3 +6,6 @@ DamageBox -5 0 26 26
 Speed 1024 128
 JumpVelocity 250
 MaxVelocity 96 1024
+AttackDamage 1
+TouchDamage 0
+InvulnerabilityTime 0.00

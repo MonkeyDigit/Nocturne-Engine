@@ -11,7 +11,6 @@ void Animation::Play() { m_playing = true; }
 void Animation::Stop()
 {
     m_playing = false;
-    // TODO: TOGLIERE STA ROBA ?
     m_currentFrame = m_startFrame;
     m_elapsedTime = 0.0f;
 }

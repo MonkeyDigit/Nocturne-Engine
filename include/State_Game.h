@@ -5,6 +5,8 @@
 #include "Map.h"
 #include "HUD.h"
 
+class EntityBase;
+
 class State_Game : public BaseState
 {
 public:
@@ -27,6 +29,20 @@ private:
     void UpdateCursor(const sf::Time& time);
     void SetCursorVisible(bool visible);
 
+    void InitializeDebugOverlay();
+    void ResetFpsCounter();
+    void DrawDebugOverlay(sf::RenderWindow& window, const sf::View& gameView);
+    void DrawDebugHitboxes(sf::RenderWindow& window);
+    void DrawFpsCounter(sf::RenderWindow& window, const sf::View& gameView);
+
+    EntityBase* ResolvePlayer();
+    EntityBase* RespawnPlayer();
+    void HandlePlayerHazards(EntityBase& player);
+
+    sf::View ResolveGameView();
+    void ApplyGameView(sf::RenderWindow& window, const sf::View& gameView);
+    void DrawHudOverlay(sf::RenderWindow& window, const sf::View& gameView);
+
     float m_stillCursorTime;
     sf::Vector2i m_mousePos;
     bool m_cursorVisible;
@@ -37,7 +53,6 @@ private:
 
     int m_playerIdCache;
 
-    // TODO: Possibile refactoring di pulizia?
     sf::Font m_debugFont;
     sf::Text m_fpsText;
     sf::Clock m_fpsClock;
@@ -45,4 +60,5 @@ private:
     unsigned int m_fpsFrameCount;
     float m_currentFps;
     bool m_debugFontLoaded;
+
 };
