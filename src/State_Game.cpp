@@ -11,6 +11,7 @@
 #include "EngineLog.h"
 #include "CTransform.h"
 #include "CBoxCollider.h"
+#include "CombatGeometry.h"
 
 State_Game::State_Game(StateManager& stateManager)
     : BaseState(stateManager),
@@ -213,21 +214,11 @@ void State_Game::DrawDebugHitboxes(sf::RenderWindow& window)
         bodyShape.setOutlineThickness(1.0f);
         window.draw(bodyShape);
 
-        sf::FloatRect attackRect = collider->GetAttackAABB();
-        sf::Vector2f offset = collider->GetAttackAABBOffset();
+        const sf::FloatRect attackWorldRect = ComputeWorldAttackAABB(collider, sprite);
+        if (attackWorldRect.size.x <= 0.0f || attackWorldRect.size.y <= 0.0f) continue;
 
-        if (attackRect.size.x <= 0.0f || attackRect.size.y <= 0.0f) continue;
-
-        float attackX = 0.0f;
-        if (sprite->GetDirection() == Direction::Right)
-            attackX = (bodyRect.position.x + bodyRect.size.x) + offset.x;
-        else
-            attackX = bodyRect.position.x - offset.x - attackRect.size.x;
-
-        float attackY = bodyRect.position.y + offset.y;
-
-        sf::RectangleShape attackShape({ attackRect.size.x, attackRect.size.y });
-        attackShape.setPosition({ attackX, attackY });
+        sf::RectangleShape attackShape({ attackWorldRect.size.x, attackWorldRect.size.y });
+        attackShape.setPosition(attackWorldRect.position);
         attackShape.setFillColor(sf::Color::Transparent);
 
         const bool isAttacking = (state && state->GetState() == EntityState::Attacking);

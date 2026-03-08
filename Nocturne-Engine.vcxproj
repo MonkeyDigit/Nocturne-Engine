@@ -150,6 +150,7 @@
     <ClInclude Include="include\CameraSystem.h" />
     <ClInclude Include="include\CBoxCollider.h" />
     <ClInclude Include="include\CController.h" />
+    <ClInclude Include="include\CombatGeometry.h" />
     <ClInclude Include="include\CombatSystem.h" />
     <ClInclude Include="include\Component.h" />
     <ClInclude Include="include\CProjectile.h" />

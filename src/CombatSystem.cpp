@@ -1,4 +1,5 @@
 #include "CombatSystem.h"
+#include "CombatGeometry.h"
 #include "EntityManager.h"
 #include "EntityBase.h"
 #include "CBoxCollider.h"
@@ -46,26 +47,6 @@ namespace
     constexpr float kPlayerSwordKnockbackX = 200.0f;
     constexpr float kPlayerSwordKnockbackY = -100.0f;
     constexpr float kEnemyAttackKnockbackY = 0.0f;
-}
-
-static sf::FloatRect GetWorldAttackAABB(EntityBase* entity)
-{
-    CBoxCollider* collider = entity->GetComponent<CBoxCollider>();
-    CSprite* sprite = entity->GetComponent<CSprite>();
-    if (!collider || !sprite) return sf::FloatRect();
-
-    sf::FloatRect bodyAABB = collider->GetAABB();
-    sf::FloatRect attackRect = collider->GetAttackAABB();
-    sf::Vector2f offset = collider->GetAttackAABBOffset();
-
-    float attackX = 0.0f;
-    if (sprite->GetDirection() == Direction::Right)
-        attackX = (bodyAABB.position.x + bodyAABB.size.x) + offset.x;
-    else
-        attackX = bodyAABB.position.x - offset.x - attackRect.size.x;
-
-    const float attackY = bodyAABB.position.y + offset.y;
-    return sf::FloatRect({ attackX, attackY }, { attackRect.size.x, attackRect.size.y });
 }
 
 void CombatSystem::Update(EntityManager& entityManager)
@@ -149,8 +130,9 @@ void CombatSystem::ResolveEnemyVsPlayer(
     CState* playerState = player->GetComponent<CState>();
     CTransform* playerTrans = player->GetComponent<CTransform>();
     CBoxCollider* playerCol = player->GetComponent<CBoxCollider>();
+    CSprite* playerSprite = player->GetComponent<CSprite>();
 
-    if (!playerState || !playerTrans || !playerCol) return;
+    if (!playerState || !playerTrans || !playerCol || !playerSprite) return;
     if (playerState->GetState() == EntityState::Dying) return;
 
     for (EntityBase* enemy : enemies)
@@ -167,7 +149,8 @@ void CombatSystem::ResolveEnemyVsPlayer(
         if (playerState->GetState() == EntityState::Attacking)
         {
             const unsigned int playerAttackInstance = playerState->GetAttackInstance();
-            const sf::FloatRect playerSwordBox = GetWorldAttackAABB(player);
+            const sf::FloatRect playerSwordBox = ComputeWorldAttackAABB(playerCol, playerSprite);
+
 
             if (HasIntersection(playerSwordBox, enemyCol->GetAABB()) &&
                 enemyState->TakeDamageFromAttack(
@@ -183,7 +166,7 @@ void CombatSystem::ResolveEnemyVsPlayer(
         if (enemyState->GetState() == EntityState::Attacking)
         {
             const unsigned int enemyAttackInstance = enemyState->GetAttackInstance();
-            const sf::FloatRect enemyAttackBox = GetWorldAttackAABB(enemy);
+            const sf::FloatRect enemyAttackBox = ComputeWorldAttackAABB(enemyCol, enemySprite);
 
             if (HasIntersection(enemyAttackBox, playerCol->GetAABB()) &&
                 playerState->TakeDamageFromAttack(
