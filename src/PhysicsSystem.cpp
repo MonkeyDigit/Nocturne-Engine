@@ -31,7 +31,7 @@ void PhysicsSystem::Update(EntityManager& entityManager, Map* gameMap, float del
 
         // Map Collisions
         CheckMapCollisions(entity, gameMap);
-        ResolveMapCollisions(entity, gameMap);
+        ResolveMapCollisions(entity, gameMap, deltaTime);
     }
 }
 
@@ -176,7 +176,7 @@ void PhysicsSystem::CheckMapCollisions(EntityBase* entity, Map* map)
     }
 }
 
-void PhysicsSystem::ResolveMapCollisions(EntityBase* entity, Map* map)
+void PhysicsSystem::ResolveMapCollisions(EntityBase* entity, Map* map, float deltaTime)
 {
     CTransform* transform = entity->GetComponent<CTransform>();
     CBoxCollider* collider = entity->GetComponent<CBoxCollider>();
@@ -216,10 +216,10 @@ void PhysicsSystem::ResolveMapCollisions(EntityBase* entity, Map* map)
 
             // ROBUST LOGIC: Calculate where the feet were in the PREVIOUS FRAME
             // Since the engine uses a fixed timestep of 60 FPS, we can use 1.0f / 60.0f
-            // TODO: Get frame time?
-            float moveY = transform->GetVelocity().y * (1.0f / 60.0f);
-
-            float previousBottom = (aabb.position.y + aabb.size.y) - moveY;
+            // Use the real frame delta for previous-frame reconstruction
+            const float frameDt = (deltaTime > 0.0f) ? deltaTime : (1.0f / 60.0f);
+            const float moveY = transform->GetVelocity().y * frameDt;
+            const float previousBottom = (aabb.position.y + aabb.size.y) - moveY;
             float tileTop = itr.m_tileBounds.position.y;
 
             // If the feet were ALREADY below the platform's edge in the last frame, 

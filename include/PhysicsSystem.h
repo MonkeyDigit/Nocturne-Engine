@@ -18,6 +18,6 @@ private:
     // Helper functions to break down physics logic
     void ApplyGravityAndMovement(EntityBase* entity, Map* map, float deltaTime);
     void CheckMapCollisions(EntityBase* entity, Map* map);
-    void ResolveMapCollisions(EntityBase* entity, Map* map);
+    void ResolveMapCollisions(EntityBase* entity, Map* map, float deltaTime);
     void ConstrainToMapBounds(EntityBase* entity, Map* map);
 };

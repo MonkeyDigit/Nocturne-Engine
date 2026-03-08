@@ -34,10 +34,8 @@ void CombatSystem::Update(EntityManager& entityManager)
     std::vector<EntityBase*> projectiles;
     std::vector<EntityBase*> targets;
     std::vector<EntityBase*> enemies;
-
     EntityBase* player = nullptr;
 
-    // Partition entities once
     for (auto& pair : entities)
     {
         EntityBase* entity = pair.second.get();
@@ -49,9 +47,7 @@ void CombatSystem::Update(EntityManager& entityManager)
         if (entity->GetType() == EntityType::Projectile)
         {
             if (entity->GetComponent<CProjectile>())
-            {
                 projectiles.push_back(entity);
-            }
             continue;
         }
 
@@ -65,7 +61,14 @@ void CombatSystem::Update(EntityManager& entityManager)
         else if (entity->GetType() == EntityType::Enemy) enemies.push_back(entity);
     }
 
-    // Projectile pass
+    ResolveProjectiles(projectiles, targets);
+    ResolveEnemyVsPlayer(player, enemies);
+}
+
+void CombatSystem::ResolveProjectiles(
+    const std::vector<EntityBase*>& projectiles,
+    const std::vector<EntityBase*>& targets)
+{
     for (EntityBase* projEntity : projectiles)
     {
         CProjectile* projComp = projEntity->GetComponent<CProjectile>();
@@ -84,13 +87,17 @@ void CombatSystem::Update(EntityManager& entityManager)
             if (projCol->GetAABB().findIntersection(targetCol->GetAABB()).has_value())
             {
                 targetState->TakeDamage(projComp->GetDamage());
-                projEntity->Destroy(); // Queue removal
-                break; // One projectile hits one target
+                projEntity->Destroy();
+                break;
             }
         }
     }
+}
 
-    // Melee pass requires a valid player
+void CombatSystem::ResolveEnemyVsPlayer(
+    EntityBase* player,
+    const std::vector<EntityBase*>& enemies)
+{
     if (!player) return;
 
     CState* playerState = player->GetComponent<CState>();
@@ -114,7 +121,6 @@ void CombatSystem::Update(EntityManager& entityManager)
         const bool bodiesTouching =
             enemyCol->GetAABB().findIntersection(playerCol->GetAABB()).has_value();
 
-        // Player hits enemy
         if (playerState->GetState() == EntityState::Attacking &&
             enemyState->GetState() != EntityState::Hurt)
         {
@@ -124,12 +130,10 @@ void CombatSystem::Update(EntityManager& entityManager)
                 enemyState->TakeDamage(1);
                 enemyTrans->AddVelocity(
                     (playerTrans->GetPosition().x < enemyTrans->GetPosition().x) ? 200.0f : -200.0f,
-                    -100.0f
-                );
+                    -100.0f);
             }
         }
 
-        // Enemy hits player
         if (enemyState->GetState() == EntityState::Attacking &&
             playerState->GetState() != EntityState::Hurt)
         {
@@ -153,7 +157,6 @@ void CombatSystem::Update(EntityManager& entityManager)
         else if (enemyState->GetState() != EntityState::Attacking &&
             enemyState->GetState() != EntityState::Hurt)
         {
-            // Enemy decides to attack only when body contact happens
             if (bodiesTouching)
                 enemyState->SetState(EntityState::Attacking);
         }
