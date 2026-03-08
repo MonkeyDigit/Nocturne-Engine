@@ -1,9 +1,9 @@
-#include <iostream>
 #include <fstream>
 #include <sstream>
 #include <algorithm>
 #include <cctype>
 #include "EventManager.h"
+#include "StateManager.h"
 #include "EngineLog.h"
 
 // --- TRANSLATION DICTIONARIES ---
@@ -84,7 +84,7 @@ void Binding::BindEvent(EventType type, int code)
 
 // --- EVENT MANAGER ---
 EventManager::EventManager()
-    : m_currentState(static_cast<StateType>(0)),
+    : m_currentState(StateType::Global),
     m_hasFocus(true)
 {
     LoadBindings("config/bindings.cfg");
@@ -167,7 +167,14 @@ void EventManager::LoadBindings(const std::string& path)
     std::string line;                       // Each line is a binding with the callback name and the events
     while (std::getline(bindings, line))
     {
-        if (line.empty() || line[0] == '|') continue;
+        // Support inline comments and full-line comments
+        const size_t commentPos = line.find('#');
+        if (commentPos != std::string::npos)
+            line.erase(commentPos);
+        // Ignore empty lines
+        const size_t first = line.find_first_not_of(" \t\r\n");
+        if (first == std::string::npos) continue;       // empty/whitespace
+        if (line[first] == '|') continue;               // custom comment marker
 
         // GET CALLBACK NAME
         std::stringstream keystream(line);
@@ -346,26 +353,28 @@ void EventManager::ProcessRealTimeInput()
         {
             switch (e_itr.first)
             {
-                case EventType::Keyboard:
+            case EventType::Keyboard:
+            case EventType::KeyboardHeld:
+            {
+                if (sf::Keyboard::isKeyPressed(static_cast<sf::Keyboard::Key>(e_itr.second)))
                 {
-                    if (sf::Keyboard::isKeyPressed(static_cast<sf::Keyboard::Key>(e_itr.second)))
-                    {
-                        if (bind->m_details.m_keyCode == -1) bind->m_details.m_keyCode = e_itr.second;
-                        ++(bind->m_evCount);
-                    }
-                    break;
+                    if (bind->m_details.m_keyCode == -1) bind->m_details.m_keyCode = e_itr.second;
+                    ++(bind->m_evCount);
                 }
-                case EventType::Mouse:
+                break;
+            }
+            case EventType::Mouse:
+            case EventType::MouseHeld:
+            {
+                if (sf::Mouse::isButtonPressed(static_cast<sf::Mouse::Button>(e_itr.second)))
                 {
-                    if (sf::Mouse::isButtonPressed(static_cast<sf::Mouse::Button>(e_itr.second)))
-                    {
-                        if (bind->m_details.m_keyCode == -1) bind->m_details.m_keyCode = e_itr.second;
-                        ++(bind->m_evCount);
-                    }
-                    break;
+                    if (bind->m_details.m_keyCode == -1) bind->m_details.m_keyCode = e_itr.second;
+                    ++(bind->m_evCount);
                 }
-                default: 
-                    break;
+                break;
+            }
+            default:
+                break;
             }
         }
     }
@@ -379,29 +388,26 @@ void EventManager::DispatchCallbacks()
     for (auto& b_itr : m_bindings)  // Iterate through the bindings
     {
         Binding* bind = b_itr.second.get();
+
         if (bind->m_events.size() == bind->m_evCount)
-        {
-            auto stateCallbacks = m_callbacks.find(m_currentState);
-            auto otherCallbacks = m_callbacks.find(static_cast<StateType>(0));
+        {   // Using a lambda function
+            auto dispatchForState = [&](StateType state)
+                {
+                    auto callbacksIt = m_callbacks.find(state);
+                    if (callbacksIt == m_callbacks.end()) return;
 
-            if (stateCallbacks != m_callbacks.end())
-            {
-                auto callItr = stateCallbacks->second.find(bind->m_name);
-                if (callItr != stateCallbacks->second.end())
-                {   // Pass in information about events
-                    callItr->second(bind->m_details);
-                }
-            }
+                    auto callItr = callbacksIt->second.find(bind->m_name);
+                    if (callItr != callbacksIt->second.end())
+                    {   // Pass in information about events
+                        callItr->second(bind->m_details);
+                    }
+                };
 
-            // Also check global callbacks (State 0)
-            if (otherCallbacks != m_callbacks.end())
-            {
-                auto callItr = otherCallbacks->second.find(bind->m_name);
-                if (callItr != otherCallbacks->second.end())
-                {   // Pass in information about events
-                    callItr->second(bind->m_details);
-                }
-            }
+            dispatchForState(m_currentState);
+
+            // Also dispatch global callbacks, but avoid duplicate dispatch
+            if (m_currentState != StateType::Global)
+                dispatchForState(StateType::Global);
         }
 
         bind->m_evCount = 0;

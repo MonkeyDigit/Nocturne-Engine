@@ -33,7 +33,6 @@ Window::Window(const std::string& title, const sf::Vector2u& size)
 
 Window::~Window() 
 {
-    // TODO: Remove callback ???
     Destroy();
 }
 
@@ -50,7 +49,6 @@ void Window::Setup(const std::string& title, const sf::Vector2u& size)
     LoadConfig();
 
     Create();
-    // TODO: Add callback functions ???
 }
 
 void Window::Create()
@@ -228,7 +226,6 @@ void Window::Destroy() { m_window.close(); }
 void Window::Update()
 {
     // In SFML 3, pollEvent returns std::optional<sf::Event>
-    // TODO: Singolo = ???
     while (const std::optional<sf::Event> event = m_window.pollEvent()) {
         if (event->is<sf::Event::Closed>())
         {
@@ -251,7 +248,6 @@ void Window::Update()
 
         m_eventManager.ProcessPolledEvent(*event);
     }
-    // TODO: Cosa fare di eventmanager set focus?
     m_eventManager.ProcessRealTimeInput();
     m_eventManager.DispatchCallbacks();
 }

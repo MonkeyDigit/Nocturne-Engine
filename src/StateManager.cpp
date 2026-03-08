@@ -33,13 +33,6 @@ void StateManager::Draw()
 {
     if (m_states.empty()) return;
 
-    bool adjustView = false;
-    if (m_windSize != m_shared.m_window.GetWindowSize())
-    {
-        m_windSize = m_shared.m_window.GetWindowSize();
-        adjustView = true;
-    }
-
     // Check if the top state is transparent (e.g., Paused state over Game state)
     if (m_states.back().second->IsTransparent() && m_states.size() > 1)
     {
@@ -128,8 +121,6 @@ void StateManager::CreateState(StateType type)
     if (factory == m_stateFactory.end()) return;
 
     std::unique_ptr<BaseState> state = factory->second();
-    // TODO: Cosa fare?
-    //state->SetView(m_shared.m_window.GetRenderWindow().getDefaultView());
 
     m_states.emplace_back(type, std::move(state));
     m_states.back().second->OnCreate();

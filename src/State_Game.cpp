@@ -32,8 +32,7 @@ void State_Game::OnCreate()
     EventManager& evMgr = m_stateManager.GetContext().m_eventManager;
 
     // Registering callbacks using the modern EventDetails reference
-    // TODO: Make sure "Pause" and "ToggleDebug" are in your Bindings.cfg
-    // TODO: OPEN MENU
+    evMgr.AddCallback(StateType::Game, "OpenMainMenu", &State_Game::MainMenu, *this);
     evMgr.AddCallback(StateType::Game, "Pause", &State_Game::Pause, *this);
     evMgr.AddCallback(StateType::Game, "ToggleDebug", &State_Game::ToggleDebugOverlay, *this);
 
@@ -72,7 +71,7 @@ void State_Game::OnCreate()
 void State_Game::OnDestroy()
 {
     EventManager& evMgr = m_stateManager.GetContext().m_eventManager;
-    // TODO: OPEN MENU
+    evMgr.RemoveCallback(StateType::Game, "OpenMainMenu");
     evMgr.RemoveCallback(StateType::Game, "Pause");
     evMgr.RemoveCallback(StateType::Game, "ToggleDebug");
 }
@@ -167,9 +166,6 @@ void State_Game::Update(const sf::Time& time)
     m_gameMap.Update(time.asSeconds());
     // Update HUD overlay
     m_hud->Update();
-
-    // TODO: Delegare a camera system
-    //m_gameCameraView = m_stateManager.GetContext().m_window.GetRenderWindow().getView();
 }
 
 void State_Game::Draw()
@@ -307,6 +303,7 @@ void State_Game::MainMenu(EventDetails&)
     m_stillCursorTime = 0.0f;
     SetCursorVisible(true);
     m_stateManager.SwitchTo(StateType::MainMenu);
+    m_stateManager.Remove(StateType::Game);
 }
 
 void State_Game::Pause(EventDetails&)

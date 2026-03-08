@@ -3,7 +3,6 @@
 #include "SharedContext.h"
 #include "Window.h"
 #include "TextureManager.h"
-#include <iostream>
 #include "EngineLog.h"
 
 State_MainMenu::State_MainMenu(StateManager& stateManager)
@@ -30,7 +29,7 @@ void State_MainMenu::OnCreate()
 
     // Load fonts
     if (!m_fontTitle.openFromFile("media/fonts/EightBitDragon.ttf"))
-        EngineLog::WarnOnce("font.credits.title_failed", "Failed to load title font");
+        EngineLog::WarnOnce("font.mainmenu.title_failed", "Failed to load title font");
 
     if (!m_fontButton.openFromFile("media/fonts/EightBitDragon.ttf"))
         EngineLog::WarnOnce("font.mainmenu.button_failed", "Failed to load button font");

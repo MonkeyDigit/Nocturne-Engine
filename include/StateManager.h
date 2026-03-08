@@ -10,6 +10,7 @@ struct SharedContext; // Forward declared
 
 enum class StateType
 {
+    Global = 0,
     Intro = 1,
     MainMenu,
     Game,
@@ -59,5 +60,4 @@ private:
     StateContainer m_states;
     TypeContainer m_toRemove;
     StateFactory m_stateFactory;
-    sf::Vector2u m_windSize;
 };

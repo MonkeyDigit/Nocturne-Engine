@@ -37,12 +37,14 @@ void State_Paused::OnCreate()
 
     EventManager& evMgr = m_stateManager.GetContext().m_eventManager;
     evMgr.AddCallback(StateType::Paused, "Pause", &State_Paused::Unpause, *this);
+    evMgr.AddCallback(StateType::Paused, "OpenMainMenu", &State_Paused::QuitToMainMenu, *this);
 }
 
 void State_Paused::OnDestroy()
 {
     EventManager& evMgr = m_stateManager.GetContext().m_eventManager;
     evMgr.RemoveCallback(StateType::Paused, "Pause");
+    evMgr.RemoveCallback(StateType::Paused, "OpenMainMenu");
 }
 
 void State_Paused::Activate() {}
@@ -60,4 +62,10 @@ void State_Paused::Draw()
 void State_Paused::Unpause(EventDetails& details)
 {
     m_stateManager.SwitchTo(StateType::Game);
+}
+void State_Paused::QuitToMainMenu(EventDetails& details)
+{
+    m_stateManager.SwitchTo(StateType::MainMenu);
+    m_stateManager.Remove(StateType::Paused);
+    m_stateManager.Remove(StateType::Game);
 }

@@ -17,6 +17,7 @@ public:
     void Draw() override;
 
     void Unpause(EventDetails& details);
+    void QuitToMainMenu(EventDetails& details);
 
 private:
     sf::Font m_font;

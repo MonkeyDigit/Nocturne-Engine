@@ -39,12 +39,10 @@ void State_Settings::OnCreate()
     m_overlay.setFillColor(sf::Color(0, 0, 0, 150));
 
     // Load fonts
-    if (!m_fontTitle.openFromFile("media/fonts/OLDENGL.ttf")) {
-        EngineLog::WarnOnce("font.credits.title_failed", "Failed to load title font");
-    }
-    if (!m_fontButton.openFromFile("media/fonts/EightBitDragon.ttf")) {
-        EngineLog::WarnOnce("font.mainmenu.button_failed", "Failed to load button font");
-    }
+    if (!m_fontTitle.openFromFile("media/fonts/OLDENGL.ttf"))
+        EngineLog::WarnOnce("font.settings.title_failed", "Failed to load title font");
+    if (!m_fontButton.openFromFile("media/fonts/EightBitDragon.ttf"))
+        EngineLog::WarnOnce("font.settings.button_failed", "Failed to load button font");
 
     // Title
     m_title.setString("SETTINGS");
@@ -121,17 +119,20 @@ void State_Settings::Update(const sf::Time& time)
 void State_Settings::Draw()
 {
     sf::RenderWindow& window = m_stateManager.GetContext().m_window.GetRenderWindow();
+    window.setView(m_stateManager.GetContext().m_window.GetUIView());
 
     if (m_backgroundSprite) window.draw(*m_backgroundSprite);
     window.draw(m_overlay);
     window.draw(m_title);
     window.draw(m_volumeLabel);
 
-    for (const auto& btn : m_buttons) {
+    for (const auto& btn : m_buttons)
+    {
         window.draw(btn.rect);
         window.draw(btn.label);
     }
 }
+
 
 void State_Settings::MouseClick(EventDetails& details)
 {
