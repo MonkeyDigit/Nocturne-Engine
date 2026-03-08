@@ -8,6 +8,7 @@
 #include "EntityManager.h"
 #include "CState.h"
 #include "CSprite.h"
+#include "EngineLog.h"
 
 State_Game::State_Game(StateManager& stateManager)
     : BaseState(stateManager),
@@ -58,7 +59,7 @@ void State_Game::OnCreate()
     }
     else
     {
-        std::cerr << "! Failed to load debug font for FPS counter\n";
+        EngineLog::WarnOnce("font.debug.fps_failed", "Failed to load debug font for FPS counter");
     }
 
     m_fpsClock.restart();
@@ -132,16 +133,21 @@ void State_Game::Update(const sf::Time& time)
     }
     else
     {
-        std::cout << "Respawning player..." << '\n';
+        EngineLog::Info("Respawning player...");
         int playerId = context.GetEntityManager().Add(EntityType::Player, "Player");
 
         if (playerId < 0)
         {
-            std::cerr << "! Failed to respawn player: entity limit reached or creation failed\n";
+            EngineLog::ErrorOnce(
+                "respawn.player.blocked",
+                "Respawn blocked: player could not be created (entity limit or creation error)");
+
             m_playerIdCache = -1;
         }
         else
         {
+            EngineLog::ResetOnce("respawn.player.blocked");
+
             m_playerIdCache = playerId;
 
             player = context.GetEntityManager().Find(static_cast<unsigned int>(playerId));
@@ -312,7 +318,7 @@ void State_Game::Pause(EventDetails& details)
 void State_Game::ToggleDebugOverlay(EventDetails& details)
 {
     m_debugMode = !m_debugMode;
-    std::cout << "Debug Mode: " << (m_debugMode ? "ON" : "OFF") << "\n";
+    EngineLog::Info(std::string("Debug Mode: ") + (m_debugMode ? "ON" : "OFF"));
 
     if (m_debugMode)
     {

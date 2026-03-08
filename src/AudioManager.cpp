@@ -2,6 +2,7 @@
 #include <algorithm>
 #include "AudioManager.h"
 #include "Utilities.h"
+#include "EngineLog.h"
 
 void AudioManager::LoadSound(const std::string& id, const std::string& path)
 {
@@ -11,7 +12,7 @@ void AudioManager::LoadSound(const std::string& id, const std::string& path)
     if (buffer.loadFromFile(fullPath))
         m_soundBuffers[id] = std::move(buffer);
     else
-        std::cerr << "! Failed to load sound: " << fullPath << '\n';
+        EngineLog::Error("Failed to load sound: " + fullPath);
 }
 
 void AudioManager::PlaySound(const std::string& id)
@@ -36,7 +37,7 @@ void AudioManager::PlayMusic(const std::string& path)
         m_music.play();
     }
     else
-        std::cerr << "! Failed to load music: " << fullPath << '\n';
+        EngineLog::Error("Failed to load music: " + fullPath);
 }
 
 void AudioManager::StopMusic()

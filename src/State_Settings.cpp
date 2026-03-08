@@ -1,10 +1,11 @@
+#include <iostream>
 #include "State_Settings.h"
 #include "StateManager.h"
 #include "SharedContext.h"
 #include "Window.h"
 #include "TextureManager.h"
 #include "AudioManager.h"
-#include <iostream>
+#include "EngineLog.h"
 
 State_Settings::State_Settings(StateManager& stateManager)
     : BaseState(stateManager),
@@ -39,10 +40,10 @@ void State_Settings::OnCreate()
 
     // Load fonts
     if (!m_fontTitle.openFromFile("media/fonts/OLDENGL.ttf")) {
-        std::cerr << "! Failed to load title font\n";
+        EngineLog::WarnOnce("font.credits.title_failed", "Failed to load title font");
     }
     if (!m_fontButton.openFromFile("media/fonts/EightBitDragon.ttf")) {
-        std::cerr << "! Failed to load button font\n";
+        EngineLog::WarnOnce("font.mainmenu.button_failed", "Failed to load button font");
     }
 
     // Title

@@ -4,6 +4,7 @@
 #include "Window.h"
 #include "TextureManager.h"
 #include <iostream>
+#include "EngineLog.h"
 
 State_MainMenu::State_MainMenu(StateManager& stateManager)
     : BaseState(stateManager), m_title(m_fontTitle), m_buttonPadding(20)
@@ -29,10 +30,10 @@ void State_MainMenu::OnCreate()
 
     // Load fonts
     if (!m_fontTitle.openFromFile("media/fonts/EightBitDragon.ttf"))
-        std::cerr << "! Failed to load title font\n";
+        EngineLog::WarnOnce("font.credits.title_failed", "Failed to load title font");
 
     if (!m_fontButton.openFromFile("media/fonts/EightBitDragon.ttf"))
-        std::cerr << "! Failed to load button font\n";
+        EngineLog::WarnOnce("font.mainmenu.button_failed", "Failed to load button font");
 
     m_title.setString("Nocturne Engine");
     m_title.setCharacterSize(80);

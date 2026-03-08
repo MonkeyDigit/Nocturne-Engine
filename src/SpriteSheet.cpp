@@ -1,8 +1,8 @@
-#include "SpriteSheet.h"
-#include "Utilities.h"
 #include <fstream>
 #include <sstream>
-#include <iostream>
+#include "SpriteSheet.h"
+#include "Utilities.h"
+#include "EngineLog.h"
 
 SpriteSheet::SpriteSheet(TextureManager& textureManager)
     : m_textureManager(textureManager),
@@ -37,7 +37,7 @@ bool SpriteSheet::LoadSheet(const std::string& file)
     std::ifstream sheetFile{ Utils::GetWorkingDirectory() + file };
     if (!sheetFile.is_open())
     {
-        std::cerr << "! SpriteSheet could not load file: " << file << "\n";
+        EngineLog::Error("SpriteSheet could not load file: " + file);
         return false;
     }
 
@@ -57,20 +57,20 @@ bool SpriteSheet::LoadSheet(const std::string& file)
 
             if (textureName.empty())
             {
-                std::cerr << "! Missing texture id in sheet: " << file << "\n";
+                EngineLog::Error("Missing texture id in sheet: " + file);
                 return false;
             }
 
             if (!m_textureManager.RequireResource(textureName))
             {
-                std::cerr << "! Failed to require texture: " << textureName << "\n";
+                EngineLog::Error("Failed to require texture: " + textureName);
                 return false;
             }
 
             sf::Texture* texture = m_textureManager.GetResource(textureName);
             if (!texture)
             {
-                std::cerr << "! Texture not found after require: " << textureName << "\n";
+                EngineLog::Error("Texture not found after require: " + textureName);
                 return false;
             }
 
@@ -102,7 +102,7 @@ bool SpriteSheet::LoadSheet(const std::string& file)
 
     if (!m_sprite)
     {
-        std::cerr << "! Sheet loaded without a valid texture section: " << file << "\n";
+        EngineLog::Error("Sheet loaded without a valid texture section: " + file);
         return false;
     }
 

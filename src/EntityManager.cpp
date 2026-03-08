@@ -10,6 +10,7 @@
 #include "CController.h"
 #include "CAIPatrol.h"
 #include "CProjectile.h"
+#include "EngineLog.h"
 
 #ifndef NOCTURNE_DEBUG_ENTITY_LOGS
 #define NOCTURNE_DEBUG_ENTITY_LOGS 0
@@ -35,7 +36,7 @@ int EntityManager::Add(EntityType type, const std::string& name)
 {
     if (m_entities.size() >= m_maxEntities)
     {
-        std::cerr << "! Entity limit reached (" << m_maxEntities << ")\n";
+        EngineLog::ErrorOnce("entity.limit.reached", "Entity limit reached");
         return -1;
     }
 
@@ -155,13 +156,13 @@ int EntityManager::SpawnProjectile(EntityBase* shooter, const sf::Vector2f& posi
 {
     if (!shooter)
     {
-        std::cerr << "! SpawnProjectile called with null shooter\n";
+        EngineLog::ErrorOnce("projectile.null_shooter", "SpawnProjectile called with null shooter");
         return -1;
     }
 
     if (m_entities.size() >= m_maxEntities)
     {
-        std::cerr << "! Entity limit reached (" << m_maxEntities << ")\n";
+        EngineLog::ErrorOnce("entity.limit.reached", "Entity limit reached");
         return -1;
     }
 
@@ -197,14 +198,16 @@ int EntityManager::SpawnProjectile(EntityBase* shooter, const sf::Vector2f& posi
 
 void EntityManager::ProcessRemovals()
 {
+    EngineLog::ResetOnce("entity.limit.reached");
+
     for (unsigned int id : m_entitiesToRemove)
     {
         auto itr = m_entities.find(id);
         if (itr != m_entities.end())
         {
-            #if NOCTURNE_DEBUG_ENTITY_LOGS
-            std::cout << "Discarding entity ID: " << id << '\n';
-            #endif
+#if NOCTURNE_DEBUG_ENTITY_LOGS
+            EngineLog::Info("Discarding entity ID: " + std::to_string(id));
+#endif
 
             m_entities.erase(itr);
         }
@@ -218,7 +221,7 @@ void EntityManager::LoadEnemyTypes(const std::string& path)
     std::ifstream file{ Utils::GetWorkingDirectory() + path };
     if (!file.is_open())
     {
-        std::cerr << "! Failed loading enemy type file: " << path << '\n';
+        EngineLog::Error("Failed loading enemy type file: " + path);
         return;
     }
 

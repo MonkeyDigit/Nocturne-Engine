@@ -6,6 +6,7 @@
 #include <string>
 #include <memory> // For std::unique_ptr
 #include "Utilities.h"
+#include "EngineLog.h"
 
 template<typename Derived, typename T>
 class ResourceManager
@@ -95,7 +96,7 @@ public:
         std::ifstream paths{ Utils::GetWorkingDirectory() + pathFile };
         if (!paths.is_open())
         {
-            std::cerr << "! Failed loading the path file: " << pathFile << '\n';
+            EngineLog::Error("Failed loading the path file: " + pathFile);
             return;
         }
 
@@ -115,16 +116,14 @@ public:
 
             if (!(keystream >> pathName >> path))
             {
-                std::cerr << "! Invalid path entry at line " << lineNumber
-                    << " in " << pathFile << '\n';
+                EngineLog::Warn("Invalid path entry at line " + std::to_string(lineNumber) + " in " + pathFile);
                 continue;
             }
 
             auto [it, inserted] = m_paths.emplace(pathName, path);
             if (!inserted)
             {
-                std::cerr << "! Duplicate resource id '" << pathName
-                    << "' in " << pathFile << ". Overwriting previous value.\n";
+                EngineLog::Warn("Duplicate resource id '" + pathName + "' in " + pathFile + ". Overwriting previous value.");
                 it->second = path;
             }
         }

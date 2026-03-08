@@ -134,7 +134,7 @@ void EntityBase::Load(const std::string& path)
     std::ifstream file{ Utils::GetWorkingDirectory() + path };
     if (!file.is_open())
     {
-        std::cerr << "! Failed loading character file: " << path << '\n';
+        EngineLog::Error("Failed loading character file: " + path);
         return;
     }
 
@@ -205,7 +205,7 @@ void EntityBase::Load(const std::string& path)
             if (controller) { controller->m_jumpVelocity = jv; }
         }
         else {
-            std::cerr << "! Unknown type in character file: " << type << '\n';
+            EngineLog::WarnOnce("char.unknown_type", "Unknown type in character file: " + type);
         }
     }
     file.close();

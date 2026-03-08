@@ -39,9 +39,9 @@ void State_Credits::OnCreate()
 
     // Load fonts
     if (!m_fontTitle.openFromFile("media/fonts/EightBitDragon.ttf"))
-        std::cerr << "! Failed to load title font\n";
+        EngineLog::WarnOnce("font.credits.title_failed", "Failed to load title font");
     if (!m_fontBody.openFromFile("media/fonts/EightBitDragon.ttf"))
-        std::cerr << "! Failed to load body font\n";
+        EngineLog::WarnOnce("font.credits.body_failed", "Failed to load body font");
 
     // Text setup
     m_title.setString("CREDITS");

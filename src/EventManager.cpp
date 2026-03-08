@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cctype>
 #include "EventManager.h"
+#include "EngineLog.h"
 
 // --- TRANSLATION DICTIONARIES ---
 // Using an anonymous namespace to confine this data in this file only
@@ -141,21 +142,25 @@ int EventManager::ParseEventInfo(EventType evtype, const std::string& evinfoStr)
     }
 
     // Fallback to int value
-    try {
+    try
+    {
         return std::stoi(evinfoStr);
     }
-    catch (...) {
-        std::cerr << "! Error (stoi): impossible conversion '" << evinfoStr << "'\n";
+    catch (...)
+    {
+        EngineLog::WarnOnce("bindings.stoi_error", "Error (stoi): impossible conversion: " + evinfoStr);
         return -1;
     }
+
 }
 
 void EventManager::LoadBindings(const std::string& path)
 {
-    std::ifstream bindings{ path };
+    std::ifstream bindings{ Utils::GetWorkingDirectory() + path };
+
     if (!bindings.is_open())
     {
-        std::cerr << "! Failed loading bindings file: " << path << '\n';
+        EngineLog::Error("Failed loading bindings file: " + path);
         return;
     }
 
@@ -169,7 +174,7 @@ void EventManager::LoadBindings(const std::string& path)
         std::string callbackName;
         if (!(keystream >> callbackName) || callbackName.empty())
         {
-            std::cerr << "! Invalid binding line: " << line << '\n';
+            EngineLog::WarnOnce("bindings.invalid_line", "Invalid binding line: " + line);
             continue;
         }
 
@@ -182,7 +187,7 @@ void EventManager::LoadBindings(const std::string& path)
             const size_t colonPos = eventToken.find(':');
             if (colonPos == std::string::npos)
             {
-                std::cerr << "! Invalid token format: " << eventToken << '\n';
+                EngineLog::WarnOnce("bindings.invalid_token", "Invalid token format: " + eventToken);
                 continue;
             }
 
@@ -194,7 +199,7 @@ void EventManager::LoadBindings(const std::string& path)
             auto typeIt = STRING_TO_EVENT_MAP.find(evtypeNorm);
             if (typeIt == STRING_TO_EVENT_MAP.end())
             {
-                std::cerr << "! Unknown event type in config file: " << evtypeStr << '\n';
+                EngineLog::WarnOnce("bindings.unknown_event_type", "Unknown event type in config file: " + evtypeStr);
                 continue;
             }
 
@@ -203,7 +208,7 @@ void EventManager::LoadBindings(const std::string& path)
             const int code = ParseEventInfo(evtype, evinfoStr);
             if (code < 0)
             {
-                std::cerr << "! Invalid event code for token: " << eventToken << '\n';
+                EngineLog::WarnOnce("bindings.invalid_event_code", "Invalid event code for token: " + eventToken);
                 continue;
             }
             bind->BindEvent(evtype, code);
@@ -211,12 +216,12 @@ void EventManager::LoadBindings(const std::string& path)
 
         if (bind->m_events.empty())
         {
-            std::cerr << "! Skipping binding with no valid events: " << callbackName << '\n';
+            EngineLog::WarnOnce("bindings.empty_after_parse", "Skipping binding with no valid events: " + callbackName);
             continue;
         }
 
         if (!AddBinding(std::move(bind)))
-            std::cerr << "! Couldn't load binding: " << callbackName << '\n';
+            EngineLog::WarnOnce("bindings.duplicate_or_failed_insert", "Couldn't load binding: " + callbackName);
     }
 
     // bindings.close(); ISN'T NECESSARY as std::ifstream gets closed automatically when going out of scope

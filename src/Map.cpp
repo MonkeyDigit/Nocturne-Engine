@@ -9,6 +9,7 @@
 #include "StateManager.h"
 #include "TextureManager.h"
 #include "Window.h"
+#include "EngineLog.h"
 
 Map::Map(SharedContext& context, BaseState* currentState)
     : m_context(context),
@@ -56,10 +57,14 @@ const sf::Vector2f& Map::GetPlayerStart() const { return m_playerStart; }
 
 void Map::LoadMap(const std::string& path)
 {
+    EngineLog::ResetOnce("map.tileset.external_tsx");
+    EngineLog::ResetOnce("map.spawn.player.failed");
+    EngineLog::ResetOnce("map.spawn.enemy.failed");
+
     std::ifstream file(Utils::GetWorkingDirectory() + path);
     if (!file.is_open())
     {
-        std::cerr << "! Failed loading map file: " << path << '\n';
+        EngineLog::Error("Failed loading map file: " + path);
         return;
     }
 
@@ -67,7 +72,7 @@ void Map::LoadMap(const std::string& path)
     try { file >> mapData; }
     catch (const nlohmann::json::parse_error& e)
     {
-        std::cerr << "! JSON Parse Error: " << e.what() << '\n';
+        EngineLog::Error(std::string("JSON Parse Error: ") + e.what());
         return;
     }
     file.close();
@@ -127,7 +132,7 @@ void Map::LoadMap(const std::string& path)
         {
             // Give warning if not embedded
             if (tileset.contains("source") && tileset["source"].get<std::string>().find(".tsx") != std::string::npos)
-                std::cerr << "! WARNING: Tileset is external (.tsx). Please EMBED it in Tiled to read tile properties!\n";
+                EngineLog::WarnOnce("map.tileset.external_tsx", "Tileset is external (.tsx). Please EMBED it in Tiled to read tile properties.");
 
             // Read tile properties
             if (tileset.contains("tiles") && tileset["tiles"].is_array())
@@ -299,7 +304,7 @@ void Map::LoadMap(const std::string& path)
                         m_playerId = m_context.GetEntityManager().Add(EntityType::Player, name);
                         if (m_playerId < 0)
                         {
-                            std::cerr << "! Failed to spawn player from map object: " << name << '\n';
+                            EngineLog::WarnOnce("map.spawn.player.failed", "Failed to spawn player from map object");
                             continue;
                         }
                     }
@@ -313,7 +318,7 @@ void Map::LoadMap(const std::string& path)
                     int enemyId = m_context.GetEntityManager().Add(EntityType::Enemy, name);
                     if (enemyId < 0)
                     {
-                        std::cerr << "! Failed to spawn enemy from map object: " << name << '\n';
+                        EngineLog::WarnOnce("map.spawn.enemy.failed", "Failed to spawn enemy from map object");
                         continue;
                     }
 

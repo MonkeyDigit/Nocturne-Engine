@@ -1,8 +1,8 @@
-#include <iostream>
 #include "HUD.h"
 #include "EntityManager.h"
 #include "EntityBase.h"
 #include "CState.h"
+#include "EngineLog.h"
 
 HUD::HUD(EntityManager& entityManager)
     : m_entityManager(entityManager), m_maxHealth(0), m_healthLabel(m_font), m_fontLoaded(false)
@@ -26,7 +26,7 @@ HUD::HUD(EntityManager& entityManager)
         m_healthLabel.setPosition({ 20.0f, 0.0f });
     }
     else
-        std::cerr << "! Failed to load HUD font\n";
+        EngineLog::WarnOnce("font.hud.failed", "Failed to load HUD font");
 }
 
 void HUD::Update()

@@ -1,7 +1,28 @@
+#include <algorithm>
+#include <cctype>
 #include <fstream>
 #include <sstream>
-#include <iostream>
 #include "Window.h"
+#include "EngineLog.h"
+
+namespace
+{
+    std::string ToLowerCopy(std::string value)
+    {
+        std::transform(value.begin(), value.end(), value.begin(),
+            [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        return value;
+    }
+
+    bool TryParseLogLevel(const std::string& raw, EngineLog::Level& outLevel)
+    {
+        const std::string value = ToLowerCopy(raw);
+        if (value == "info") { outLevel = EngineLog::Level::Info; return true; }
+        if (value == "warn" || value == "warning") { outLevel = EngineLog::Level::Warn; return true; }
+        if (value == "error") { outLevel = EngineLog::Level::Error; return true; }
+        return false;
+    }
+}
 
 Window::Window() { Setup("Project Nocturne", { 1280, 720 }); }
 
@@ -52,7 +73,7 @@ void Window::LoadConfig()
     std::ifstream file(Utils::GetWorkingDirectory() + "config/window.cfg");
     if (!file.is_open())
     {
-        std::cerr << "! Failed to load window.cfg. Using defaults.\n";
+        EngineLog::WarnOnce("window.config.missing", "Failed to load window.cfg. Using defaults.");
         return;
     }
 
@@ -75,7 +96,7 @@ void Window::LoadConfig()
             float x = 0.0f, y = 0.0f;
             if (!(keystream >> x >> y) || x <= 0.0f || y <= 0.0f)
             {
-                std::cerr << "! Invalid GameRes at line " << lineNumber << '\n';
+                EngineLog::Warn("Invalid GameRes at line " + std::to_string(lineNumber));
                 continue;
             }
             m_gameResolution = { x, y };
@@ -85,15 +106,33 @@ void Window::LoadConfig()
             float x = 0.0f, y = 0.0f;
             if (!(keystream >> x >> y) || x <= 0.0f || y <= 0.0f)
             {
-                std::cerr << "! Invalid UIRes at line " << lineNumber << '\n';
+                EngineLog::Warn("Invalid UIRes at line " + std::to_string(lineNumber));
                 continue;
             }
             m_uiResolution = { x, y };
         }
+        else if (type == "LogLevel")
+        {
+            std::string levelStr;
+            if (!(keystream >> levelStr))
+            {
+                EngineLog::Warn("Invalid LogLevel at line " + std::to_string(lineNumber));
+                continue;
+            }
+
+            EngineLog::Level parsedLevel;
+            if (!TryParseLogLevel(levelStr, parsedLevel))
+            {
+                EngineLog::Warn("Unknown LogLevel '" + levelStr + "' at line " +
+                    std::to_string(lineNumber) + " (use Info/Warn/Error)");
+                continue;
+            }
+
+            EngineLog::SetMinLevel(parsedLevel);
+        }
         else
         {
-            std::cerr << "! Unknown window config key '" << type
-                << "' at line " << lineNumber << '\n';
+            EngineLog::Warn("Unknown window config key '" + type + "' at line " + std::to_string(lineNumber));
         }
     }
 
@@ -179,7 +218,7 @@ void Window::SetFramerateLimit(const int limit)
 {
     if (limit < 0)
     {
-        std::cerr << "! Invalid frame rate limit: " << limit << '\n';
+        EngineLog::Warn("Invalid frame rate limit: " + std::to_string(limit));
         return;
     }
 

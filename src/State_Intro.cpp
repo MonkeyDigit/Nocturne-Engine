@@ -6,6 +6,7 @@
 #include "SharedContext.h"
 #include "Window.h"
 #include "TextureManager.h"
+#include "EngineLog.h"
 
 State_Intro::State_Intro(StateManager& stateManager)
     : BaseState(stateManager), m_text(m_font), m_timePassed(0.0f), m_alpha(90.0f)
@@ -41,7 +42,7 @@ void State_Intro::OnCreate()
     }
 
     if (!m_font.openFromFile("media/fonts/EightBitDragon.ttf")) {
-        std::cerr << "! Failed to load font for Intro\n";
+        EngineLog::WarnOnce("font.intro.failed", "Failed to load font for Intro");
     }
 
     m_text.setString("PRESS SPACE TO CONTINUE");

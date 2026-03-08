@@ -155,6 +155,7 @@
     <ClInclude Include="include\CState.h" />
     <ClInclude Include="include\CTransform.h" />
     <ClInclude Include="include\Direction.h" />
+    <ClInclude Include="include\EngineLog.h" />
     <ClInclude Include="include\EntityBase.h" />
     <ClInclude Include="include\EntityManager.h" />
     <ClInclude Include="include\EventManager.h" />
@@ -187,6 +188,7 @@
     <ClCompile Include="src\BaseState.cpp" />
     <ClCompile Include="src\CameraSystem.cpp" />
     <ClCompile Include="src\CombatSystem.cpp" />
+    <ClCompile Include="src\EngineLog.cpp" />
     <ClCompile Include="src\EntityBase.cpp" />
     <ClCompile Include="src\EntityManager.cpp" />
     <ClCompile Include="src\EventManager.cpp" />
