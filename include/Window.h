@@ -17,9 +17,6 @@ public:
     void SetResizeable(const bool resizeable);
     void SetFramerateLimit(const int limit);
 
-    void Close(EventDetails& details);
-    void ToggleFullscreen(EventDetails& details);
-
     // We expose the raw RenderWindow by reference for things like sf::View (Camera)
     // We use a reference because we don't forsee the window to be a nullptr
     sf::RenderWindow& GetRenderWindow();
@@ -35,6 +32,10 @@ public:
 
     const sf::Vector2f& GetGameResolution() const { return m_gameResolution; }
     const sf::Vector2f& GetUIResolution() const { return m_uiResolution; }
+
+    // Window callbacks
+    void Close(EventDetails&);
+    void ToggleFullscreen(EventDetails&);
 
 private:
     void Setup(const std::string& title, const sf::Vector2u& size);

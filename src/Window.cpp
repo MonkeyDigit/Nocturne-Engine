@@ -279,14 +279,15 @@ void Window::SetFramerateLimit(const int limit)
     m_window.setFramerateLimit(m_frameRateLimit);
 }
 
-void Window::ToggleFullscreen(EventDetails& details)
+void Window::ToggleFullscreen(EventDetails&)
 {
     m_isFullscreen = !m_isFullscreen;
-    Destroy(); // Destroy the current window
-    Create();  // Recreate it with the new style
+    Destroy();
+    Create();
 }
 
-void Window::Close(EventDetails& details) { m_isDone = true; }
+void Window::Close(EventDetails&) { m_isDone = true; }
+
 void Window::BeginDraw() { m_window.clear(sf::Color::Black); }
 void Window::EndDraw() { m_window.display(); }
 void Window::Draw(const sf::Drawable& drawable) { m_window.draw(drawable); }

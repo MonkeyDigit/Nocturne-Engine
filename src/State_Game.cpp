@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cmath>
+#include <sstream>
 #include <SFML/Graphics/RectangleShape.hpp>
 #include "State_Game.h"
 #include "StateManager.h"
@@ -289,6 +290,7 @@ void State_Game::Draw()
         m_fpsText.setPosition({ uiRes.x - 20.0f, 20.0f });
 
         window.draw(m_fpsText);
+        window.setView(gameView);
     }
 
     if (m_hud)
@@ -300,22 +302,21 @@ void State_Game::Draw()
     }
 }
 
-void State_Game::MainMenu(EventDetails& details)
+void State_Game::MainMenu(EventDetails&)
 {
     m_stillCursorTime = 0.0f;
     SetCursorVisible(true);
     m_stateManager.SwitchTo(StateType::MainMenu);
 }
 
-void State_Game::Pause(EventDetails& details)
+void State_Game::Pause(EventDetails&)
 {
     m_stillCursorTime = 0.0f;
     SetCursorVisible(true);
-        
     m_stateManager.SwitchTo(StateType::Paused);
 }
 
-void State_Game::ToggleDebugOverlay(EventDetails& details)
+void State_Game::ToggleDebugOverlay(EventDetails&)
 {
     m_debugMode = !m_debugMode;
     EngineLog::Info(std::string("Debug Mode: ") + (m_debugMode ? "ON" : "OFF"));

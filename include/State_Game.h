@@ -19,9 +19,9 @@ public:
     void Draw() override;
 
     // Callbacks for EventManager
-    void MainMenu(EventDetails& details);
-    void Pause(EventDetails& details);
-    void ToggleDebugOverlay(EventDetails& details);
+    void MainMenu(EventDetails&);
+    void Pause(EventDetails&);
+    void ToggleDebugOverlay(EventDetails&);
 
 private:
     void UpdateCursor(const sf::Time& time);
