@@ -44,9 +44,11 @@ namespace
         return (kProjectileHitPolicy == ProjectileHitPolicy::ConsumeAlways) || damageApplied;
     }
 
-    constexpr float kPlayerSwordKnockbackX = 200.0f;
-    constexpr float kPlayerSwordKnockbackY = -100.0f;
-    constexpr float kEnemyAttackKnockbackY = 0.0f;
+    // Fallback values used when character data does not define AttackKnockback
+    constexpr float kDefaultPlayerSwordKnockbackX = 200.0f;
+    constexpr float kDefaultPlayerSwordKnockbackY = -100.0f;
+    constexpr float kDefaultEnemyAttackKnockbackX = 128.0f;
+    constexpr float kDefaultEnemyAttackKnockbackY = 0.0f;
 }
 
 void CombatSystem::Update(EntityManager& entityManager)
@@ -158,7 +160,15 @@ void CombatSystem::ResolveEnemyVsPlayer(
                     playerAttackInstance,
                     playerState->GetAttackDamage()))
             {
-                ApplyKnockbackAwayFrom(*enemyTrans, *playerTrans, kPlayerSwordKnockbackX, kPlayerSwordKnockbackY);
+                const float knockbackX = playerState->HasAttackKnockbackOverride()
+                    ? playerState->GetAttackKnockbackX()
+                    : kDefaultPlayerSwordKnockbackX;
+
+                const float knockbackY = playerState->HasAttackKnockbackOverride()
+                    ? playerState->GetAttackKnockbackY()
+                    : kDefaultPlayerSwordKnockbackY;
+
+                ApplyKnockbackAwayFrom(*enemyTrans, *playerTrans, knockbackX, knockbackY);
             }
         }
 
@@ -174,7 +184,15 @@ void CombatSystem::ResolveEnemyVsPlayer(
                     enemyAttackInstance,
                     enemyState->GetAttackDamage()))
             {
-                ApplyKnockbackAwayFrom(*playerTrans, *enemyTrans, playerTrans->GetSpeed().x, kEnemyAttackKnockbackY);
+                const float knockbackX = enemyState->HasAttackKnockbackOverride()
+                    ? enemyState->GetAttackKnockbackX()
+                    : kDefaultEnemyAttackKnockbackX;
+
+                const float knockbackY = enemyState->HasAttackKnockbackOverride()
+                    ? enemyState->GetAttackKnockbackY()
+                    : kDefaultEnemyAttackKnockbackY;
+
+                ApplyKnockbackAwayFrom(*playerTrans, *enemyTrans, knockbackX, knockbackY);
                 FaceTarget(*enemySprite, *enemyTrans, *playerTrans);
             }
 
@@ -188,8 +206,5 @@ void CombatSystem::ResolveEnemyVsPlayer(
         const int touchDamage = enemyState->GetTouchDamage();
         if (touchDamage > 0)
             playerState->TakeDamage(touchDamage);
-
-        if (enemyState->GetState() != EntityState::Hurt)
-            enemyState->SetState(EntityState::Attacking);
     }
 }

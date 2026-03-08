@@ -21,7 +21,10 @@ public:
         m_invulnerabilityTimer(0.0f),
         m_attackInstance(0),
         m_lastDamageSourceId(std::numeric_limits<unsigned int>::max()),
-        m_lastDamageSourceAttackInstance(0)
+        m_lastDamageSourceAttackInstance(0),
+        m_attackKnockbackX(0.0f),
+        m_attackKnockbackY(0.0f),
+        m_hasAttackKnockbackOverride(false)
     {}
 
     void Update(float deltaTime) override
@@ -125,6 +128,18 @@ public:
         return true;
     }
 
+    void SetAttackKnockback(float x, float y)
+    {
+        // X knockback is a magnitude; Y can be negative to launch upward.
+        m_attackKnockbackX = (x >= 0.0f) ? x : 0.0f;
+        m_attackKnockbackY = y;
+        m_hasAttackKnockbackOverride = true;
+    }
+
+    float GetAttackKnockbackX() const { return m_attackKnockbackX; }
+    float GetAttackKnockbackY() const { return m_attackKnockbackY; }
+    bool HasAttackKnockbackOverride() const { return m_hasAttackKnockbackOverride; }
+
 private:
     EntityState m_state;
     int m_hitPoints;
@@ -137,4 +152,7 @@ private:
     unsigned int m_attackInstance;
     unsigned int m_lastDamageSourceId;
     unsigned int m_lastDamageSourceAttackInstance;
+    float m_attackKnockbackX;
+    float m_attackKnockbackY;
+    bool m_hasAttackKnockbackOverride;
 };

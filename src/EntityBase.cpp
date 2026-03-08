@@ -5,6 +5,7 @@
 #include "CState.h"
 #include "CController.h"
 #include "CSprite.h"
+#include "CAIPatrol.h"
 #include "EngineLog.h"
 
 bool SortCollisions(const CollisionElement& e1, const CollisionElement& e2)
@@ -249,6 +250,15 @@ void EntityBase::Load(const std::string& path)
             CState* state = this->GetComponent<CState>();
             if (state) { state->SetAttackDamage(damage); }
         }
+        else if (type == "AttackKnockback") {
+            float x, y;
+            if (keystream >> x >> y)
+            {
+                // Load per-character attack knockback tuning from .char data.
+                CState* state = this->GetComponent<CState>();
+                if (state) { state->SetAttackKnockback(x, y); }
+            }
+        }
         else if (type == "TouchDamage") {
             int damage;
             keystream >> damage;
@@ -278,6 +288,73 @@ void EntityBase::Load(const std::string& path)
             keystream >> value;
             CController* controller = this->GetComponent<CController>();
             if (controller && value >= 0.0f) { controller->m_horizontalWalkThreshold = value; }
+        }
+        else if (type == "AI_ChaseRange") {
+            float value;
+            keystream >> value;
+            CAIPatrol* ai = this->GetComponent<CAIPatrol>();
+            if (ai && value > 0.0f) { ai->m_chaseRange = value; }
+        }
+        else if (type == "AI_ChaseDeadZone") {
+            float value;
+            keystream >> value;
+            CAIPatrol* ai = this->GetComponent<CAIPatrol>();
+            if (ai && value >= 0.0f) { ai->m_chaseDeadZone = value; }
+        }
+        else if (type == "AI_ArrivalThreshold") {
+            float value;
+            keystream >> value;
+            CAIPatrol* ai = this->GetComponent<CAIPatrol>();
+            if (ai && value >= 0.0f) { ai->m_arrivalThreshold = value; }
+        }
+        else if (type == "AI_IdleInterval") {
+            float value;
+            keystream >> value;
+            CAIPatrol* ai = this->GetComponent<CAIPatrol>();
+            if (ai && value > 0.0f) { ai->m_idleInterval = value; }
+        }
+        else if (type == "AI_PatrolMinDistance") {
+            int value;
+            keystream >> value;
+            CAIPatrol* ai = this->GetComponent<CAIPatrol>();
+            if (ai && value > 0) { ai->m_patrolMinDistance = value; }
+        }
+        else if (type == "AI_PatrolMaxDistance") {
+            int value;
+            keystream >> value;
+            CAIPatrol* ai = this->GetComponent<CAIPatrol>();
+            if (ai && value > 0) { ai->m_patrolMaxDistance = value; }
+        }
+        else if (type == "AI_PatrolDirectionChance") {
+            float value;
+            keystream >> value;
+            CAIPatrol* ai = this->GetComponent<CAIPatrol>();
+            if (ai) {
+                if (value < 0.0f) value = 0.0f;
+                else if (value > 1.0f) value = 1.0f;
+                ai->m_patrolDirectionChance = value;
+            }
+        }
+        else if (type == "AI_AttackRange") {
+            float value;
+            keystream >> value;
+            CAIPatrol* ai = this->GetComponent<CAIPatrol>();
+            if (ai && value > 0.0f) {
+                ai->m_attackRangeX = value;
+                ai->m_attackRangeY = value;
+            }
+        }
+        else if (type == "AI_AttackRangeX") {
+            float value;
+            keystream >> value;
+            CAIPatrol* ai = this->GetComponent<CAIPatrol>();
+            if (ai && value > 0.0f) { ai->m_attackRangeX = value; }
+        }
+        else if (type == "AI_AttackRangeY") {
+            float value;
+            keystream >> value;
+            CAIPatrol* ai = this->GetComponent<CAIPatrol>();
+            if (ai && value > 0.0f) { ai->m_attackRangeY = value; }
         }
         else
             EngineLog::WarnOnce("char.unknown_type", "Unknown type in character file: " + type);

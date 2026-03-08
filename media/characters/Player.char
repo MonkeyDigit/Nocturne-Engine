@@ -14,6 +14,7 @@ CoyoteTime 0.10
 JumpBufferTime 0.15
 AttackCooldown 0.00
 AttackDamage 1
+AttackKnockback 200 -100
 TouchDamage 0
 InvulnerabilityTime 0.20
 JumpCancelMultiplier 0.50

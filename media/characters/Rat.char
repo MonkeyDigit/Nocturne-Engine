@@ -6,6 +6,17 @@ DamageBox -5 0 26 26
 Speed 1024 128
 JumpVelocity 250
 MaxVelocity 96 1024
+AI_ChaseRange 100
+AI_ChaseDeadZone 10
+AI_ArrivalThreshold 16
+AI_IdleInterval 1.00
+AI_PatrolMinDistance 1
+AI_PatrolMaxDistance 64
+AI_PatrolDirectionChance 0.50
+AI_AttackRangeX 26
+AI_AttackRangeY 20
+AttackCooldown 0.30
 AttackDamage 1
+AttackKnockback 128 0
 TouchDamage 0
 InvulnerabilityTime 0.00
