@@ -31,136 +31,131 @@ void CombatSystem::Update(EntityManager& entityManager)
 {
     auto& entities = entityManager.GetEntities();
 
-    // Double loop to check collisions between all unique pairs of entities
-    for (auto it1 = entities.begin(); it1 != entities.end(); ++it1)
+    std::vector<EntityBase*> projectiles;
+    std::vector<EntityBase*> targets;
+    std::vector<EntityBase*> enemies;
+
+    EntityBase* player = nullptr;
+
+    // Partition entities once
+    for (auto& pair : entities)
     {
-        EntityBase* e1 = it1->second.get();
-        if (!e1) continue;
+        EntityBase* entity = pair.second.get();
+        if (!entity) continue;
 
-        CBoxCollider* col1 = e1->GetComponent<CBoxCollider>();
-        CTransform* trans1 = e1->GetComponent<CTransform>();
-        CState* state1 = e1->GetComponent<CState>();
+        CBoxCollider* col = entity->GetComponent<CBoxCollider>();
+        if (!col) continue;
 
-        // Skip entities that lack physical presence or are already dying
-        if (!col1 || !trans1 || !state1 || state1->GetState() == EntityState::Dying) continue;
-
-        for (auto it2 = std::next(it1); it2 != entities.end(); ++it2)
+        if (entity->GetType() == EntityType::Projectile)
         {
-            EntityBase* e2 = it2->second.get();
-            if (!e2) continue;
-
-            CBoxCollider* col2 = e2->GetComponent<CBoxCollider>();
-            CTransform* trans2 = e2->GetComponent<CTransform>();
-            CState* state2 = e2->GetComponent<CState>();
-
-            if (!col2) continue;
-
-            // Flag to check if bodies are physically touching
-            bool bodiesTouching = col1->GetAABB().findIntersection(col2->GetAABB()).has_value();
-
-            // ==========================================
-            // --- PROJECTILE LOGIC ---
-            // (Projectiles only care if their body touches another body)
-            // ==========================================
-            const bool isE1Projectile = (e1->GetType() == EntityType::Projectile);
-            const bool isE2Projectile = (e2->GetType() == EntityType::Projectile);
-
-            if (bodiesTouching && (isE1Projectile || isE2Projectile))
+            if (entity->GetComponent<CProjectile>())
             {
-                EntityBase* projEntity = isE1Projectile ? e1 : e2;
-                EntityBase* targetEntity = isE1Projectile ? e2 : e1;
-
-                CProjectile* projComp = projEntity->GetComponent<CProjectile>();
-                CState* targetState = targetEntity->GetComponent<CState>();
-
-                if (projComp &&
-                    targetState &&
-                    targetState->GetState() != EntityState::Dying &&
-                    targetEntity->GetType() != EntityType::Projectile &&
-                    targetEntity->GetType() != projComp->GetShooterType())
-                {
-                    targetState->TakeDamage(projComp->GetDamage());
-                    projEntity->Destroy();
-                }
-
-                continue; // no melee if a projectile exploded
+                projectiles.push_back(entity);
             }
+            continue;
+        }
 
-            if (!trans1 || !state1 || state1->GetState() == EntityState::Dying) continue;
-            if (!trans2 || !state2 || state2->GetState() == EntityState::Dying) continue;
+        CState* state = entity->GetComponent<CState>();
+        CTransform* trans = entity->GetComponent<CTransform>();
+        if (!state || !trans || state->GetState() == EntityState::Dying) continue;
 
-            // ==========================================
-            // --- MELEE LOGIC (Enemy vs Player) ---
-            // (Evaluated EVEN IF bodies are NOT touching, because weapons have reach!)
-            // ==========================================
-            EntityBase* enemy = nullptr;
-            EntityBase* player = nullptr;
+        targets.push_back(entity);
 
-            // Identify the roles in the collision
-            if (e1->GetType() == EntityType::Enemy && e2->GetType() == EntityType::Player)
+        if (entity->GetType() == EntityType::Player) player = entity;
+        else if (entity->GetType() == EntityType::Enemy) enemies.push_back(entity);
+    }
+
+    // Projectile pass
+    for (EntityBase* projEntity : projectiles)
+    {
+        CProjectile* projComp = projEntity->GetComponent<CProjectile>();
+        CBoxCollider* projCol = projEntity->GetComponent<CBoxCollider>();
+        if (!projComp || !projCol) continue;
+
+        for (EntityBase* target : targets)
+        {
+            if (target->GetType() == EntityType::Projectile) continue;
+            if (target->GetType() == projComp->GetShooterType()) continue;
+
+            CState* targetState = target->GetComponent<CState>();
+            CBoxCollider* targetCol = target->GetComponent<CBoxCollider>();
+            if (!targetState || !targetCol || targetState->GetState() == EntityState::Dying) continue;
+
+            if (projCol->GetAABB().findIntersection(targetCol->GetAABB()).has_value())
             {
-                enemy = e1;
-                player = e2;
+                targetState->TakeDamage(projComp->GetDamage());
+                projEntity->Destroy(); // Queue removal
+                break; // One projectile hits one target
             }
-            else if (e1->GetType() == EntityType::Player && e2->GetType() == EntityType::Enemy)
+        }
+    }
+
+    // Melee pass requires a valid player
+    if (!player) return;
+
+    CState* playerState = player->GetComponent<CState>();
+    CTransform* playerTrans = player->GetComponent<CTransform>();
+    CBoxCollider* playerCol = player->GetComponent<CBoxCollider>();
+    CSprite* playerSprite = player->GetComponent<CSprite>();
+
+    if (!playerState || !playerTrans || !playerCol || !playerSprite) return;
+    if (playerState->GetState() == EntityState::Dying) return;
+
+    for (EntityBase* enemy : enemies)
+    {
+        CState* enemyState = enemy->GetComponent<CState>();
+        CTransform* enemyTrans = enemy->GetComponent<CTransform>();
+        CBoxCollider* enemyCol = enemy->GetComponent<CBoxCollider>();
+        CSprite* enemySprite = enemy->GetComponent<CSprite>();
+
+        if (!enemyState || !enemyTrans || !enemyCol || !enemySprite) continue;
+        if (enemyState->GetState() == EntityState::Dying) continue;
+
+        const bool bodiesTouching =
+            enemyCol->GetAABB().findIntersection(playerCol->GetAABB()).has_value();
+
+        // Player hits enemy
+        if (playerState->GetState() == EntityState::Attacking &&
+            enemyState->GetState() != EntityState::Hurt)
+        {
+            sf::FloatRect playerSwordBox = GetWorldAttackAABB(player);
+            if (playerSwordBox.findIntersection(enemyCol->GetAABB()).has_value())
             {
-                enemy = e2;
-                player = e1;
+                enemyState->TakeDamage(1);
+                enemyTrans->AddVelocity(
+                    (playerTrans->GetPosition().x < enemyTrans->GetPosition().x) ? 200.0f : -200.0f,
+                    -100.0f
+                );
             }
+        }
 
-            if (enemy && player)
+        // Enemy hits player
+        if (enemyState->GetState() == EntityState::Attacking &&
+            playerState->GetState() != EntityState::Hurt)
+        {
+            sf::FloatRect enemyAttackBox = GetWorldAttackAABB(enemy);
+            if (enemyAttackBox.findIntersection(playerCol->GetAABB()).has_value())
             {
-                CState* enemyState = enemy->GetComponent<CState>();
-                CState* playerState = player->GetComponent<CState>();
-                CTransform* enemyTrans = enemy->GetComponent<CTransform>();
-                CTransform* playerTrans = player->GetComponent<CTransform>();
-                CBoxCollider* enemyCol = enemy->GetComponent<CBoxCollider>();
-                CBoxCollider* playerCol = player->GetComponent<CBoxCollider>();
-                CSprite* enemySprite = enemy->GetComponent<CSprite>();
+                playerState->TakeDamage(1);
 
-                // PLAYER HITS ENEMY (Sword vs Body)
-                if (playerState->GetState() == EntityState::Attacking && enemyState->GetState() != EntityState::Hurt)
+                if (enemyTrans->GetPosition().x > playerTrans->GetPosition().x)
                 {
-                    sf::FloatRect playerSwordBox = GetWorldAttackAABB(player);
-
-                    if (playerSwordBox.findIntersection(enemyCol->GetAABB()).has_value())
-                    {
-                        enemyState->TakeDamage(1);
-                        enemyTrans->AddVelocity((playerTrans->GetPosition().x < enemyTrans->GetPosition().x) ? 200.0f : -200.0f, -100.0f);
-                    }
+                    playerTrans->AddVelocity(-playerTrans->GetSpeed().x, 0.0f);
+                    enemySprite->SetDirection(Direction::Left);
                 }
-
-                // ENEMY HITS PLAYER (AttackBox vs Body)
-                if (enemyState->GetState() == EntityState::Attacking && playerState->GetState() != EntityState::Hurt)
+                else
                 {
-                    sf::FloatRect enemyAttackBox = GetWorldAttackAABB(enemy);
-
-                    if (enemyAttackBox.findIntersection(playerCol->GetAABB()).has_value())
-                    {
-                        playerState->TakeDamage(1);
-
-                        if (enemyTrans->GetPosition().x > playerTrans->GetPosition().x)
-                        {
-                            playerTrans->AddVelocity(-playerTrans->GetSpeed().x, 0.0f);
-                            if (enemySprite) enemySprite->SetDirection(Direction::Left);
-                        }
-                        else
-                        {
-                            playerTrans->AddVelocity(playerTrans->GetSpeed().x, 0.0f);
-                            if (enemySprite) enemySprite->SetDirection(Direction::Right);
-                        }
-                    }
-                }
-
-                // ENEMY DECIDES TO ATTACK (Requires physical body touching)
-                else if (enemyState->GetState() != EntityState::Attacking && enemyState->GetState() != EntityState::Hurt)
-                {
-                    if (bodiesTouching)
-                    {
-                        enemyState->SetState(EntityState::Attacking);
-                    }
+                    playerTrans->AddVelocity(playerTrans->GetSpeed().x, 0.0f);
+                    enemySprite->SetDirection(Direction::Right);
                 }
             }
+        }
+        else if (enemyState->GetState() != EntityState::Attacking &&
+            enemyState->GetState() != EntityState::Hurt)
+        {
+            // Enemy decides to attack only when body contact happens
+            if (bodiesTouching)
+                enemyState->SetState(EntityState::Attacking);
         }
     }
 }
