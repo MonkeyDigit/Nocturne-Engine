@@ -24,19 +24,41 @@ void AnimationSystem::Update(EntityManager& entityManager, float deltaTime)
         {
             Animation* currAnim = sprite->GetSpriteSheet().GetCurrentAnim();
 
-            if (currAnim && currAnim->GetName() == "Death" && !currAnim->IsPlaying())
+            // If animation data is missing, remove the entity to avoid a stuck dying state
+            if (!currAnim)
+            {
                 entityManager.Remove(entity->GetId());
-            // Emergency fallback in case of missing animation
-            else if(currAnim && currAnim->GetName() != "Death" && !sprite->GetSpriteSheet().SetAnimation("Death", true, false))
-                entityManager.Remove(entity->GetId());
+                continue;
+            }
+
+            if (currAnim->GetName() == "Death")
+            {
+                if (!currAnim->IsPlaying())
+                {
+                    entityManager.Remove(entity->GetId());
+                    continue;
+                }
+            }
+            else
+            {
+                if (!sprite->GetSpriteSheet().SetAnimation("Death", true, false))
+                {
+                    entityManager.Remove(entity->GetId());
+                    continue;
+                }
+            }
         }
 
         // Return to Idle from one-shot states (Attack/Hurt) when animation ends
-        if (state == EntityState::Attacking || state == EntityState::Hurt) {
-            if (!sprite->GetSpriteSheet().GetCurrentAnim()->IsPlaying()) {
+        if (state == EntityState::Attacking || state == EntityState::Hurt)
+        {
+            Animation* oneShotAnim = sprite->GetSpriteSheet().GetCurrentAnim();
+
+            // Guard against missing animation pointer.
+            if (!oneShotAnim || !oneShotAnim->IsPlaying())
                 stateComp->SetState(EntityState::Idle);
-            }
         }
+
 
         // Update the 'state' variable for the animation selection logic below
         state = stateComp->GetState();
@@ -82,6 +104,7 @@ void AnimationSystem::Update(EntityManager& entityManager, float deltaTime)
                 else if (animName == "Fall") sprite->GetSpriteSheet().SetAnimation("Land", true, false);
 
                 currentAnimation = sprite->GetSpriteSheet().GetCurrentAnim();
+                // TODO: Che?
                 if ((currentAnimation->GetName() == "WalkEnd" && currentAnimation->IsPlaying()) ||
                     (currentAnimation->GetName() == "Land" && currentAnimation->IsPlaying())) { /* Wait */
                 }
@@ -105,7 +128,6 @@ void AnimationSystem::Update(EntityManager& entityManager, float deltaTime)
                 sprite->GetSpriteSheet().SetAnimation("Idle", true, true);
         }
 
-        // Update the animation timer
-        sprite->Update(deltaTime);
+        // No need to update sprite component, as it is done inside EntityBase::Update()
     }
 }

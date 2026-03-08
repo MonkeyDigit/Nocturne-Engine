@@ -34,4 +34,6 @@ private:
     Map m_gameMap;
     std::unique_ptr<HUD> m_hud;
     bool m_debugMode;
+
+    int m_playerIdCache;
 };

@@ -12,7 +12,7 @@ class SpriteSheet
 public:
     // Takes the TextureManager by reference, guaranteeing it exists
     SpriteSheet(TextureManager& textureManager);
-    ~SpriteSheet() = default;
+    ~SpriteSheet();
 
     void SetSpritePosition(const sf::Vector2f& pos);
     void SetDirection(Direction dir);
@@ -31,6 +31,7 @@ public:
 
 private:
     void CropSprite();
+    void ReleaseCurrentTexture();
 
     std::string m_textureName;
 

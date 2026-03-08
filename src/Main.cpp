@@ -24,7 +24,8 @@
 // TODO: Creare specifiche con tutte le istruzioni per creare la mappa
 // TODO: Va tutto standardizzato: pensa a friction y, non viene utilizzato spesso, ma volendo deve essere implementabile
 
-int main() {
+int main()
+{
     Game game;
     game.Run();
     return 0;

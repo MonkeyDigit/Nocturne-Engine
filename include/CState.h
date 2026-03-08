@@ -21,12 +21,26 @@ public:
 
     void TakeDamage(int damage)
     {
+        if (damage <= 0) return;
         if (m_state == EntityState::Dying || m_state == EntityState::Hurt) return;
 
-        m_hitPoints = (m_hitPoints - damage > 0) ? m_hitPoints - damage : 0;
+        m_hitPoints -= damage;
 
-        if (m_hitPoints > 0) SetState(EntityState::Hurt);
-        else SetState(EntityState::Dying);
+        if (m_hitPoints <= 0)
+        {
+            m_hitPoints = 0;
+            SetState(EntityState::Dying);
+        }
+        else
+            SetState(EntityState::Hurt);
+    }
+
+    void SetHitPoints(int hp)
+    {
+        // Ensure valid spawn/config values
+        const int safeHp = (hp > 0) ? hp : 1;
+        m_hitPoints = safeHp;
+        m_maxHitPoints = safeHp;
     }
 
     void InstantKill()
@@ -37,7 +51,6 @@ public:
 
     int GetHitPoints() const { return m_hitPoints; }
     int GetMaxHitPoints() const { return m_maxHitPoints; }
-    void SetHitPoints(int hp) { m_hitPoints = hp; m_maxHitPoints = hp; }
 
 private:
     EntityState m_state;

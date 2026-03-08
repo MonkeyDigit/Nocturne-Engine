@@ -27,6 +27,13 @@ public:
     void SetDamage(int dmg) { m_damage = dmg; }
     int GetDamage() const { return m_damage; }
 
+    void SetLifespan(float seconds)
+    {
+        // Clamp to a small positive value to avoid invalid lifetime
+        m_lifespan = (seconds > 0.0f) ? seconds : 0.01f;
+    }
+
+
 private:
     int m_damage;
     float m_lifespan;

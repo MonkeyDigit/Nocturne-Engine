@@ -49,7 +49,7 @@ void Window::LoadConfig()
     m_gameResolution = { 640.0f, 360.0f };
     m_uiResolution = { 1280.0f, 720.0f };
 
-    std::ifstream file("config/window.cfg");
+    std::ifstream file(Utils::GetWorkingDirectory() + "config/window.cfg");
     if (!file.is_open())
     {
         std::cerr << "! Failed to load window.cfg. Using defaults.\n";
@@ -57,21 +57,49 @@ void Window::LoadConfig()
     }
 
     std::string line;
+    unsigned int lineNumber = 0;
+
     while (std::getline(file, line))
     {
+        ++lineNumber;
+
+        // Skip empty or comment lines
+        if (line.empty() || line[0] == '|' || line[0] == '#') continue;
+
         std::stringstream keystream(line);
         std::string type;
-        keystream >> type;
+        if (!(keystream >> type)) continue;
 
-        if (type == "GameRes") {
-            keystream >> m_gameResolution.x >> m_gameResolution.y;
+        if (type == "GameRes")
+        {
+            float x = 0.0f, y = 0.0f;
+            if (!(keystream >> x >> y) || x <= 0.0f || y <= 0.0f)
+            {
+                std::cerr << "! Invalid GameRes at line " << lineNumber << '\n';
+                continue;
+            }
+            m_gameResolution = { x, y };
         }
-        else if (type == "UIRes") {
-            keystream >> m_uiResolution.x >> m_uiResolution.y;
+        else if (type == "UIRes")
+        {
+            float x = 0.0f, y = 0.0f;
+            if (!(keystream >> x >> y) || x <= 0.0f || y <= 0.0f)
+            {
+                std::cerr << "! Invalid UIRes at line " << lineNumber << '\n';
+                continue;
+            }
+            m_uiResolution = { x, y };
+        }
+        else
+        {
+            std::cerr << "! Unknown window config key '" << type
+                << "' at line " << lineNumber << '\n';
         }
     }
-    file.close();
+
+    // RAII closes automatically
 }
+
 
 sf::FloatRect Window::CalculateViewport(const sf::Vector2f& size) const
 {

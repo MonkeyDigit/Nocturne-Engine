@@ -14,7 +14,8 @@ State_Game::State_Game(StateManager& stateManager)
     m_stillCursorTime(0.0f),
     m_cursorVisible(true),
     m_debugMode(false),
-    m_gameMap(stateManager.GetContext(), this)
+    m_gameMap(stateManager.GetContext(), this),
+    m_playerIdCache(-1)
 {}
 
 State_Game::~State_Game() {}
@@ -36,7 +37,9 @@ void State_Game::OnCreate()
 
     m_gameMap.LoadMap("media/maps/map_1.tmj");
 
-    m_hud = std::make_unique<HUD>(m_stateManager.GetContext().m_entityManager);
+    m_hud = std::make_unique<HUD>(m_stateManager.GetContext().GetEntityManager());
+
+    m_playerIdCache = -1;
 }
 
 void State_Game::OnDestroy()
@@ -56,7 +59,20 @@ void State_Game::Update(const sf::Time& time)
     UpdateCursor(time);
     SharedContext& context = m_stateManager.GetContext();
 
-    EntityBase* player = context.m_entityManager.Find("Player");
+    EntityBase* player = nullptr;
+
+    // Find player
+    // Fast path: resolve by cached ID
+    if (m_playerIdCache >= 0)
+        player = context.GetEntityManager().Find(static_cast<unsigned int>(m_playerIdCache));
+
+    // Slow path: fallback by name, then refresh cache
+    if (!player)
+    {
+        player = context.GetEntityManager().Find("Player");
+        m_playerIdCache = player ? static_cast<int>(player->GetId()) : -1;
+    }
+
     float mapHeight = static_cast<float>(m_gameMap.GetMapSize().y * m_gameMap.GetTileSize());
     if (player)
     {
@@ -92,18 +108,29 @@ void State_Game::Update(const sf::Time& time)
     else
     {
         std::cout << "Respawning player..." << '\n';
-        int playerId = context.m_entityManager.Add(EntityType::Player, "Player");
-        player = context.m_entityManager.Find(playerId);
+        int playerId = context.GetEntityManager().Add(EntityType::Player, "Player");
 
-        if (player)
+        if (playerId < 0)
         {
-            CTransform* transform = player->GetComponent<CTransform>();
-            if (transform) transform->SetPosition(m_gameMap.GetPlayerStart());
+            std::cerr << "! Failed to respawn player: entity limit reached or creation failed\n";
+            m_playerIdCache = -1;
+        }
+        else
+        {
+            m_playerIdCache = playerId;
+
+            player = context.GetEntityManager().Find(static_cast<unsigned int>(playerId));
+            if (player)
+            {
+                if (CTransform* transform = player->GetComponent<CTransform>())
+                    transform->SetPosition(m_gameMap.GetPlayerStart());
+            }
         }
     }
 
+
     // Update Entities
-    context.m_entityManager.Update(time.asSeconds());
+    context.GetEntityManager().Update(time.asSeconds());
     // Update the map
     m_gameMap.Update(time.asSeconds());
     // Update HUD overlay
@@ -117,18 +144,29 @@ void State_Game::Draw()
 {
     SharedContext& context = m_stateManager.GetContext();
     sf::RenderWindow& window = context.m_window.GetRenderWindow();
-    sf::View gameView = m_stateManager.GetContext().m_entityManager.GetCameraView();
-    gameView.setViewport(m_stateManager.GetContext().m_window.GetGameView().getViewport());
+    EntityManager& entityManager = context.GetEntityManager();
+    const sf::View baseGameView = context.m_window.GetGameView();
+    sf::View gameView = entityManager.GetCameraSystem().GetCurrentView();
+
+    // Keep a valid camera view even in edge cases
+    if (gameView.getSize().x <= 0.0f || gameView.getSize().y <= 0.0f)
+    {
+        gameView = baseGameView;
+    }
+
+    // Use a single viewport source for this frame
+    gameView.setViewport(baseGameView.getViewport());
     window.setView(gameView);
+
 
     m_gameMap.Draw(window);
 
-    context.m_entityManager.Draw();
+    context.GetEntityManager().Draw();
 
     // --- DEBUG OVERLAY ---
     if (m_debugMode)
     {
-        for (auto& entityPair : context.m_entityManager.GetEntities())
+        for (auto& entityPair : context.GetEntityManager().GetEntities())
         {
             EntityBase* entity = entityPair.second.get();
             CBoxCollider* collider = entity->GetComponent<CBoxCollider>();
@@ -169,11 +207,16 @@ void State_Game::Draw()
                     attackShape.setPosition({ attackX, attackY });
                     attackShape.setFillColor(sf::Color::Transparent);
 
-                    if (state->GetState() == EntityState::Attacking) {
+                    // Some entities may not have CState (e.g. projectiles)
+                    const bool isAttacking = (state && state->GetState() == EntityState::Attacking);
+
+                    if (isAttacking)
+                    {
                         attackShape.setOutlineColor(sf::Color::Red);
                         attackShape.setOutlineThickness(2.0f);
                     }
-                    else {
+                    else
+                    {
                         attackShape.setOutlineColor(sf::Color::Yellow);
                         attackShape.setOutlineThickness(1.0f);
                     }
@@ -188,6 +231,8 @@ void State_Game::Draw()
     {
         window.setView(m_stateManager.GetContext().m_window.GetUIView());
         m_hud->Draw(m_stateManager.GetContext().m_window.GetRenderWindow());
+        // Restore gameplay view so next update/draw cycle does not start from UI view
+        window.setView(gameView);
     }
 }
 

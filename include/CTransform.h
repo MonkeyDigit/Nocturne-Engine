@@ -36,17 +36,17 @@ public:
         m_velocity.x += x;
         m_velocity.y += y;
 
-        if (std::abs(m_velocity.x) > m_maxVelocity.x)
+        // Clamp only when max velocity is configured (> 0)
+        if (m_maxVelocity.x > 0.0f && std::abs(m_velocity.x) > m_maxVelocity.x)
         {
-            if (m_velocity.x < 0.0f) m_velocity.x = -m_maxVelocity.x;
-            else m_velocity.x = m_maxVelocity.x;
+            m_velocity.x = (m_velocity.x < 0.0f) ? -m_maxVelocity.x : m_maxVelocity.x;
         }
 
-        if (std::abs(m_velocity.y) > m_maxVelocity.y)
+        if (m_maxVelocity.y > 0.0f && std::abs(m_velocity.y) > m_maxVelocity.y)
         {
-            if (m_velocity.y < 0.0f) m_velocity.y = -m_maxVelocity.y;
-            else m_velocity.y = m_maxVelocity.y;
+            m_velocity.y = (m_velocity.y < 0.0f) ? -m_maxVelocity.y : m_maxVelocity.y;
         }
+
     }
 
     const sf::Vector2f& GetVelocity() const { return m_velocity; }

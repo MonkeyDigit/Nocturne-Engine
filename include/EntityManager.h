@@ -48,10 +48,8 @@ public:
     // Spawns a projectile dynamically during gameplay
     int SpawnProjectile(EntityBase* shooter, const sf::Vector2f& position, const sf::Vector2f& velocity, int damage, float lifespan);
 
-    // TODO: TOGLIERE
-    const sf::View& GetCameraView() const {
-        return m_cameraSystem.GetCurrentView();
-    }
+    const CameraSystem& GetCameraSystem() const
+    { return m_cameraSystem; }
 
 private:
 

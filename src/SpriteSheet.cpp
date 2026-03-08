@@ -11,8 +11,29 @@ SpriteSheet::SpriteSheet(TextureManager& textureManager)
     m_spriteScale(1.f, 1.f) {
 }
 
+SpriteSheet::~SpriteSheet()
+{
+    ReleaseCurrentTexture();
+}
+
+void SpriteSheet::ReleaseCurrentTexture()
+{
+    if (!m_textureName.empty())
+    {
+        m_textureManager.ReleaseResource(m_textureName);
+        m_textureName.clear();
+    }
+
+    m_sprite.reset();
+}
+
 bool SpriteSheet::LoadSheet(const std::string& file)
 {
+    // Reset previous data to avoid leaking texture references on reload
+    ReleaseCurrentTexture();
+    m_animations.clear();
+    m_animationCurrent = nullptr;
+
     std::ifstream sheetFile{ Utils::GetWorkingDirectory() + file };
     if (!sheetFile.is_open())
     {
@@ -31,14 +52,30 @@ bool SpriteSheet::LoadSheet(const std::string& file)
 
         if (type == "Texture")
         {
-            // TODO: Clausola duplicate entries ???
+            std::string textureName;
+            keystream >> textureName;
 
-            keystream >> m_textureName;
-            // Ask the TextureManager for the resource. If it works, construct the sprite
-            if (m_textureManager.RequireResource(m_textureName))
+            if (textureName.empty())
             {
-                m_sprite.emplace(*m_textureManager.GetResource(m_textureName));
+                std::cerr << "! Missing texture id in sheet: " << file << "\n";
+                return false;
             }
+
+            if (!m_textureManager.RequireResource(textureName))
+            {
+                std::cerr << "! Failed to require texture: " << textureName << "\n";
+                return false;
+            }
+
+            sf::Texture* texture = m_textureManager.GetResource(textureName);
+            if (!texture)
+            {
+                std::cerr << "! Texture not found after require: " << textureName << "\n";
+                return false;
+            }
+
+            m_textureName = textureName;
+            m_sprite.emplace(*texture);
         }
         else if (type == "Size")
         {
@@ -62,6 +99,13 @@ bool SpriteSheet::LoadSheet(const std::string& file)
         }
     }
     sheetFile.close();
+
+    if (!m_sprite)
+    {
+        std::cerr << "! Sheet loaded without a valid texture section: " << file << "\n";
+        return false;
+    }
+
     return true;
 }
 

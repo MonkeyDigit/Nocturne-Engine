@@ -111,13 +111,17 @@ const sf::Vector2f& EntityBase::GetSize() {
 
 void EntityBase::Update(float deltaTime)
 {
-    // Sync the sprite position with the physical transform position
-    CSprite* sprite = this->GetComponent<CSprite>();
-    CTransform* transform = this->GetComponent<CTransform>();
-
-    if (sprite && transform)
+    // Keep sprite position synced to transform
+    if (CSprite* sprite = GetComponent<CSprite>())
     {
-        sprite->GetSpriteSheet().SetSpritePosition(transform->GetPosition());
+        if (CTransform* transform = GetComponent<CTransform>())
+            sprite->GetSpriteSheet().SetSpritePosition(transform->GetPosition());
+    }
+
+    // Update every attached component once per frame
+    for (auto& [type, component] : m_components)
+    {
+        if (component) component->Update(deltaTime);
     }
 }
 

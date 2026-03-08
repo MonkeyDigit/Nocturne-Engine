@@ -20,7 +20,8 @@ Map::Map(SharedContext& context, BaseState* currentState)
     m_nextMap(""),
     m_loadNextMap(false),
     m_tileTexture(nullptr),
-    m_playerId(-1)
+    m_playerId(-1),
+    m_lastViewSize(0.0f, 0.0f)
 {
     m_context.m_gameMap = this;
 
@@ -36,12 +37,15 @@ Map::~Map()
 
 unsigned int Map::ConvertCoords(unsigned int x, unsigned int y) const
 {
-    return (x * m_maxMapSize.x) + y;
+    return (y * m_maxMapSize.x) + x;
 }
 
-Tile* Map::GetTile(unsigned int x, unsigned int y) const
+Tile* Map::GetTile(int x, int y) const
 {
-    auto itr = m_tileMap.find(ConvertCoords(x, y));
+    if (x < 0 || y < 0) return nullptr;
+    if (x >= static_cast<int>(m_maxMapSize.x) || y >= static_cast<int>(m_maxMapSize.y)) return nullptr;
+
+    auto itr = m_tileMap.find(ConvertCoords(static_cast<unsigned int>(x), static_cast<unsigned int>(y)));
     return (itr != m_tileMap.end() ? itr->second.get() : nullptr);
 }
 
@@ -281,21 +285,34 @@ void Map::LoadMap(const std::string& path)
 
                 if (typeStr == "Player")
                 {
-                    if (m_playerId == -1) m_playerId = m_context.m_entityManager.Add(EntityType::Player, name);
-
                     m_playerStart = sf::Vector2f(objX, objY);
 
-                    EntityBase* player = m_context.m_entityManager.Find(m_playerId);
-                    if (player) player->SetPosition(m_playerStart);
+                    if (m_playerId == -1)
+                    {
+                        m_playerId = m_context.GetEntityManager().Add(EntityType::Player, name);
+                        if (m_playerId < 0)
+                        {
+                            std::cerr << "! Failed to spawn player from map object: " << name << '\n';
+                            continue;
+                        }
+                    }
+
+                    EntityBase* player = m_context.GetEntityManager().Find(static_cast<unsigned int>(m_playerId));
+                    if (player)
+                        player->SetPosition(m_playerStart);
                 }
                 else if (typeStr == "Enemy")
                 {
-                    int enemyId = m_context.m_entityManager.Add(EntityType::Enemy, name);
-                    if (enemyId >= 0)
+                    int enemyId = m_context.GetEntityManager().Add(EntityType::Enemy, name);
+                    if (enemyId < 0)
                     {
-                        EntityBase* enemy = m_context.m_entityManager.Find(enemyId);
-                        if (enemy) enemy->SetPosition(sf::Vector2f(objX, objY));
+                        std::cerr << "! Failed to spawn enemy from map object: " << name << '\n';
+                        continue;
                     }
+
+                    EntityBase* enemy = m_context.GetEntityManager().Find(static_cast<unsigned int>(enemyId));
+                    if (enemy)
+                        enemy->SetPosition(sf::Vector2f(objX, objY));
                 }
                 else if (typeStr == "Door") {
                     m_doorRect = { {objX, objY}, {objW, objH} };
@@ -306,6 +323,8 @@ void Map::LoadMap(const std::string& path)
             }
         }
     }
+
+    RefreshBackgroundScale();
 }
 
 void Map::LoadNext() { m_loadNextMap = true; }
@@ -321,17 +340,19 @@ void Map::Update(float deltaTime)
     }
 
     // Fixed background position
-    sf::FloatRect viewSpace = m_context.m_window.GetViewSpace();
+    const sf::View& camView = m_context.GetEntityManager().GetCameraSystem().GetCurrentView();
+    sf::FloatRect viewSpace(
+        { camView.getCenter().x - (camView.getSize().x * 0.5f), camView.getCenter().y - (camView.getSize().y * 0.5f) },
+        { camView.getSize().x, camView.getSize().y }
+    );
+
+    // Recompute scale only when view size changes
+    if (camView.getSize() != m_lastViewSize)
+        RefreshBackgroundScale();
+
     for (auto& bg : m_backgrounds)
     {
-        // Follow the viewspace
         bg.sprite.setPosition({ viewSpace.position.x, viewSpace.position.y });
-
-        // TODO: Ha senso ???
-        // Scale image
-        sf::Vector2u texSize = bg.sprite.getTexture().getSize();
-        if (texSize.x > 0 && texSize.y > 0)
-            bg.sprite.setScale({ viewSpace.size.x / texSize.x, viewSpace.size.y / texSize.y });
     }
 }
 
@@ -355,7 +376,7 @@ void Map::PurgeMap()
     m_tileMap.clear();
     m_layerVertices.clear();
 
-    m_context.m_entityManager.Purge();
+    m_context.GetEntityManager().Purge();
     m_playerId = -1;
 
     // Safely release textures for all backgrounds
@@ -366,4 +387,23 @@ void Map::PurgeMap()
 
     m_doorRect = sf::FloatRect();
     m_traps.clear();
+}
+
+void Map::RefreshBackgroundScale()
+{
+    const sf::View& camView = m_context.GetEntityManager().GetCameraSystem().GetCurrentView();
+    const sf::Vector2f viewSize = camView.getSize();
+
+    // Skip if view size is invalid
+    if (viewSize.x <= 0.0f || viewSize.y <= 0.0f) return;
+
+    for (auto& bg : m_backgrounds)
+    {
+        sf::Vector2u texSize = bg.sprite.getTexture().getSize();
+        if (texSize.x == 0 || texSize.y == 0) continue;
+
+        bg.sprite.setScale({ viewSize.x / texSize.x, viewSize.y / texSize.y });
+    }
+
+    m_lastViewSize = viewSize;
 }

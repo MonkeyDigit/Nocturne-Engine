@@ -5,7 +5,6 @@
 #include <sstream>
 #include <string>
 #include <memory> // For std::unique_ptr
-#include <utility>
 #include "Utilities.h"
 
 template<typename Derived, typename T>
@@ -94,22 +93,46 @@ public:
     void LoadPaths(const std::string& pathFile)
     {
         std::ifstream paths{ Utils::GetWorkingDirectory() + pathFile };
-        if (!paths)
+        if (!paths.is_open())
         {
             std::cerr << "! Failed loading the path file: " << pathFile << '\n';
             return;
         }
 
         std::string line;
+        unsigned int lineNumber = 0;
+
         while (std::getline(paths, line))
         {
+            ++lineNumber;
+
+            // Skip empty lines and comment lines
+            if (line.empty() || line[0] == '|') continue;
+
             std::stringstream keystream{ line };
-            std::string pathName, path;
-            keystream >> pathName >> path;
-            m_paths.emplace(pathName, path);
+            std::string pathName;
+            std::string path;
+
+            if (!(keystream >> pathName >> path))
+            {
+                std::cerr << "! Invalid path entry at line " << lineNumber
+                    << " in " << pathFile << '\n';
+                continue;
+            }
+
+            auto [it, inserted] = m_paths.emplace(pathName, path);
+            if (!inserted)
+            {
+                std::cerr << "! Duplicate resource id '" << pathName
+                    << "' in " << pathFile << ". Overwriting previous value.\n";
+                it->second = path;
+            }
         }
+
+        // Optional, not required (RAII already handles this)
         paths.close();
     }
+
 
 private:
     std::unordered_map<std::string, std::pair<std::unique_ptr<T>, unsigned int>> m_resources;

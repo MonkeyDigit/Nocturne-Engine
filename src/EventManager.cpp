@@ -72,7 +72,9 @@ void Binding::BindEvent(EventType type, int code)
 }
 
 // --- EVENT MANAGER ---
-EventManager::EventManager() : m_hasFocus(true)
+EventManager::EventManager()
+    : m_currentState(static_cast<StateType>(0)),
+    m_hasFocus(true)
 {
     LoadBindings("config/bindings.cfg");
 }
@@ -153,19 +155,24 @@ void EventManager::LoadBindings(const std::string& path)
         // GET CALLBACK NAME
         std::stringstream keystream(line);
         std::string callbackName;
-        keystream >> callbackName;
+        if (!(keystream >> callbackName) || callbackName.empty())
+        {
+            std::cerr << "! Invalid binding line: " << line << '\n';
+            continue;
+        }
 
         auto bind = std::make_unique<Binding>(callbackName);
 
         // READ EVENTS
-        while (!keystream.eof())    // Bind the events to the callback
+        std::string eventToken;
+        while (keystream >> eventToken)    // // e.g. "KeyDown:Left" or "Closed:0"
         {
-            std::string eventToken;
-            keystream >> eventToken; // e.g. "KeyDown:Left" or "Closed:0"
-            if (eventToken.empty()) break;
-
-            size_t colonPos = eventToken.find(':');
-            if (colonPos == std::string::npos) break; // Invalid format
+            const size_t colonPos = eventToken.find(':');
+            if (colonPos == std::string::npos)
+            {
+                std::cerr << "! Invalid token format: " << eventToken << '\n';
+                continue;
+            }
 
             std::string evtypeStr = eventToken.substr(0, colonPos);
             std::string evinfoStr = eventToken.substr(colonPos + 1);
@@ -177,18 +184,23 @@ void EventManager::LoadBindings(const std::string& path)
                 std::cerr << "! Unknown event type in config file: " << evtypeStr << '\n';
                 continue;
             }
-            EventType evtype = typeIt->second;
 
-            int code = ParseEventInfo(evtype, evinfoStr);
+            const EventType evtype = typeIt->second;
+            const int code = ParseEventInfo(evtype, evinfoStr);
             bind->BindEvent(evtype, code);
         }
 
+        if (bind->m_events.empty())
+        {
+            std::cerr << "! Skipping binding with no valid events: " << callbackName << '\n';
+            continue;
+        }
 
         if (!AddBinding(std::move(bind)))
             std::cerr << "! Couldn't load binding: " << callbackName << '\n';
     }
 
-    bindings.close();
+    // bindings.close(); ISN'T NECESSARY as std::ifstream gets closed automatically when going out of scope
 }
 
 void EventManager::ProcessPolledEvent(const sf::Event& event)

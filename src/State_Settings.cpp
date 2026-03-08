@@ -19,8 +19,9 @@ State_Settings::~State_Settings() {}
 void State_Settings::OnCreate()
 {
     SharedContext& context = m_stateManager.GetContext();
-
     sf::Vector2f uiRes = context.m_window.GetUIResolution();
+    m_volume = context.m_audioManager.GetMasterVolume();
+    UpdateVolumeText();
 
     // Background and overlay
     context.m_textureManager.RequireResource("MenuBg");
@@ -144,14 +145,12 @@ void State_Settings::MouseClick(EventDetails& details)
             if (i == 0) { // Minus button
                 m_volume = std::max(MIN_VOLUME, m_volume - VOLUME_STEP);
                 UpdateVolumeText();
-                // TODO: COLLEGA AD AUDIOMANAGER
-                // m_stateManager.GetContext().m_audioManager.SetMasterVolume(m_volume);
+                m_stateManager.GetContext().m_audioManager.SetMasterVolume(static_cast<float>(m_volume));
             }
             else if (i == 1) { // Plus button
                 m_volume = std::min(MAX_VOLUME, m_volume + VOLUME_STEP);
                 UpdateVolumeText();
-                // TODO: COLLEGA AD AUDIOMANAGER
-                // m_stateManager.GetContext().m_audioManager.SetMasterVolume(m_volume);
+                m_stateManager.GetContext().m_audioManager.SetMasterVolume(static_cast<float>(m_volume));
             }
             else if (i == 2) { // Back button
                 m_stateManager.SwitchTo(StateType::MainMenu);

@@ -24,6 +24,7 @@ private:
     // Objects will be instantiated in memory in this exact order
     Window m_window;
     TextureManager m_textureManager;
+    AudioManager m_audioManager;
 
     // The Context stores references to the systems above (and below)
     // Passing m_entityManager here is safe because it only stores the memory address
@@ -31,7 +32,6 @@ private:
 
     EntityManager m_entityManager;
     StateManager m_stateManager;
-    AudioManager m_audioManager;
 
     // Constant for a fixed 60 FPS physics simulation (Accumulator Pattern)
     const sf::Time TIME_PER_FRAME = sf::seconds(1.0f / 60.0f);

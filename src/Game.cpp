@@ -1,16 +1,21 @@
 #include "Game.h"
+#include <cassert>
 
 Game::Game()
     : m_window("Project Nocturne", { 1280, 720 }),
-    // m_textureManager default constructor is called implicitly
+    m_textureManager(),
+    m_audioManager(),
 
     // Initialize the context passing references to the core systems
-    m_context(m_window, m_window.GetEventManager(), m_textureManager, m_entityManager, m_audioManager),
+    m_context(m_window, m_window.GetEventManager(), m_textureManager, m_audioManager),
 
     // Advanced systems are instantiated receiving the complete context
     m_entityManager(m_context, 100),
     m_stateManager(m_context)
 {
+    m_context.SetEntityManager(m_entityManager);
+    assert(m_context.HasEntityManager());
+
     // Start from game intro
     m_stateManager.SwitchTo(StateType::Intro);
 }
@@ -27,7 +32,7 @@ void Game::Run()
 
         // FIXED TIMESTEP (Accumulator Pattern)
         // Guarantees that the physics simulation advances at a constant rate (60 FPS) 
-        // regardless of the user's PC hardware power.
+        // regardless of the user's PC hardware power
         while (timeSinceLastUpdate > TIME_PER_FRAME)
         {
             timeSinceLastUpdate -= TIME_PER_FRAME;
@@ -47,6 +52,7 @@ void Game::Update(sf::Time deltaTime)
     // Delegate the update logic to the State Machine
     // (It will update the EntityManager if the current state is State_Game)
     m_stateManager.Update(deltaTime);
+    m_stateManager.ProcessRequests();
     // TODO: Spostare da qua?
     m_context.m_audioManager.Update();
 }

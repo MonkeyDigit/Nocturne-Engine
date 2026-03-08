@@ -53,7 +53,7 @@ void CombatSystem::Update(EntityManager& entityManager)
             CTransform* trans2 = e2->GetComponent<CTransform>();
             CState* state2 = e2->GetComponent<CState>();
 
-            if (!col2 || !trans2 || !state2 || state2->GetState() == EntityState::Dying) continue;
+            if (!col2) continue;
 
             // Flag to check if bodies are physically touching
             bool bodiesTouching = col1->GetAABB().findIntersection(col2->GetAABB()).has_value();
@@ -62,31 +62,32 @@ void CombatSystem::Update(EntityManager& entityManager)
             // --- PROJECTILE LOGIC ---
             // (Projectiles only care if their body touches another body)
             // ==========================================
-            if (bodiesTouching)
+            const bool isE1Projectile = (e1->GetType() == EntityType::Projectile);
+            const bool isE2Projectile = (e2->GetType() == EntityType::Projectile);
+
+            if (bodiesTouching && (isE1Projectile || isE2Projectile))
             {
-                bool isE1Projectile = (e1->GetType() == EntityType::Projectile);
-                bool isE2Projectile = (e2->GetType() == EntityType::Projectile);
+                EntityBase* projEntity = isE1Projectile ? e1 : e2;
+                EntityBase* targetEntity = isE1Projectile ? e2 : e1;
 
-                if (isE1Projectile || isE2Projectile)
+                CProjectile* projComp = projEntity->GetComponent<CProjectile>();
+                CState* targetState = targetEntity->GetComponent<CState>();
+
+                if (projComp &&
+                    targetState &&
+                    targetState->GetState() != EntityState::Dying &&
+                    targetEntity->GetType() != EntityType::Projectile &&
+                    targetEntity->GetType() != projComp->GetShooterType())
                 {
-                    EntityBase* projEntity = isE1Projectile ? e1 : e2;
-                    EntityBase* targetEntity = isE1Projectile ? e2 : e1;
-
-                    CProjectile* projComp = projEntity->GetComponent<CProjectile>();
-                    CState* targetState = targetEntity->GetComponent<CState>();
-
-                    // Check if the target is valid
-                    if (projComp && targetState && targetEntity->GetType() != EntityType::Projectile)
-                    {
-                        if (targetEntity->GetType() != projComp->GetShooterType())
-                        {
-                            targetState->TakeDamage(projComp->GetDamage());
-                            projEntity->Destroy();
-                        }
-                    }
-                    continue; // Skip melee logic, projectile exploded
+                    targetState->TakeDamage(projComp->GetDamage());
+                    projEntity->Destroy();
                 }
+
+                continue; // no melee if a projectile exploded
             }
+
+            if (!trans1 || !state1 || state1->GetState() == EntityState::Dying) continue;
+            if (!trans2 || !state2 || state2->GetState() == EntityState::Dying) continue;
 
             // ==========================================
             // --- MELEE LOGIC (Enemy vs Player) ---

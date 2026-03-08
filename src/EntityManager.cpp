@@ -1,5 +1,6 @@
 #include <fstream>
 #include <sstream>
+#include <algorithm>
 #include "EntityManager.h"
 #include "SharedContext.h"
 #include "Utilities.h"
@@ -15,6 +16,7 @@ EntityManager::EntityManager(SharedContext& context, unsigned int maxEntities)
     m_maxEntities(maxEntities),
     m_idCounter(0)
 {
+    m_cameraSystem.SetInitialView(m_context.m_window.GetGameView());
     m_controlSystem.Initialize(this);
     LoadEnemyTypes("media/lists/enemy_list.list");
 }
@@ -27,6 +29,12 @@ EntityManager::~EntityManager()
 
 int EntityManager::Add(EntityType type, const std::string& name)
 {
+    if (m_entities.size() >= m_maxEntities)
+    {
+        std::cerr << "! Entity limit reached (" << m_maxEntities << ")\n";
+        return -1;
+    }
+
     // Create a raw, empty entity directly
     std::unique_ptr<EntityBase> entity = std::make_unique<EntityBase>(*this);
 
@@ -91,7 +99,14 @@ EntityBase* EntityManager::Find(const std::string& name)
 
 void EntityManager::Remove(unsigned int id)
 {
-    m_entitiesToRemove.emplace_back(id);
+    // Ignore invalid IDs
+    if (m_entities.find(id) == m_entities.end()) return;
+
+    // Avoid duplicate removals in the same frame
+    if (std::find(m_entitiesToRemove.begin(), m_entitiesToRemove.end(), id) == m_entitiesToRemove.end())
+    {
+        m_entitiesToRemove.emplace_back(id);
+    }
 }
 
 void EntityManager::Update(float deltaTime)
@@ -122,8 +137,8 @@ void EntityManager::Draw()
 
 void EntityManager::Purge()
 {
-    // unique_ptr automatically deletes the memory of all entities!
     m_entities.clear();
+    m_entitiesToRemove.clear(); // Clear pending removals to avoid stale IDs
     m_idCounter = 0;
 }
 
@@ -134,6 +149,18 @@ SharedContext& EntityManager::GetContext()
 
 int EntityManager::SpawnProjectile(EntityBase* shooter, const sf::Vector2f& position, const sf::Vector2f& velocity, int damage, float lifespan)
 {
+    if (!shooter)
+    {
+        std::cerr << "! SpawnProjectile called with null shooter\n";
+        return -1;
+    }
+
+    if (m_entities.size() >= m_maxEntities)
+    {
+        std::cerr << "! Entity limit reached (" << m_maxEntities << ")\n";
+        return -1;
+    }
+
     std::unique_ptr<EntityBase> entity = std::make_unique<EntityBase>(*this);
     entity->m_id = m_idCounter;
     entity->SetType(EntityType::Projectile);
@@ -149,12 +176,13 @@ int EntityManager::SpawnProjectile(EntityBase* shooter, const sf::Vector2f& posi
     sprite->Load("media/spritesheets/Player.sheet");
 
     // Collider: So it can hit things
-    CBoxCollider* collider = entity->AddComponent<CBoxCollider>();
+    entity->AddComponent<CBoxCollider>();
 
     // Projectile Brain: Defines damage, lifespan, and who shot it
     CProjectile* proj = entity->AddComponent<CProjectile>();
     proj->SetShooterType(shooter->GetType());
     proj->SetDamage(damage);
+    proj->SetLifespan(lifespan);
 
     // Save and return
     m_entities.emplace(m_idCounter, std::move(entity));

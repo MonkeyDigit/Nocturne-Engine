@@ -1,5 +1,4 @@
 #include <cmath>
-#include <cstdlib>
 #include "AISystem.h"
 #include "EntityManager.h"
 #include "CAIPatrol.h"
@@ -7,6 +6,12 @@
 #include "CTransform.h"
 #include "CBoxCollider.h"
 #include "CState.h"
+
+AISystem::AISystem()
+    : m_rng(std::random_device{}()),
+    m_patrolDistanceDist(1, 64),
+    m_patrolDirectionDist(0.5)
+{}
 
 void AISystem::Update(EntityManager& entityManager, float deltaTime)
 {
@@ -108,8 +113,10 @@ void AISystem::Update(EntityManager& entityManager, float deltaTime)
             ai->m_elapsed -= 1.0f;
 
             // Pick a new random destination
-            int newX = rand() % 64 + 1;
-            if (rand() % 2) newX = -newX;
+            int newX = m_patrolDistanceDist(m_rng);
+            if (m_patrolDirectionDist(m_rng))
+                newX = -newX;
+
 
             ai->m_destination.x = transform->GetPosition().x + static_cast<float>(newX);
             if (ai->m_destination.x < 0.0f) ai->m_destination.x = 0.0f;

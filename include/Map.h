@@ -53,7 +53,7 @@ public:
     void Update(float deltaTime);
     void Draw(sf::RenderWindow& window);
 
-    Tile* GetTile(unsigned int x, unsigned int y) const;
+    Tile* GetTile(int x, int y) const;
     TileInfo* GetDefaultTile();
     float GetGravity() const;
     unsigned int GetTileSize() const { return m_tileWidth; }
@@ -66,6 +66,8 @@ public:
 private:
     unsigned int ConvertCoords(unsigned int x, unsigned int y) const;
     void PurgeMap();
+    void RefreshBackgroundScale();
+    sf::Vector2f m_lastViewSize;
 
     // TODO: Vertex array?
 

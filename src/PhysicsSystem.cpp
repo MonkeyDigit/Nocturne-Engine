@@ -3,7 +3,7 @@
 #include "PhysicsSystem.h"
 #include "EntityManager.h"
 #include "CTransform.h"
-#include "CboxCollider.h"
+#include "CBoxCollider.h"
 #include "CState.h"
 
 void PhysicsSystem::Update(EntityManager& entityManager, Map* gameMap, float deltaTime)
@@ -47,19 +47,24 @@ void PhysicsSystem::ApplyGravityAndMovement(EntityBase* entity, Map* map, float 
     transform->AddVelocity(transform->GetAcceleration().x * deltaTime, transform->GetAcceleration().y * deltaTime);
 
     sf::Vector2f frictionValue;
-    if (collider->GetReferenceTile())
+    TileInfo* refTile = collider->GetReferenceTile();
+
+    if (refTile)
     {
-        frictionValue = collider->GetReferenceTile()->friction;
-        if (collider->GetReferenceTile()->deadly) entity->GetComponent<CState>()->SetState(EntityState::Dying);
+        frictionValue = refTile->friction;
+
+        // Some entities (e.g. projectiles) do not have CState.
+        if (refTile->deadly)
+        {
+            if (CState* state = entity->GetComponent<CState>())
+                state->SetState(EntityState::Dying);
+        }
     }
     else if (map->GetDefaultTile())
-    {
         frictionValue = map->GetDefaultTile()->friction;
-    }
     else
-    {
         frictionValue = transform->GetFriction();
-    }
+
 
     float friction_x = (transform->GetSpeed().x * frictionValue.x) * deltaTime;
     float friction_y = (transform->GetSpeed().y * frictionValue.y) * deltaTime;
@@ -120,9 +125,13 @@ void PhysicsSystem::ConstrainToMapBounds(EntityBase* entity, Map* map)
     }
     else if (transform->GetPosition().y > (mapSize.y + 4) * tileSize)
     {
-        entity->GetComponent<CState>()->SetState(EntityState::Dying);
+        // Avoid null dereference on entities without CState.
+        if (CState* state = entity->GetComponent<CState>())
+            state->SetState(EntityState::Dying);
+
         transform->SetVelocity(transform->GetVelocity().x, 0.0f);
     }
+
 }
 
 void PhysicsSystem::CheckMapCollisions(EntityBase* entity, Map* map)
@@ -205,7 +214,7 @@ void PhysicsSystem::ResolveMapCollisions(EntityBase* entity, Map* map)
             // Ignore if hitting from BELOW (player center is below tile center)
             if (delta.y > 0.0f) continue;
 
-            // ROBUST LOGIC: Calculate where the feet were in the PREVIOUS FRAME.
+            // ROBUST LOGIC: Calculate where the feet were in the PREVIOUS FRAME
             // Since the engine uses a fixed timestep of 60 FPS, we can use 1.0f / 60.0f
             // TODO: Get frame time?
             float moveY = transform->GetVelocity().y * (1.0f / 60.0f);
@@ -221,7 +230,7 @@ void PhysicsSystem::ResolveMapCollisions(EntityBase* entity, Map* map)
             // FORCE VERTICAL RESOLUTION
             // By setting deltaDiff.x to a tiny negative value, we fake the condition
             // 'if (deltaDiff.x > deltaDiff.y)'. This FORCES the engine to apply 
-            // the upward push (Y) and prevents the player from slipping off tile edges.
+            // the upward push (Y) and prevents the player from slipping off tile edges
             deltaDiff.x = -1000.0f;
         }
         double resolve = 0.0;

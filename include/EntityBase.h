@@ -1,12 +1,11 @@
 #pragma once
-#pragma once
 #include <unordered_map>
 #include <memory>
 #include <typeindex>
 #include "Map.h"
 #include "Component.h"
 #include "CTransform.h"
-#include "CboxCollider.h"
+#include "CBoxCollider.h"
 
 class EntityManager;
 
