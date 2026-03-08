@@ -28,16 +28,27 @@ void Game::Run()
     while (!m_window.IsDone())
     {
         sf::Time elapsedTime = clock.restart();
+
+        // Clamp very large frame times (e.g. debugger break, window drag, alt-tab spike)
+        if (elapsedTime > MAX_FRAME_TIME)
+            elapsedTime = MAX_FRAME_TIME;
+
         timeSinceLastUpdate += elapsedTime;
 
         // FIXED TIMESTEP (Accumulator Pattern)
         // Guarantees that the physics simulation advances at a constant rate (60 FPS) 
         // regardless of the user's PC hardware power
-        while (timeSinceLastUpdate > TIME_PER_FRAME)
+        unsigned int updates = 0;
+        while (timeSinceLastUpdate >= TIME_PER_FRAME && updates < MAX_UPDATES_PER_FRAME)
         {
             timeSinceLastUpdate -= TIME_PER_FRAME;
             Update(TIME_PER_FRAME);
+            ++updates;
         }
+
+        // Drop residual backlog to avoid perpetual catch-up under heavy load
+        if (updates == MAX_UPDATES_PER_FRAME)
+            timeSinceLastUpdate = sf::Time::Zero;
 
         // Render as fast as possible
         Render();

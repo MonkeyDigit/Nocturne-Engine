@@ -21,4 +21,7 @@ private:
     sf::RectangleShape m_healthBar;
 
     int m_maxHealth;
+    sf::Font m_font;
+    sf::Text m_healthLabel;
+    bool m_fontLoaded;
 };

@@ -35,4 +35,6 @@ private:
 
     // Constant for a fixed 60 FPS physics simulation (Accumulator Pattern)
     const sf::Time TIME_PER_FRAME = sf::seconds(1.0f / 60.0f);
+    const sf::Time MAX_FRAME_TIME = sf::seconds(0.25f); // Clamp long frame spikes
+    const unsigned int MAX_UPDATES_PER_FRAME = 8;       // Prevent runaway catch-up
 };

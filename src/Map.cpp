@@ -327,7 +327,12 @@ void Map::LoadMap(const std::string& path)
     RefreshBackgroundScale();
 }
 
-void Map::LoadNext() { m_loadNextMap = true; }
+void Map::LoadNext()
+{
+    // Queue transition only once
+    if (!m_loadNextMap)
+        m_loadNextMap = true;
+}
 
 void Map::Update(float deltaTime)
 {

@@ -167,10 +167,8 @@ void PhysicsSystem::CheckMapCollisions(EntityBase* entity, Map* map)
                 collider->m_collisions.emplace_back(area, &tile->properties, tileBounds);
 
                 // Handle map changing (warp)
-                if (tile->warp && entity->GetType() == EntityType::Player)
-                {
+                if (tile->warp && entity->GetType() == EntityType::Player && !map->IsNextMapQueued())
                     map->LoadNext();
-                }
             }
         }
     }

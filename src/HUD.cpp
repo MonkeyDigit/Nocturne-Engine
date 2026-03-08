@@ -1,20 +1,32 @@
+#include <iostream>
 #include "HUD.h"
 #include "EntityManager.h"
 #include "EntityBase.h"
 #include "CState.h"
 
 HUD::HUD(EntityManager& entityManager)
-    : m_entityManager(entityManager), m_maxHealth(0)
+    : m_entityManager(entityManager), m_maxHealth(0), m_healthLabel(m_font), m_fontLoaded(false)
 {
-    // Setup the Background Bar (Red - shows empty health)
-    m_healthBarBackground.setSize({ 200.0f, 20.0f }); // SFML 3 uses {}
+    m_healthBarBackground.setSize({ 200.0f, 20.0f });
     m_healthBarBackground.setFillColor(sf::Color::Red);
     m_healthBarBackground.setPosition({ 20.0f, 20.0f });
 
-    // Setup the Foreground Bar (Green - shows current health)
     m_healthBar.setSize({ 200.0f, 20.0f });
     m_healthBar.setFillColor(sf::Color::Green);
     m_healthBar.setPosition({ 20.0f, 20.0f });
+
+    m_fontLoaded = m_font.openFromFile("media/fonts/EightBitDragon.ttf");
+    if (m_fontLoaded)
+    {
+        m_healthLabel.setString("Health");
+        m_healthLabel.setCharacterSize(18);
+        m_healthLabel.setFillColor(sf::Color::White);
+        m_healthLabel.setOutlineColor(sf::Color::Black);
+        m_healthLabel.setOutlineThickness(1.0f);
+        m_healthLabel.setPosition({ 20.0f, 0.0f });
+    }
+    else
+        std::cerr << "! Failed to load HUD font\n";
 }
 
 void HUD::Update()
@@ -50,7 +62,9 @@ void HUD::Update()
 
 void HUD::Draw(sf::RenderWindow& window)
 {
-    // Draw the UI
+    if (m_fontLoaded)
+        window.draw(m_healthLabel);
+
     window.draw(m_healthBarBackground);
     window.draw(m_healthBar);
 }

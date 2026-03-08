@@ -1,53 +1,63 @@
-#include "EventManager.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <algorithm>
+#include <cctype>
+#include "EventManager.h"
 
 // --- TRANSLATION DICTIONARIES ---
 // Using an anonymous namespace to confine this data in this file only
 // It gets allocated in memory only once on startup
 namespace
 {
+    std::string ToLowerCopy(std::string value)
+    {
+        std::transform(value.begin(), value.end(), value.begin(),
+            [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        return value;
+    }
+
     const std::unordered_map<std::string, EventType> STRING_TO_EVENT_MAP = {
-        {"Closed", EventType::Closed}, {"Resized", EventType::Resized},
-        {"FocusLost", EventType::FocusLost}, {"FocusGained", EventType::FocusGained},
-        {"TextEntered", EventType::TextEntered}, {"KeyDown", EventType::KeyDown},
-        {"KeyUp", EventType::KeyUp}, {"MouseWheel", EventType::MouseWheel},
-        {"MouseClick", EventType::MouseClick}, {"MouseRelease", EventType::MouseRelease},
-        {"KeyboardHeld", EventType::KeyboardHeld}, {"MouseHeld", EventType::MouseHeld},
-        {"Keyboard", EventType::Keyboard}, {"Mouse", EventType::Mouse},
-        {"Joystick", EventType::Joystick}
+        {"closed", EventType::Closed}, {"resized", EventType::Resized},
+        {"focuslost", EventType::FocusLost}, {"focusgained", EventType::FocusGained},
+        {"textentered", EventType::TextEntered}, {"keydown", EventType::KeyDown},
+        {"keyup", EventType::KeyUp}, {"mousewheel", EventType::MouseWheel},
+        {"mouseclick", EventType::MouseClick}, {"mouserelease", EventType::MouseRelease},
+        {"keyboardheld", EventType::KeyboardHeld}, {"mouseheld", EventType::MouseHeld},
+        {"keyboard", EventType::Keyboard}, {"mouse", EventType::Mouse},
+        {"joystick", EventType::Joystick}
     };
 
     const std::unordered_map<std::string, sf::Keyboard::Key> STRING_TO_KEY_MAP = {
-        {"A", sf::Keyboard::Key::A}, {"B", sf::Keyboard::Key::B}, {"C", sf::Keyboard::Key::C},
-        {"D", sf::Keyboard::Key::D}, {"E", sf::Keyboard::Key::E}, {"F", sf::Keyboard::Key::F},
-        {"G", sf::Keyboard::Key::G}, {"H", sf::Keyboard::Key::H}, {"I", sf::Keyboard::Key::I},
-        {"J", sf::Keyboard::Key::J}, {"K", sf::Keyboard::Key::K}, {"L", sf::Keyboard::Key::L},
-        {"M", sf::Keyboard::Key::M}, {"N", sf::Keyboard::Key::N}, {"O", sf::Keyboard::Key::O},
-        {"P", sf::Keyboard::Key::P}, {"Q", sf::Keyboard::Key::Q}, {"R", sf::Keyboard::Key::R},
-        {"S", sf::Keyboard::Key::S}, {"T", sf::Keyboard::Key::T}, {"U", sf::Keyboard::Key::U},
-        {"V", sf::Keyboard::Key::V}, {"W", sf::Keyboard::Key::W}, {"X", sf::Keyboard::Key::X},
-        {"Y", sf::Keyboard::Key::Y}, {"Z", sf::Keyboard::Key::Z},
-        // --- Function keys ---
-        {"F1", sf::Keyboard::Key::F1}, {"F2", sf::Keyboard::Key::F2}, {"F3", sf::Keyboard::Key::F3},
-        {"F4", sf::Keyboard::Key::F4}, {"F5", sf::Keyboard::Key::F5}, {"F6", sf::Keyboard::Key::F6},
-        {"F7", sf::Keyboard::Key::F7}, {"F8", sf::Keyboard::Key::F8}, {"F9", sf::Keyboard::Key::F9},
-        {"F10", sf::Keyboard::Key::F10}, {"F11", sf::Keyboard::Key::F11}, {"F12", sf::Keyboard::Key::F12},
+        {"a", sf::Keyboard::Key::A}, {"b", sf::Keyboard::Key::B}, {"c", sf::Keyboard::Key::C},
+        {"d", sf::Keyboard::Key::D}, {"e", sf::Keyboard::Key::E}, {"f", sf::Keyboard::Key::F},
+        {"g", sf::Keyboard::Key::G}, {"h", sf::Keyboard::Key::H}, {"i", sf::Keyboard::Key::I},
+        {"j", sf::Keyboard::Key::J}, {"k", sf::Keyboard::Key::K}, {"l", sf::Keyboard::Key::L},
+        {"m", sf::Keyboard::Key::M}, {"n", sf::Keyboard::Key::N}, {"o", sf::Keyboard::Key::O},
+        {"p", sf::Keyboard::Key::P}, {"q", sf::Keyboard::Key::Q}, {"r", sf::Keyboard::Key::R},
+        {"s", sf::Keyboard::Key::S}, {"t", sf::Keyboard::Key::T}, {"u", sf::Keyboard::Key::U},
+        {"v", sf::Keyboard::Key::V}, {"w", sf::Keyboard::Key::W}, {"x", sf::Keyboard::Key::X},
+        {"y", sf::Keyboard::Key::Y}, {"z", sf::Keyboard::Key::Z},
 
-        // --- Special keys ---
-        {"Escape", sf::Keyboard::Key::Escape}, {"Space", sf::Keyboard::Key::Space}, 
-        {"Return", sf::Keyboard::Key::Enter}, {"LShift", sf::Keyboard::Key::LShift},
-        {"RShift", sf::Keyboard::Key::RShift}, {"LControl", sf::Keyboard::Key::LControl},
-        {"Tab", sf::Keyboard::Key::Tab},
+        {"f1", sf::Keyboard::Key::F1}, {"f2", sf::Keyboard::Key::F2}, {"f3", sf::Keyboard::Key::F3},
+        {"f4", sf::Keyboard::Key::F4}, {"f5", sf::Keyboard::Key::F5}, {"f6", sf::Keyboard::Key::F6},
+        {"f7", sf::Keyboard::Key::F7}, {"f8", sf::Keyboard::Key::F8}, {"f9", sf::Keyboard::Key::F9},
+        {"f10", sf::Keyboard::Key::F10}, {"f11", sf::Keyboard::Key::F11}, {"f12", sf::Keyboard::Key::F12},
 
-        // --- Directional keys ---
-        {"Left", sf::Keyboard::Key::Left}, {"Right", sf::Keyboard::Key::Right},
-        {"Up", sf::Keyboard::Key::Up}, {"Down", sf::Keyboard::Key::Down}
+        {"escape", sf::Keyboard::Key::Escape}, {"esc", sf::Keyboard::Key::Escape},
+        {"space", sf::Keyboard::Key::Space}, {"spacebar", sf::Keyboard::Key::Space},
+        {"return", sf::Keyboard::Key::Enter}, {"enter", sf::Keyboard::Key::Enter},
+        {"lshift", sf::Keyboard::Key::LShift}, {"rshift", sf::Keyboard::Key::RShift},
+        {"lcontrol", sf::Keyboard::Key::LControl}, {"ctrl", sf::Keyboard::Key::LControl},
+        {"tab", sf::Keyboard::Key::Tab},
+
+        {"left", sf::Keyboard::Key::Left}, {"right", sf::Keyboard::Key::Right},
+        {"up", sf::Keyboard::Key::Up}, {"down", sf::Keyboard::Key::Down}
     };
 
     const std::unordered_map<std::string, sf::Mouse::Button> STRING_TO_MOUSE_MAP = {
-        {"Left", sf::Mouse::Button::Left}, {"Right", sf::Mouse::Button::Right}, {"Middle", sf::Mouse::Button::Middle}
+        {"left", sf::Mouse::Button::Left}, {"right", sf::Mouse::Button::Right}, {"middle", sf::Mouse::Button::Middle},
+        {"lmb", sf::Mouse::Button::Left}, {"rmb", sf::Mouse::Button::Right}, {"mmb", sf::Mouse::Button::Middle}
     };
 }
 
@@ -108,20 +118,22 @@ void EventManager::SetCurrentState(StateType type) { m_currentState = type; }
 // --- PARSERS FOR HUMAN READABLE CONFIG FILES ---
 int EventManager::ParseEventInfo(EventType evtype, const std::string& evinfoStr)
 {
+    const std::string normalized = ToLowerCopy(evinfoStr);
+
     // KEYBOARD EVENT
     switch (evtype)
     {
     case EventType::KeyDown: case EventType::KeyUp:
     case EventType::KeyboardHeld: case EventType::Keyboard:
     {
-        auto it = STRING_TO_KEY_MAP.find(evinfoStr);
+        auto it = STRING_TO_KEY_MAP.find(normalized);
         if (it != STRING_TO_KEY_MAP.end()) return static_cast<int>(it->second);
         break;
     }
     case EventType::MouseClick: case EventType::MouseRelease:
     case EventType::MouseHeld: case EventType::Mouse:
     {
-        auto it = STRING_TO_MOUSE_MAP.find(evinfoStr);
+        auto it = STRING_TO_MOUSE_MAP.find(normalized);
         if (it != STRING_TO_MOUSE_MAP.end()) return static_cast<int>(it->second);
         break;
     }
@@ -178,15 +190,22 @@ void EventManager::LoadBindings(const std::string& path)
             std::string evinfoStr = eventToken.substr(colonPos + 1);
 
             // String translation
-            auto typeIt = STRING_TO_EVENT_MAP.find(evtypeStr);
+            const std::string evtypeNorm = ToLowerCopy(evtypeStr);
+            auto typeIt = STRING_TO_EVENT_MAP.find(evtypeNorm);
             if (typeIt == STRING_TO_EVENT_MAP.end())
             {
                 std::cerr << "! Unknown event type in config file: " << evtypeStr << '\n';
                 continue;
             }
 
+            // BIND EVENT
             const EventType evtype = typeIt->second;
             const int code = ParseEventInfo(evtype, evinfoStr);
+            if (code < 0)
+            {
+                std::cerr << "! Invalid event code for token: " << eventToken << '\n';
+                continue;
+            }
             bind->BindEvent(evtype, code);
         }
 

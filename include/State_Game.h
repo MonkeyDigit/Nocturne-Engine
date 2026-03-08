@@ -36,4 +36,13 @@ private:
     bool m_debugMode;
 
     int m_playerIdCache;
+
+    // TODO: Possibile refactoring di pulizia?
+    sf::Font m_debugFont;
+    sf::Text m_fpsText;
+    sf::Clock m_fpsClock;
+    float m_fpsAccumTime;
+    unsigned int m_fpsFrameCount;
+    float m_currentFps;
+    bool m_debugFontLoaded;
 };

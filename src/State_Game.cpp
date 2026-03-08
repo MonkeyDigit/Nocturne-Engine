@@ -15,7 +15,12 @@ State_Game::State_Game(StateManager& stateManager)
     m_cursorVisible(true),
     m_debugMode(false),
     m_gameMap(stateManager.GetContext(), this),
-    m_playerIdCache(-1)
+    m_playerIdCache(-1),
+    m_fpsText(m_debugFont),
+    m_fpsAccumTime(0.0f),
+    m_fpsFrameCount(0),
+    m_currentFps(0.0f),
+    m_debugFontLoaded(false)
 {}
 
 State_Game::~State_Game() {}
@@ -40,6 +45,26 @@ void State_Game::OnCreate()
     m_hud = std::make_unique<HUD>(m_stateManager.GetContext().GetEntityManager());
 
     m_playerIdCache = -1;
+
+    // FPS Counter
+    m_debugFontLoaded = m_debugFont.openFromFile("media/fonts/EightBitDragon.ttf");
+    if (m_debugFontLoaded)
+    {
+        m_fpsText.setCharacterSize(20);
+        m_fpsText.setFillColor(sf::Color::White);
+        m_fpsText.setOutlineColor(sf::Color::Black);
+        m_fpsText.setOutlineThickness(1.0f);
+        m_fpsText.setString("FPS: --");
+    }
+    else
+    {
+        std::cerr << "! Failed to load debug font for FPS counter\n";
+    }
+
+    m_fpsClock.restart();
+    m_fpsAccumTime = 0.0f;
+    m_fpsFrameCount = 0;
+    m_currentFps = 0.0f;
 }
 
 void State_Game::OnDestroy()
@@ -225,6 +250,39 @@ void State_Game::Draw()
                 }
             }
         }
+
+        // FPS Counter
+        const float dt = m_fpsClock.restart().asSeconds();
+        m_fpsAccumTime += dt;
+        ++m_fpsFrameCount;
+
+        if (m_fpsAccumTime >= 0.25f)
+        {
+            m_currentFps = static_cast<float>(m_fpsFrameCount) / m_fpsAccumTime;
+            m_fpsAccumTime = 0.0f;
+            m_fpsFrameCount = 0;
+
+            std::ostringstream ss;
+            ss << "FPS: " << static_cast<int>(std::round(m_currentFps));
+            m_fpsText.setString(ss.str());
+
+            // Color by performance tier
+            if (m_currentFps >= 55.0f)
+                m_fpsText.setFillColor(sf::Color(80, 220, 120)); // Green
+            else if (m_currentFps >= 30.0f)
+                m_fpsText.setFillColor(sf::Color(240, 210, 80)); // Yellow
+            else
+                m_fpsText.setFillColor(sf::Color(230, 80, 80)); // Red
+        }
+
+        window.setView(context.m_window.GetUIView());
+
+        const sf::Vector2f uiRes = context.m_window.GetUIResolution();
+        const sf::FloatRect b = m_fpsText.getLocalBounds();
+        m_fpsText.setOrigin({ b.position.x + b.size.x, b.position.y });
+        m_fpsText.setPosition({ uiRes.x - 20.0f, 20.0f });
+
+        window.draw(m_fpsText);
     }
 
     if (m_hud)
@@ -255,6 +313,15 @@ void State_Game::ToggleDebugOverlay(EventDetails& details)
 {
     m_debugMode = !m_debugMode;
     std::cout << "Debug Mode: " << (m_debugMode ? "ON" : "OFF") << "\n";
+
+    if (m_debugMode)
+    {
+        m_fpsClock.restart();
+        m_fpsAccumTime = 0.0f;
+        m_fpsFrameCount = 0;
+        m_currentFps = 0.0f;
+        if (m_debugFontLoaded) m_fpsText.setString("FPS: --");
+    }
 }
 
 void State_Game::UpdateCursor(const sf::Time& time)

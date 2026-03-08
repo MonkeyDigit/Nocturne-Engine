@@ -59,6 +59,7 @@ public:
     unsigned int GetTileSize() const { return m_tileWidth; }
     const sf::Vector2u& GetMapSize() const;
     const sf::Vector2f& GetPlayerStart() const;
+    bool IsNextMapQueued() const { return m_loadNextMap; }
 
     const sf::FloatRect& GetDoorRect() const { return m_doorRect; }
     const std::vector<sf::FloatRect>& GetTraps() const { return m_traps; }
@@ -68,8 +69,6 @@ private:
     void PurgeMap();
     void RefreshBackgroundScale();
     sf::Vector2f m_lastViewSize;
-
-    // TODO: Vertex array?
 
     int m_playerId;
     TileMap m_tileMap;
