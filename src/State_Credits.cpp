@@ -1,4 +1,3 @@
-#include <iostream>
 #include <cmath>
 #include <cstdint>
 #include "State_Credits.h"
@@ -6,6 +5,7 @@
 #include "SharedContext.h"
 #include "Window.h"
 #include "TextureManager.h"
+#include "EngineLog.h"
 
 State_Credits::State_Credits(StateManager& stateManager)
     : BaseState(stateManager),

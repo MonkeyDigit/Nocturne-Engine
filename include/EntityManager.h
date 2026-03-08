@@ -1,8 +1,6 @@
 #pragma once
 #include <unordered_map>
 #include <vector>
-#include <functional>
-#include <iostream>
 #include <memory>
 #include <string>
 #include "EntityBase.h"

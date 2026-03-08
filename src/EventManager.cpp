@@ -70,7 +70,7 @@ void EventDetails::Clear()
     m_size = sf::Vector2i(0, 0);
     m_textEntered = 0;
     m_mouse = sf::Vector2i(0, 0);
-    m_mouseWheelDelta = 0;
+    m_mouseWheelDelta = 0.0f;
     m_keyCode = -1;
 }
 
@@ -346,6 +346,8 @@ void EventManager::ProcessPolledEvent(const sf::Event& event)
 
 void EventManager::ProcessRealTimeInput()
 {
+    if (!m_hasFocus) return;
+
     for (auto& b_itr : m_bindings)          // Iterate through the bindings
     {
         Binding* bind = b_itr.second.get();
@@ -383,8 +385,6 @@ void EventManager::ProcessRealTimeInput()
 // At this point, if the matched events counter is equal to the number of the binding's triggering events, its callback function is called
 void EventManager::DispatchCallbacks()
 {
-    if (!m_hasFocus) return;
-
     for (auto& b_itr : m_bindings)  // Iterate through the bindings
     {
         Binding* bind = b_itr.second.get();

@@ -1,4 +1,3 @@
-#include <iostream>
 #include "State_Paused.h"
 #include "StateManager.h"
 #include "SharedContext.h"
@@ -49,7 +48,7 @@ void State_Paused::OnDestroy()
 
 void State_Paused::Activate() {}
 void State_Paused::Deactivate() {}
-void State_Paused::Update(const sf::Time& time) {}
+void State_Paused::Update(const sf::Time&) {}
 
 void State_Paused::Draw()
 {
@@ -59,11 +58,11 @@ void State_Paused::Draw()
     window.draw(m_text);
 }
 
-void State_Paused::Unpause(EventDetails& details)
+void State_Paused::Unpause(EventDetails&)
 {
     m_stateManager.SwitchTo(StateType::Game);
 }
-void State_Paused::QuitToMainMenu(EventDetails& details)
+void State_Paused::QuitToMainMenu(EventDetails&)
 {
     m_stateManager.SwitchTo(StateType::MainMenu);
     m_stateManager.Remove(StateType::Paused);

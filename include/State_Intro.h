@@ -17,7 +17,7 @@ public:
     void Update(const sf::Time& time) override;
     void Draw() override;
 
-    void Continue(EventDetails& details);
+    void Continue(EventDetails&);
 
 private:
     sf::Font m_font;

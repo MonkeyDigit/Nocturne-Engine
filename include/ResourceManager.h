@@ -1,10 +1,9 @@
 #pragma once
 #include <unordered_map>
-#include <iostream>
 #include <fstream>
 #include <sstream>
 #include <string>
-#include <memory> // For std::unique_ptr
+#include <memory>
 #include "Utilities.h"
 #include "EngineLog.h"
 
@@ -128,8 +127,7 @@ public:
             }
         }
 
-        // Optional, not required (RAII already handles this)
-        paths.close();
+        // paths.close(); Optional, not required (RAII already handles this)
     }
 
 

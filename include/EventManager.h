@@ -28,7 +28,7 @@ struct EventDetails
     sf::Vector2i m_size;        // Window size
     char32_t m_textEntered;
     sf::Vector2i m_mouse;
-    int m_mouseWheelDelta;
+    float m_mouseWheelDelta;
     int m_keyCode;              //Single key code
 };
 

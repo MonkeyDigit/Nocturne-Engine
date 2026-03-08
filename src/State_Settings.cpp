@@ -1,4 +1,5 @@
-#include <iostream>
+#include <algorithm>
+#include <cmath>
 #include "State_Settings.h"
 #include "StateManager.h"
 #include "SharedContext.h"
@@ -21,7 +22,8 @@ void State_Settings::OnCreate()
 {
     SharedContext& context = m_stateManager.GetContext();
     sf::Vector2f uiRes = context.m_window.GetUIResolution();
-    m_volume = context.m_audioManager.GetMasterVolume();
+    const float masterVolume = context.m_audioManager.GetMasterVolume();
+    m_volume = std::clamp(static_cast<int>(std::lround(masterVolume)), MIN_VOLUME, MAX_VOLUME);
     UpdateVolumeText();
 
     // Background and overlay
@@ -101,7 +103,7 @@ void State_Settings::OnDestroy()
 void State_Settings::Activate() {}
 void State_Settings::Deactivate() {}
 
-void State_Settings::Update(const sf::Time& time)
+void State_Settings::Update(const sf::Time&)
 {
     sf::RenderWindow& window = m_stateManager.GetContext().m_window.GetRenderWindow();
     sf::Vector2i mousePos = sf::Mouse::getPosition(window);

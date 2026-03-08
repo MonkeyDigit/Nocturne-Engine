@@ -1,4 +1,3 @@
-#include <iostream>
 #include <cmath>
 #include <cstdint>
 #include "State_Intro.h"
@@ -107,7 +106,7 @@ void State_Intro::Draw()
     if (m_timePassed >= ANIMATION_DURATION) window.draw(m_text);
 }
 
-void State_Intro::Continue(EventDetails& details)
+void State_Intro::Continue(EventDetails&)
 {
     m_stateManager.SwitchTo(StateType::MainMenu);
     m_stateManager.Remove(StateType::Intro);

@@ -1,14 +1,11 @@
-#include <cmath>
-#include <algorithm>
 #include <fstream>
 #include <sstream>
-#include <iostream>
 #include "EntityBase.h"
-#include "SharedContext.h"
 #include "EntityManager.h"
 #include "CState.h"
 #include "CController.h"
 #include "CSprite.h"
+#include "EngineLog.h"
 
 bool SortCollisions(const CollisionElement& e1, const CollisionElement& e2)
 {
@@ -208,7 +205,6 @@ void EntityBase::Load(const std::string& path)
             EngineLog::WarnOnce("char.unknown_type", "Unknown type in character file: " + type);
         }
     }
-    file.close();
 
     // Set default animation to ensure the character is visible
     CSprite* sprite = this->GetComponent<CSprite>();

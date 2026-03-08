@@ -1,4 +1,3 @@
-#include <iostream>
 #include <cmath>
 #include <sstream>
 #include <SFML/Graphics/RectangleShape.hpp>
@@ -38,7 +37,7 @@ void State_Game::OnCreate()
 
     // Mouse logic
     m_stillCursorTime = 0.0f;
-    m_mousePos = evMgr.GetMousePos();
+    m_mousePos = evMgr.GetMousePos(m_stateManager.GetContext().m_window.GetRenderWindow());
     m_cursorVisible = true;
 
     m_gameMap.LoadMap("media/maps/map_1.tmj");
@@ -163,7 +162,7 @@ void State_Game::Update(const sf::Time& time)
     // Update Entities
     context.GetEntityManager().Update(time.asSeconds());
     // Update the map
-    m_gameMap.Update(time.asSeconds());
+    m_gameMap.Update();
     // Update HUD overlay
     m_hud->Update();
 }
@@ -330,7 +329,8 @@ void State_Game::ToggleDebugOverlay(EventDetails&)
 
 void State_Game::UpdateCursor(const sf::Time& time)
 {
-    sf::Vector2i newMousePos = m_stateManager.GetContext().m_eventManager.GetMousePos();
+    sf::RenderWindow& window = m_stateManager.GetContext().m_window.GetRenderWindow();
+    sf::Vector2i newMousePos = m_stateManager.GetContext().m_eventManager.GetMousePos(window);
 
     if (m_mousePos == newMousePos)
         m_stillCursorTime += time.asSeconds();

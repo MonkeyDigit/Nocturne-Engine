@@ -50,7 +50,7 @@ public:
 
     void LoadMap(const std::string& path);
     void LoadNext();
-    void Update(float deltaTime);
+    void Update();
     void Draw(sf::RenderWindow& window);
 
     Tile* GetTile(int x, int y) const;

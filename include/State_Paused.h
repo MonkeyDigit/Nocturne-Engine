@@ -13,11 +13,11 @@ public:
     void OnDestroy() override;
     void Activate() override;
     void Deactivate() override;
-    void Update(const sf::Time& time) override;
+    void Update(const sf::Time&) override;
     void Draw() override;
 
-    void Unpause(EventDetails& details);
-    void QuitToMainMenu(EventDetails& details);
+    void Unpause(EventDetails&);
+    void QuitToMainMenu(EventDetails&);
 
 private:
     sf::Font m_font;

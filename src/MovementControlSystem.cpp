@@ -60,7 +60,7 @@ void MovementControlSystem::React(EventDetails& details)
     }
 }
 
-void MovementControlSystem::Player_AttackRanged(EventDetails& details)
+void MovementControlSystem::Player_AttackRanged(EventDetails&)
 {
     EntityBase* player = m_entityManager->Find("Player");
     if (!player) return;

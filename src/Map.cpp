@@ -1,5 +1,4 @@
 #include <fstream>
-#include <iostream>
 #include "json.hpp" // JSON parser
 #include "Map.h"
 #include "EntityManager.h"
@@ -346,7 +345,7 @@ void Map::LoadNext()
         m_loadNextMap = true;
 }
 
-void Map::Update(float deltaTime)
+void Map::Update()
 {
     if (m_loadNextMap)
     {

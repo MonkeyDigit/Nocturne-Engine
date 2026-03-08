@@ -139,14 +139,17 @@ void PhysicsSystem::CheckMapCollisions(EntityBase* entity, Map* map)
     CTransform* transform = entity->GetComponent<CTransform>();
     CBoxCollider* collider = entity->GetComponent<CBoxCollider>();
 
-    unsigned int tileSize = map->GetTileSize();
+    const unsigned int tileSize = map->GetTileSize();
+    if (tileSize == 0u) return;
+
+    const float tileSizeF = static_cast<float>(tileSize);
     const sf::FloatRect& aabb = collider->GetAABB();
 
-    int fromX = std::floor(aabb.position.x / tileSize);
-    int toX = std::floor((aabb.position.x + aabb.size.x) / tileSize);
+    const int fromX = static_cast<int>(std::floor(aabb.position.x / tileSizeF));
+    const int toX = static_cast<int>(std::floor((aabb.position.x + aabb.size.x) / tileSizeF));
 
-    int fromY = std::floor(aabb.position.y / tileSize);
-    int toY = std::floor((aabb.position.y + aabb.size.y) / tileSize);
+    const int fromY = static_cast<int>(std::floor(aabb.position.y / tileSizeF));
+    const int toY = static_cast<int>(std::floor((aabb.position.y + aabb.size.y) / tileSizeF));
 
     for (int x = fromX; x <= toX; ++x)
     {

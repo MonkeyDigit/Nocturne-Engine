@@ -85,7 +85,7 @@ void State_MainMenu::OnDestroy()
 void State_MainMenu::Activate() {}
 void State_MainMenu::Deactivate() {}
 
-void State_MainMenu::Update(const sf::Time& time)
+void State_MainMenu::Update(const sf::Time&)
 {
     // Hover effect
     sf::RenderWindow& window = m_stateManager.GetContext().m_window.GetRenderWindow();
