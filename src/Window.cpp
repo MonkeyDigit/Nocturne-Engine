@@ -55,13 +55,22 @@ void Window::Setup(const std::string& title, const sf::Vector2u& size)
 
 void Window::Create()
 {
-    auto state = m_isFullscreen ? sf::State::Fullscreen : sf::State::Windowed;
+    const auto state = m_isFullscreen ? sf::State::Fullscreen : sf::State::Windowed;
+    const unsigned int style = m_isResizeable
+        ? sf::Style::Default
+        : (sf::Style::Titlebar | sf::Style::Close);
 
-    // Check if we should use fullscreen or windowed state
-    m_window.create(sf::VideoMode(m_windowSize), m_windowTitle, state);
+    const sf::VideoMode mode = m_isFullscreen
+        ? sf::VideoMode::getDesktopMode()
+        : sf::VideoMode(m_windowSize);
+
+    m_window.create(mode, m_windowTitle, style, state);
+
+    // Keep cached size aligned with actual OS window size
+    m_windowSize = m_window.getSize();
+
     m_window.setFramerateLimit(m_frameRateLimit);
     m_window.setKeyRepeatEnabled(false);
-    // TODO: Gestire le varie clausole di isfullscreen, isresizeable ecc...
 }
 
 void Window::LoadConfig()
@@ -129,6 +138,50 @@ void Window::LoadConfig()
             }
 
             EngineLog::SetMinLevel(parsedLevel);
+        }
+        else if (type == "FrameRateLimit")
+        {
+            int limit = 0;
+            if (!(keystream >> limit) || limit < 0)
+            {
+                EngineLog::Warn("Invalid FrameRateLimit at line " + std::to_string(lineNumber));
+                continue;
+            }
+
+            m_frameRateLimit = limit; // 0 = unlimited
+        }
+        else if (type == "Fullscreen")
+        {
+            int value = 0;
+            if (!(keystream >> value) || (value != 0 && value != 1))
+            {
+                EngineLog::Warn("Invalid Fullscreen at line " + std::to_string(lineNumber) + " (use 0 or 1)");
+                continue;
+            }
+
+            m_isFullscreen = (value == 1);
+        }
+        else if (type == "Resizable" || type == "Resizeable")
+        {
+            int value = 0;
+            if (!(keystream >> value) || (value != 0 && value != 1))
+            {
+                EngineLog::Warn("Invalid Resizable at line " + std::to_string(lineNumber) + " (use 0 or 1)");
+                continue;
+            }
+
+            m_isResizeable = (value == 1);
+        }
+        else if (type == "WindowRes" || type == "WindowSize")
+        {
+            unsigned int x = 0, y = 0;
+            if (!(keystream >> x >> y) || x == 0 || y == 0)
+            {
+                EngineLog::Warn("Invalid WindowRes at line " + std::to_string(lineNumber));
+                continue;
+            }
+
+            m_windowSize = { x, y };
         }
         else
         {

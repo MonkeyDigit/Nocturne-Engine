@@ -45,7 +45,6 @@ private:
 
     sf::Vector2f m_gameResolution;
     sf::Vector2f m_uiResolution;
-    sf::FloatRect m_viewport;
     sf::RenderWindow m_window;
     sf::Vector2u m_windowSize;
     std::string m_windowTitle;
