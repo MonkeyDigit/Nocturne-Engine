@@ -11,6 +11,10 @@
 #include "CAIPatrol.h"
 #include "CProjectile.h"
 
+#ifndef NOCTURNE_DEBUG_ENTITY_LOGS
+#define NOCTURNE_DEBUG_ENTITY_LOGS 0
+#endif
+
 EntityManager::EntityManager(SharedContext& context, unsigned int maxEntities)
     : m_context(context),
     m_maxEntities(maxEntities),
@@ -193,19 +197,20 @@ int EntityManager::SpawnProjectile(EntityBase* shooter, const sf::Vector2f& posi
 
 void EntityManager::ProcessRemovals()
 {
-    while (!m_entitiesToRemove.empty())
+    for (unsigned int id : m_entitiesToRemove)
     {
-        unsigned int id = m_entitiesToRemove.back();
         auto itr = m_entities.find(id);
-
         if (itr != m_entities.end())
         {
+            #if NOCTURNE_DEBUG_ENTITY_LOGS
             std::cout << "Discarding entity ID: " << id << '\n';
-            m_entities.erase(itr); // Memory is freed automatically here!
-        }
+            #endif
 
-        m_entitiesToRemove.pop_back();
+            m_entities.erase(itr);
+        }
     }
+
+    m_entitiesToRemove.clear();
 }
 
 void EntityManager::LoadEnemyTypes(const std::string& path)

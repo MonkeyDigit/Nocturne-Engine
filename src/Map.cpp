@@ -79,6 +79,13 @@ void Map::LoadMap(const std::string& path)
     m_tileWidth = mapData.value("tilewidth", 16);
     m_tileHeight = mapData.value("tileheight", 16);
 
+    // Release any past textures
+    if (m_tileTexture)
+    {
+        m_context.m_textureManager.ReleaseResource("MapTileSet");
+        m_tileTexture = nullptr;
+    }
+
     // Load the tileset texture immediately to calculate crop coordinates
     if (m_context.m_textureManager.RequireResource("MapTileSet"))
         m_tileTexture = m_context.m_textureManager.GetResource("MapTileSet");
@@ -383,6 +390,12 @@ void Map::PurgeMap()
 
     m_context.GetEntityManager().Purge();
     m_playerId = -1;
+
+    if (m_tileTexture)
+    {
+        m_context.m_textureManager.ReleaseResource("MapTileSet");
+        m_tileTexture = nullptr;
+    }
 
     // Safely release textures for all backgrounds
     for (auto& bg : m_backgrounds) {

@@ -1,3 +1,4 @@
+#include <algorithm>
 #include "StateManager.h"
 #include "SharedContext.h"
 #include "Window.h"
@@ -59,11 +60,9 @@ void StateManager::Draw()
 
 void StateManager::ProcessRequests()
 {
-    while (!m_toRemove.empty())
-    {
-        RemoveState(*m_toRemove.begin());
-        m_toRemove.erase(m_toRemove.begin());
-    }
+    for (StateType type : m_toRemove)
+        RemoveState(type);
+    m_toRemove.clear();
 }
 
 SharedContext& StateManager::GetContext() { return m_shared; }
@@ -84,6 +83,9 @@ bool StateManager::HasState(StateType type) const
 void StateManager::SwitchTo(StateType type)
 {
     m_shared.m_eventManager.SetCurrentState(type);
+
+    if (!m_states.empty() && m_states.back().first == type)
+        return; // Already active, nothing to do
 
     for (auto itr = m_states.begin(); itr != m_states.end(); ++itr)
     {
@@ -115,7 +117,9 @@ void StateManager::SwitchTo(StateType type)
 
 void StateManager::Remove(StateType type)
 {
-    m_toRemove.push_back(type);
+    // Avoid queueing the same state multiple times
+    if (std::find(m_toRemove.begin(), m_toRemove.end(), type) == m_toRemove.end())
+        m_toRemove.push_back(type);
 }
 
 void StateManager::CreateState(StateType type)
@@ -137,8 +141,18 @@ void StateManager::RemoveState(StateType type)
     {
         if (itr->first == type)
         {
+            const bool wasTopState = (itr == std::prev(m_states.end()));
+
             itr->second->OnDestroy();
-            m_states.erase(itr); // The unique_ptr automatically frees the memory here
+            m_states.erase(itr);
+
+            // If we removed the active state, activate the new top state
+            if (wasTopState && !m_states.empty())
+            {
+                m_shared.m_eventManager.SetCurrentState(m_states.back().first);
+                m_states.back().second->Activate();
+            }
+
             return;
         }
     }

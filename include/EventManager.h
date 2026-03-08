@@ -67,13 +67,16 @@ public:
 
     // Needs to be defined in the header!
     template<class T>
-    bool AddCallback(StateType state, const std::string& name,
-        void(T::* func)(EventDetails&), T& instance)
-    {
-        auto itr = m_callbacks.emplace(state, CallbackContainer()).first;
-        auto temp = std::bind(func, &instance, std::placeholders::_1);
-        return itr->second.emplace(name, temp).second;
-    }
+bool AddCallback(StateType state, const std::string& name,
+    void(T::* func)(EventDetails&), T& instance)
+{
+    auto itr = m_callbacks.emplace(state, CallbackContainer()).first;
+    auto temp = std::bind(func, &instance, std::placeholders::_1);
+
+    // Replace existing callback with same name to avoid stale handlers
+    itr->second[name] = std::move(temp);
+    return true;
+}
 
     bool RemoveCallback(StateType state, const std::string& name);
     void SetCurrentState(StateType type);
