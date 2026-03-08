@@ -4,9 +4,7 @@
 #include "StateManager.h"
 #include "SharedContext.h"
 #include "Window.h"
-#include "TextureManager.h"
 #include "AudioManager.h"
-#include "EngineLog.h"
 
 State_Settings::State_Settings(StateManager& stateManager)
     : BaseState(stateManager),
@@ -24,39 +22,32 @@ void State_Settings::OnCreate()
     sf::Vector2f uiRes = context.m_window.GetUIResolution();
     const float masterVolume = context.m_audioManager.GetMasterVolume();
     m_volume = std::clamp(static_cast<int>(std::lround(masterVolume)), MIN_VOLUME, MAX_VOLUME);
-    UpdateVolumeText();
 
     // Background and overlay
-    context.m_textureManager.RequireResource("MenuBg");
-    sf::Texture* bgTex = context.m_textureManager.GetResource("MenuBg");
-    if (bgTex) {
-        m_backgroundSprite.emplace(*bgTex);
-        float scale = uiRes.y / bgTex->getSize().y;
-        m_backgroundSprite->setScale({ scale, scale });
-        m_backgroundSprite->setOrigin({ m_backgroundSprite->getLocalBounds().size.x * 0.5f, m_backgroundSprite->getLocalBounds().size.y * 0.5f });
-        m_backgroundSprite->setPosition(uiRes * 0.5f);
-    }
+    SetupCenteredBackground(
+        m_backgroundSprite,
+        "MenuBg",
+        uiRes,
+        "State_Settings",
+        true);
 
     m_overlay.setSize(uiRes);
     m_overlay.setFillColor(sf::Color(0, 0, 0, 150));
 
     // Load fonts
-    if (!m_fontTitle.openFromFile("media/fonts/OLDENGL.ttf"))
-        EngineLog::WarnOnce("font.settings.title_failed", "Failed to load title font");
-    if (!m_fontButton.openFromFile("media/fonts/EightBitDragon.ttf"))
-        EngineLog::WarnOnce("font.settings.button_failed", "Failed to load button font");
+    LoadFontOrWarn(m_fontTitle, "media/fonts/OLDENGL.ttf", "State_Settings", "title");
+    LoadFontOrWarn(m_fontButton, "media/fonts/EightBitDragon.ttf", "State_Settings", "buttons");
 
     // Title
     m_title.setString("SETTINGS");
     m_title.setCharacterSize(80);
-    sf::FloatRect titleRect = m_title.getLocalBounds();
-    m_title.setOrigin({ titleRect.position.x + titleRect.size.x * 0.5f, titleRect.position.y + titleRect.size.y * 0.5f });
-    m_title.setPosition({ uiRes.x * 0.5f, uiRes.y * TITLE_Y_RATIO });
+    CenterText(m_title, uiRes.x * 0.5f, uiRes.y * TITLE_Y_RATIO);
 
     // Volume label on center
     m_volumeLabel.setCharacterSize(40);
-    UpdateVolumeText();
     m_volumeLabel.setPosition({ uiRes.x * 0.5f, uiRes.y * CONTROLS_Y_RATIO });
+    // Re-center after the final anchor position is known
+    UpdateVolumeText();
 
     // Buttons
     std::vector<std::string> btnNames = { "-", "+", "BACK TO MENU" };
@@ -84,9 +75,7 @@ void State_Settings::OnCreate()
 
         btn.label.setString(btnNames[i]);
         btn.label.setCharacterSize(30);
-        sf::FloatRect labelRect = btn.label.getLocalBounds();
-        btn.label.setOrigin({ labelRect.position.x + labelRect.size.x * 0.5f, labelRect.position.y + labelRect.size.y * 0.5f });
-        btn.label.setPosition(btn.rect.getPosition());
+        CenterText(btn.label, btn.rect.getPosition().x, btn.rect.getPosition().y);
 
         m_buttons.push_back(std::move(btn));
     }
@@ -97,7 +86,7 @@ void State_Settings::OnCreate()
 void State_Settings::OnDestroy()
 {
     m_stateManager.GetContext().m_eventManager.RemoveCallback(StateType::Settings, "Left_Click");
-    m_stateManager.GetContext().m_textureManager.ReleaseResource("MenuBg");
+    ReleaseTrackedTextures("State_Settings");
 }
 
 void State_Settings::Activate() {}
@@ -167,6 +156,6 @@ void State_Settings::MouseClick(EventDetails& details)
 void State_Settings::UpdateVolumeText()
 {
     m_volumeLabel.setString("VOLUME: " + std::to_string(m_volume) + "%");
-    sf::FloatRect rect = m_volumeLabel.getLocalBounds();
-    m_volumeLabel.setOrigin({ rect.position.x + rect.size.x * 0.5f, rect.position.y + rect.size.y * 0.5f });
+    const sf::Vector2f pos = m_volumeLabel.getPosition();
+    CenterText(m_volumeLabel, pos.x, pos.y);
 }

@@ -2,8 +2,6 @@
 #include "StateManager.h"
 #include "SharedContext.h"
 #include "Window.h"
-#include "TextureManager.h"
-#include "EngineLog.h"
 
 State_MainMenu::State_MainMenu(StateManager& stateManager)
     : BaseState(stateManager), m_title(m_fontTitle), m_buttonPadding(20)
@@ -18,21 +16,15 @@ void State_MainMenu::OnCreate()
     sf::Vector2f uiRes = context.m_window.GetUIResolution();
 
     // Load Background
-    context.m_textureManager.RequireResource("MenuBg");
-    sf::Texture* texture = context.m_textureManager.GetResource("MenuBg");
-    if (texture)
-    {
-        m_backgroundSprite.emplace(*texture);
-        m_backgroundSprite->setOrigin({ m_backgroundSprite->getLocalBounds().size.x * 0.5f, m_backgroundSprite->getLocalBounds().size.y * 0.5f });
-        m_backgroundSprite->setPosition(uiRes * 0.5f);
-    }
+    SetupCenteredBackground(
+        m_backgroundSprite,
+        "MenuBg",
+        uiRes,
+        "State_MainMenu");
 
     // Load fonts
-    if (!m_fontTitle.openFromFile("media/fonts/EightBitDragon.ttf"))
-        EngineLog::WarnOnce("font.mainmenu.title_failed", "Failed to load title font");
-
-    if (!m_fontButton.openFromFile("media/fonts/EightBitDragon.ttf"))
-        EngineLog::WarnOnce("font.mainmenu.button_failed", "Failed to load button font");
+    LoadFontOrWarn(m_fontTitle, "media/fonts/EightBitDragon.ttf", "State_MainMenu", "title");
+    LoadFontOrWarn(m_fontButton, "media/fonts/EightBitDragon.ttf", "State_MainMenu", "buttons");
 
     m_title.setString("Nocturne Engine");
     m_title.setCharacterSize(80);
@@ -40,10 +32,7 @@ void State_MainMenu::OnCreate()
     m_title.setOutlineThickness(2);
     m_title.setFillColor(sf::Color::Yellow);
     m_title.setOutlineColor(sf::Color::Red);
-    sf::FloatRect textRect = m_title.getLocalBounds();
-    m_title.setOrigin({ textRect.position.x + textRect.size.x * 0.5f,
-                       textRect.position.y + textRect.size.y * 0.5f });
-    m_title.setPosition({ uiRes.x * 0.5f, uiRes.y * 0.2f });
+    CenterText(m_title, uiRes.x * 0.5f, uiRes.y * 0.2f);
 
     // Buttons
     m_buttonSize = sf::Vector2f(300.0f, 60.0f);
@@ -64,10 +53,7 @@ void State_MainMenu::OnCreate()
 
         btn.label.setString(buttonNames[i]);
         btn.label.setCharacterSize(30);
-        sf::FloatRect labelRect = btn.label.getLocalBounds();
-        btn.label.setOrigin({ labelRect.position.x + labelRect.size.x * 0.5f,
-                              labelRect.position.y + labelRect.size.y * 0.5f });
-        btn.label.setPosition(btn.rect.getPosition());
+        CenterText(btn.label, btn.rect.getPosition().x, btn.rect.getPosition().y);
 
         m_buttons.push_back(std::move(btn));
     }
@@ -79,7 +65,7 @@ void State_MainMenu::OnCreate()
 void State_MainMenu::OnDestroy()
 {
     m_stateManager.GetContext().m_eventManager.RemoveCallback(StateType::MainMenu, "Left_Click");
-    m_stateManager.GetContext().m_textureManager.ReleaseResource("MenuBg");
+    ReleaseTrackedTextures("State_MainMenu");
 }
 
 void State_MainMenu::Activate() {}

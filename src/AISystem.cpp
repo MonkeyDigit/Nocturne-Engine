@@ -9,12 +9,27 @@
 #include "CSprite.h"
 
 AISystem::AISystem()
-    : m_rng(std::random_device{}())
-{}
+{
+    std::random_device rd;
+    m_seed = rd();
+    m_rng.seed(m_seed);
+}
+
+void AISystem::SetSeed(std::uint32_t seed)
+{
+    // Re-seed the RNG so patrol/chase randomness becomes reproducible
+    m_seed = seed;
+    m_rng.seed(m_seed);
+}
+
+std::uint32_t AISystem::GetSeed() const
+{
+    return m_seed;
+}
 
 void AISystem::Update(EntityManager& entityManager, float deltaTime)
 {
-    EntityBase* player = entityManager.Find("Player");
+    EntityBase* player = entityManager.GetPlayer();
     sf::Vector2f playerPos;
     bool isPlayerAlive = false;
 

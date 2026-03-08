@@ -111,9 +111,30 @@ void Map::LoadMap(const std::string& path)
             else if (propName.find("Bg_") == 0)
             {
                 std::string texName = prop.value("value", "");
-                m_context.m_textureManager.RequireResource(texName);
+                if (texName.empty())
+                {
+                    EngineLog::Warn("Map background property has empty texture id.");
+                    continue;
+                }
+
+                if (!m_context.m_textureManager.RequireResource(texName))
+                {
+                    EngineLog::WarnOnce(
+                        "map.bg.require_failed." + texName,
+                        "Failed to require background texture '" + texName + "'");
+                    continue;
+                }
+
                 sf::Texture* tex = m_context.m_textureManager.GetResource(texName);
-                if (tex) m_backgrounds.emplace_back(*tex, texName);  // emplace_back calls the custom BackgroundLayer constructor
+                if (!tex)
+                {
+                    EngineLog::WarnOnce(
+                        "map.bg.null_after_require." + texName,
+                        "Background texture '" + texName + "' is null after successful require.");
+                    continue;
+                }
+
+                m_backgrounds.emplace_back(*tex, texName);  // emplace_back calls the custom BackgroundLayer constructor
             }
         }
     }

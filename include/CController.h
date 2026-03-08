@@ -26,6 +26,7 @@ public:
         m_jump(false),
         m_cancelJump(false),
         m_attack(false),
+        m_rangedEnabled(false),   // Feature flag: ranged is opt-in per character
         m_attackRanged(false)
     {
     }
@@ -50,6 +51,9 @@ public:
     float m_jumpBufferTimer;
     float m_attackCooldownTimer;
     float m_rangedCooldownTimer;
+
+    // --- ABILITY FLAGS ---
+    bool m_rangedEnabled;
 
     // --- INPUT FLAGS ---
     bool m_moveLeft;

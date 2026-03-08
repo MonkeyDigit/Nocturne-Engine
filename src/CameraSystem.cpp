@@ -1,3 +1,4 @@
+#include <algorithm>
 #include "CameraSystem.h"
 #include "SharedContext.h"
 #include "EntityManager.h"
@@ -5,12 +6,27 @@
 #include "Map.h"
 #include "Window.h"
 
+namespace
+{
+    constexpr float kCameraTargetVerticalBias = 0.5f;
+
+    float ClampAxisToMap(float center, float viewSize, float mapSize)
+    {
+        if (mapSize <= 0.0f) return center;
+
+        // If the map is smaller than the view, keep the camera centered on the map
+        if (mapSize <= viewSize) return mapSize * 0.5f;
+
+        const float halfView = viewSize * 0.5f;
+        return std::clamp(center, halfView, mapSize - halfView);
+    }
+}
+
 void CameraSystem::Update(EntityManager& entityManager, const Map& map)
 {
     sf::View view = entityManager.GetContext().m_window.GetGameView();
 
-    // Find the target entity to follow (currently hardcoded to "Player")
-    EntityBase* target = entityManager.Find("Player");
+    EntityBase* target = entityManager.GetPlayer();
     if (!target)
     {
         m_currentView = view;
@@ -24,27 +40,24 @@ void CameraSystem::Update(EntityManager& entityManager, const Map& map)
         return;
     }
 
-    // Center the camera on the target's center position
-    sf::Vector2f targetPos = transform->GetPosition();
-    sf::Vector2f targetSize = transform->GetSize();
-    view.setCenter({ targetPos.x, targetPos.y + targetSize.y * 0.5f });
+    const float mapWidth = static_cast<float>(map.GetMapSize().x * map.GetTileSize());
+    const float mapHeight = static_cast<float>(map.GetMapSize().y * map.GetTileSize());
+    if (mapWidth <= 0.0f || mapHeight <= 0.0f)
+    {
+        m_currentView = view;
+        return;
+    }
 
-    // Camera Clamping logic (Prevent the camera from showing out-of-bounds areas)
+    const sf::Vector2f targetPos = transform->GetPosition();
+    const sf::Vector2f targetSize = transform->GetSize();
+    view.setCenter({ targetPos.x, targetPos.y + targetSize.y * kCameraTargetVerticalBias });
+
     sf::Vector2f viewCenter = view.getCenter();
-    sf::Vector2f viewSize = view.getSize();
+    const sf::Vector2f viewSize = view.getSize();
 
-    float mapWidth = static_cast<float>(map.GetMapSize().x * map.GetTileSize());
-    float mapHeight = static_cast<float>(map.GetMapSize().y * map.GetTileSize());
+    viewCenter.x = ClampAxisToMap(viewCenter.x, viewSize.x, mapWidth);
+    viewCenter.y = ClampAxisToMap(viewCenter.y, viewSize.y, mapHeight);
 
-    // Horizontal bounds
-    if (viewCenter.x - viewSize.x * 0.5f < 0.0f) viewCenter.x = viewSize.x * 0.5f;
-    else if (viewCenter.x + viewSize.x * 0.5f > mapWidth) viewCenter.x = mapWidth - viewSize.x * 0.5f;
-
-    // Vertical bounds
-    if (viewCenter.y + viewSize.y * 0.5f > mapHeight) viewCenter.y = mapHeight - viewSize.y * 0.5f;
-    else if (viewCenter.y - viewSize.y * 0.5f < 0.0f) viewCenter.y = viewSize.y * 0.5f;
-
-    // Apply clamped view
     view.setCenter(viewCenter);
     m_currentView = view;
 }

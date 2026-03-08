@@ -10,6 +10,7 @@ RangedCooldown 0.20
 RangedSpeed 300
 RangedLifetime 1.5
 RangedDamage 10
+RangedEnabled 0
 CoyoteTime 0.10
 JumpBufferTime 0.15
 AttackCooldown 0.00

@@ -13,13 +13,32 @@
 #include "CBoxCollider.h"
 #include "CombatGeometry.h"
 
+namespace
+{
+    constexpr float kCursorHideDelaySeconds = 3.0f;
+
+    constexpr unsigned int kFpsTextCharacterSize = 20u;
+    constexpr float kFpsTextOutlineThickness = 1.0f;
+    constexpr float kFpsSampleIntervalSeconds = 0.25f;
+    constexpr float kFpsGoodThreshold = 55.0f;
+    constexpr float kFpsWarnThreshold = 30.0f;
+    constexpr float kFpsMargin = 20.0f;
+
+    constexpr float kBodyOutlineThickness = 1.0f;
+    constexpr float kAttackActiveOutlineThickness = 2.0f;
+    constexpr float kAttackInactiveOutlineThickness = 1.0f;
+
+    const sf::Color kFpsGoodColor(80, 220, 120);
+    const sf::Color kFpsWarnColor(240, 210, 80);
+    const sf::Color kFpsBadColor(230, 80, 80);
+}
+
 State_Game::State_Game(StateManager& stateManager)
     : BaseState(stateManager),
     m_stillCursorTime(0.0f),
     m_cursorVisible(true),
     m_debugMode(false),
     m_gameMap(stateManager.GetContext(), this),
-    m_playerIdCache(-1),
     m_fpsText(m_debugFont),
     m_fpsAccumTime(0.0f),
     m_fpsFrameCount(0),
@@ -46,8 +65,6 @@ void State_Game::OnCreate()
     m_gameMap.LoadMap("media/maps/map_1.tmj");
 
     m_hud = std::make_unique<HUD>(m_stateManager.GetContext().GetEntityManager());
-
-    m_playerIdCache = -1;
 
     InitializeDebugOverlay();
 }
@@ -145,7 +162,7 @@ void State_Game::UpdateCursor(const sf::Time& time)
     m_mousePos = newMousePos;
 
     // Hide cursor after 3 seconds of inactivity
-    if (m_stillCursorTime >= 3.0f && m_cursorVisible)
+    if (m_stillCursorTime >= kCursorHideDelaySeconds && m_cursorVisible)
         SetCursorVisible(false);
 }
 
@@ -157,20 +174,17 @@ void State_Game::SetCursorVisible(bool visible)
 
 void State_Game::InitializeDebugOverlay()
 {
-    m_debugFontLoaded = m_debugFont.openFromFile("media/fonts/EightBitDragon.ttf");
+    m_debugFontLoaded = LoadFontOrWarn(
+        m_debugFont,
+        "media/fonts/EightBitDragon.ttf",
+        "State_Game",
+        "debug_fps");
 
-    if (!m_debugFontLoaded)
-    {
-        EngineLog::WarnOnce("font.debug.fps_failed", "Failed to load debug font for FPS counter");
-    }
-    else
-    {
-        m_fpsText.setCharacterSize(20);
-        m_fpsText.setFillColor(sf::Color::White);
-        m_fpsText.setOutlineColor(sf::Color::Black);
-        m_fpsText.setOutlineThickness(1.0f);
-        m_fpsText.setString("FPS: --");
-    }
+    m_fpsText.setCharacterSize(kFpsTextCharacterSize);
+    m_fpsText.setFillColor(sf::Color::White);
+    m_fpsText.setOutlineColor(sf::Color::Black);
+    m_fpsText.setOutlineThickness(kFpsTextOutlineThickness);
+    m_fpsText.setString("FPS: --");
 
     ResetFpsCounter();
 }
@@ -211,7 +225,8 @@ void State_Game::DrawDebugHitboxes(sf::RenderWindow& window)
         bodyShape.setPosition(bodyRect.position);
         bodyShape.setFillColor(sf::Color::Transparent);
         bodyShape.setOutlineColor(sf::Color::Cyan);
-        bodyShape.setOutlineThickness(1.0f);
+        bodyShape.setOutlineThickness(kBodyOutlineThickness);
+
         window.draw(bodyShape);
 
         const sf::FloatRect attackWorldRect = ComputeWorldAttackAABB(collider, sprite);
@@ -225,12 +240,14 @@ void State_Game::DrawDebugHitboxes(sf::RenderWindow& window)
         if (isAttacking)
         {
             attackShape.setOutlineColor(sf::Color::Red);
-            attackShape.setOutlineThickness(2.0f);
+            attackShape.setOutlineThickness(kAttackActiveOutlineThickness);
+
         }
         else
         {
             attackShape.setOutlineColor(sf::Color::Yellow);
-            attackShape.setOutlineThickness(1.0f);
+            attackShape.setOutlineThickness(kAttackInactiveOutlineThickness);
+
         }
 
         window.draw(attackShape);
@@ -245,7 +262,7 @@ void State_Game::DrawFpsCounter(sf::RenderWindow& window, const sf::View& gameVi
     m_fpsAccumTime += dt;
     ++m_fpsFrameCount;
 
-    if (m_fpsAccumTime >= 0.25f)
+    if (m_fpsAccumTime >= kFpsSampleIntervalSeconds)
     {
         m_currentFps = static_cast<float>(m_fpsFrameCount) / m_fpsAccumTime;
         m_fpsAccumTime = 0.0f;
@@ -255,12 +272,9 @@ void State_Game::DrawFpsCounter(sf::RenderWindow& window, const sf::View& gameVi
         ss << "FPS: " << static_cast<int>(std::round(m_currentFps));
         m_fpsText.setString(ss.str());
 
-        if (m_currentFps >= 55.0f)
-            m_fpsText.setFillColor(sf::Color(80, 220, 120));
-        else if (m_currentFps >= 30.0f)
-            m_fpsText.setFillColor(sf::Color(240, 210, 80));
-        else
-            m_fpsText.setFillColor(sf::Color(230, 80, 80));
+        if (m_currentFps >= kFpsGoodThreshold)      m_fpsText.setFillColor(kFpsGoodColor);
+        else if (m_currentFps >= kFpsWarnThreshold) m_fpsText.setFillColor(kFpsWarnColor);
+        else                                        m_fpsText.setFillColor(kFpsBadColor);
     }
 
     SharedContext& context = m_stateManager.GetContext();
@@ -269,7 +283,7 @@ void State_Game::DrawFpsCounter(sf::RenderWindow& window, const sf::View& gameVi
     const sf::Vector2f uiRes = context.m_window.GetUIResolution();
     const sf::FloatRect b = m_fpsText.getLocalBounds();
     m_fpsText.setOrigin({ b.position.x + b.size.x, b.position.y });
-    m_fpsText.setPosition({ uiRes.x - 20.0f, 20.0f });
+    m_fpsText.setPosition({ uiRes.x - kFpsMargin, kFpsMargin });
 
     window.draw(m_fpsText);
     window.setView(gameView);
@@ -277,19 +291,7 @@ void State_Game::DrawFpsCounter(sf::RenderWindow& window, const sf::View& gameVi
 
 EntityBase* State_Game::ResolvePlayer()
 {
-    EntityManager& entityManager = m_stateManager.GetContext().GetEntityManager();
-
-    // Fast path: cached player ID
-    if (m_playerIdCache >= 0)
-    {
-        if (EntityBase* cached = entityManager.Find(static_cast<unsigned int>(m_playerIdCache)))
-            return cached;
-    }
-
-    // Slow path: fallback by name, then refresh cache
-    EntityBase* player = entityManager.Find("Player");
-    m_playerIdCache = player ? static_cast<int>(player->GetId()) : -1;
-    return player;
+    return m_stateManager.GetContext().GetEntityManager().GetPlayer();
 }
 
 EntityBase* State_Game::RespawnPlayer()
@@ -306,12 +308,10 @@ EntityBase* State_Game::RespawnPlayer()
         EngineLog::ErrorOnce(
             "respawn.player.blocked",
             "Respawn blocked: player could not be created (entity limit or creation error)");
-        m_playerIdCache = -1;
         return nullptr;
     }
 
     EngineLog::ResetOnce("respawn.player.blocked");
-    m_playerIdCache = playerId;
 
     EntityBase* player = entityManager.Find(static_cast<unsigned int>(playerId));
     if (player)

@@ -1,63 +1,75 @@
+#include <algorithm>
 #include "HUD.h"
 #include "EntityManager.h"
 #include "EntityBase.h"
 #include "CState.h"
-#include "EngineLog.h"
+#include "Utilities.h"
+
+namespace
+{
+    constexpr float kHealthBarWidth = 200.0f;
+    constexpr float kHealthBarHeight = 20.0f;
+    constexpr float kHealthBarX = 20.0f;
+    constexpr float kHealthBarY = 20.0f;
+
+    constexpr float kHealthLabelX = 20.0f;
+    constexpr float kHealthLabelY = 0.0f;
+    constexpr unsigned int kHealthLabelCharacterSize = 18u;
+    constexpr float kHealthLabelOutlineThickness = 1.0f;
+}
 
 HUD::HUD(EntityManager& entityManager)
-    : m_entityManager(entityManager), m_maxHealth(0), m_healthLabel(m_font), m_fontLoaded(false)
+    : m_entityManager(entityManager), m_healthLabel(m_font), m_fontLoaded(false)
 {
-    m_healthBarBackground.setSize({ 200.0f, 20.0f });
-    m_healthBarBackground.setFillColor(sf::Color::Red);
-    m_healthBarBackground.setPosition({ 20.0f, 20.0f });
+    // Initialize static HUD geometry once
+    m_healthBarBackground.setSize({ kHealthBarWidth, kHealthBarHeight });
+    m_healthBarBackground.setPosition({ kHealthBarX, kHealthBarY });
+    m_healthBarBackground.setFillColor(sf::Color(35, 35, 35, 220));
+    m_healthBarBackground.setOutlineColor(sf::Color::Black);
+    m_healthBarBackground.setOutlineThickness(1.0f);
 
-    m_healthBar.setSize({ 200.0f, 20.0f });
-    m_healthBar.setFillColor(sf::Color::Green);
-    m_healthBar.setPosition({ 20.0f, 20.0f });
+    m_healthBar.setSize({ kHealthBarWidth, kHealthBarHeight });
+    m_healthBar.setPosition({ kHealthBarX, kHealthBarY });
+    m_healthBar.setFillColor(sf::Color(200, 45, 45, 240));
 
-    m_fontLoaded = m_font.openFromFile("media/fonts/EightBitDragon.ttf");
+    m_fontLoaded = Utils::LoadFontOrWarn(
+        m_font,
+        "media/fonts/EightBitDragon.ttf",
+        "HUD",
+        "main");
+
     if (m_fontLoaded)
     {
         m_healthLabel.setString("Health");
-        m_healthLabel.setCharacterSize(18);
+        m_healthLabel.setCharacterSize(kHealthLabelCharacterSize);
         m_healthLabel.setFillColor(sf::Color::White);
         m_healthLabel.setOutlineColor(sf::Color::Black);
-        m_healthLabel.setOutlineThickness(1.0f);
-        m_healthLabel.setPosition({ 20.0f, 0.0f });
+        m_healthLabel.setOutlineThickness(kHealthLabelOutlineThickness);
+        m_healthLabel.setPosition({ kHealthLabelX, kHealthLabelY });
     }
-    else
-        EngineLog::WarnOnce("font.hud.failed", "Failed to load HUD font");
 }
 
 void HUD::Update()
 {
-    EntityBase* player = m_entityManager.Find("Player");
+    EntityBase* player = m_entityManager.GetPlayer();
     if (player)
     {
         CState* state = player->GetComponent<CState>();
         if (state)
         {
-            // Capture the max health the first time we update
-            if (m_maxHealth == 0) m_maxHealth = state->GetHitPoints();
+            const int maxHealth = state->GetMaxHitPoints();
+            const int currentHealth = std::clamp(state->GetHitPoints(), 0, maxHealth);
+            const float healthRatio = (maxHealth > 0)
+                ? static_cast<float>(currentHealth) / static_cast<float>(maxHealth)
+                : 0.0f;
 
-            // Calculate the percentage of health remaining
-            float healthRatio = 0.0f;
-            if (m_maxHealth > 0)
-            {
-                healthRatio = static_cast<float>(state->GetHitPoints()) / m_maxHealth;
-                if (healthRatio < 0.0f) healthRatio = 0.0f; // Prevent negative width
-            }
-
-            // Shrink the green bar accordingly
-            m_healthBar.setSize({ 200.0f * healthRatio, 20.0f });
+            m_healthBar.setSize({ kHealthBarWidth * healthRatio, kHealthBarHeight });
+            return;
         }
     }
-    else
-    {
-        // If player is dead, empty the bar
-        m_healthBar.setSize({ 0.0f, 20.0f });
-        m_maxHealth = 0; // Reset so it recalculates on respawn
-    }
+
+    // No valid player/state: render empty bar
+    m_healthBar.setSize({ 0.0f, kHealthBarHeight });
 }
 
 void HUD::Draw(sf::RenderWindow& window)

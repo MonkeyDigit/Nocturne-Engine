@@ -1,5 +1,6 @@
-#include "Game.h"
 #include <cassert>
+#include "Game.h"
+#include "EngineLog.h"
 
 Game::Game()
     : m_window("Project Nocturne", { 1280, 720 }),
@@ -15,6 +16,16 @@ Game::Game()
 {
     m_context.SetEntityManager(m_entityManager);
     assert(m_context.HasEntityManager());
+
+    if (m_window.HasFixedAISeed())
+    {
+        m_entityManager.SetAISeed(m_window.GetFixedAISeed());
+        EngineLog::Info("AI RNG seed: " + std::to_string(m_window.GetFixedAISeed()) + " (fixed)");
+    }
+    else
+    {
+        EngineLog::Info("AI RNG seed: " + std::to_string(m_entityManager.GetAISeed()) + " (random)");
+    }
 
     // Start from game intro
     m_stateManager.SwitchTo(StateType::Intro);

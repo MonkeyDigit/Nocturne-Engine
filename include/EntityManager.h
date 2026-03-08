@@ -1,5 +1,6 @@
 #pragma once
 #include <unordered_map>
+#include <cstdint>
 #include <vector>
 #include <memory>
 #include <string>
@@ -49,6 +50,10 @@ public:
     const CameraSystem& GetCameraSystem() const
     { return m_cameraSystem; }
 
+    EntityBase* GetPlayer();
+    void SetAISeed(std::uint32_t seed) { m_aiSystem.SetSeed(seed); }
+    std::uint32_t GetAISeed() const { return m_aiSystem.GetSeed(); }
+
 private:
 
     void ProcessRemovals();
@@ -60,6 +65,7 @@ private:
     SharedContext& m_context;
 
     unsigned int m_idCounter;
+    int m_playerId;
     unsigned int m_maxEntities;
     std::vector<unsigned int> m_entitiesToRemove;
 

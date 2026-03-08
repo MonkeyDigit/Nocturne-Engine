@@ -13,6 +13,30 @@ bool SortCollisions(const CollisionElement& e1, const CollisionElement& e2)
     return e1.m_area > e2.m_area;
 }
 
+namespace
+{
+    template <typename... Args>
+    bool TryReadExact(std::stringstream& stream, Args&... args)
+    {
+        if (!((stream >> args) && ...))
+            return false;
+
+        std::string trailing;
+        return !(stream >> trailing); // Reject extra unexpected tokens
+    }
+
+    void WarnInvalidCharValue(
+        const std::string& path,
+        unsigned int lineNumber,
+        const std::string& key,
+        const std::string& expected)
+    {
+        EngineLog::Warn(
+            "Invalid '" + key + "' in '" + path + "' at line " +
+            std::to_string(lineNumber) + " (expected: " + expected + ")");
+    }
+}
+
 EntityBase::EntityBase(EntityManager& entityManager)
     : m_entityManager(entityManager), m_name("BaseEntity"),
     m_type(EntityType::Base),m_id(0)
@@ -137,233 +161,458 @@ void EntityBase::Load(const std::string& path)
     }
 
     std::string line;
+    unsigned int lineNumber = 0;
+
     while (std::getline(file, line))
     {
-        if (line.empty() || line[0] == '|') continue;
+        ++lineNumber;
+
+        // Support inline comments and full-line comments
+        const size_t commentPos = line.find('#');
+        if (commentPos != std::string::npos)
+            line.erase(commentPos);
+
+        // Skip empty/whitespace lines and custom comment marker
+        const size_t first = line.find_first_not_of(" \t\r\n");
+        if (first == std::string::npos) continue;
+        if (line[first] == '|') continue;
 
         std::stringstream keystream{ line };
         std::string type;
-        keystream >> type;
+        if (!(keystream >> type)) continue;
 
-        if (type == "Name") {
-            keystream >> m_name;
+        if (type == "Name")
+        {
+            std::string name;
+            if (!TryReadExact(keystream, name))
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "Name <string>");
+                continue;
+            }
+            m_name = name;
         }
-        else if (type == "Spritesheet") {
+        else if (type == "Spritesheet")
+        {
             std::string spritePath;
-            keystream >> spritePath;
+            if (!TryReadExact(keystream, spritePath))
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "Spritesheet <path>");
+                continue;
+            }
+
             CSprite* sprite = this->GetComponent<CSprite>();
             if (sprite) { sprite->Load(spritePath); }
         }
-        else if (type == "Hitpoints") {
-            int maxHitPoints;
-            keystream >> maxHitPoints;
+        else if (type == "Hitpoints")
+        {
+            int maxHitPoints = 0;
+            if (!TryReadExact(keystream, maxHitPoints) || maxHitPoints <= 0)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "Hitpoints <int > 0>");
+                continue;
+            }
+
             CState* state = this->GetComponent<CState>();
             if (state) { state->SetHitPoints(maxHitPoints); }
         }
-        else if (type == "BoundingBox") {
-            float x, y;
-            keystream >> x >> y;
+        else if (type == "BoundingBox")
+        {
+            float x = 0.0f, y = 0.0f;
+            if (!TryReadExact(keystream, x, y) || x <= 0.0f || y <= 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "BoundingBox <width > 0> <height > 0>");
+                continue;
+            }
 
-            // Set the visual/logical size in Transform
             CTransform* transform = this->GetComponent<CTransform>();
             if (transform) { transform->SetSize(x, y); }
 
-            // Set the physical hitbox size in Collider
             CBoxCollider* collider = this->GetComponent<CBoxCollider>();
-            if (collider) {
-                // If you don't have SetSize in CBoxCollider, we use the AABB directly
+            if (collider)
                 collider->SetAABB(sf::FloatRect({ 0.0f, 0.0f }, { x, y }));
-            }
         }
-        else if (type == "DamageBox") {
-            float width, height, offsetX, offsetY;
-            keystream >> offsetX >> offsetY >> width >> height;
+        else if (type == "DamageBox")
+        {
+            float offsetX = 0.0f, offsetY = 0.0f, width = 0.0f, height = 0.0f;
+            if (!TryReadExact(keystream, offsetX, offsetY, width, height) ||
+                width <= 0.0f || height <= 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "DamageBox <offsetX> <offsetY> <width > 0> <height > 0>");
+                continue;
+            }
+
             CBoxCollider* collider = this->GetComponent<CBoxCollider>();
-            if (collider) {
+            if (collider)
+            {
                 collider->SetAttackAABB(sf::FloatRect({ 0.0f, 0.0f }, { width, height }));
                 collider->SetAttackAABBOffset(sf::Vector2f(offsetX, offsetY));
             }
         }
-        else if (type == "Speed") {
-            float x, y;
-            keystream >> x >> y;
+        else if (type == "Speed")
+        {
+            float x = 0.0f, y = 0.0f;
+            if (!TryReadExact(keystream, x, y) || x <= 0.0f || y <= 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "Speed <x > 0> <y > 0>");
+                continue;
+            }
+
             CTransform* transform = this->GetComponent<CTransform>();
             if (transform) { transform->SetSpeed(x, y); }
         }
-        else if (type == "MaxVelocity") {
-            float x, y;
-            keystream >> x >> y;
+        else if (type == "MaxVelocity")
+        {
+            float x = 0.0f, y = 0.0f;
+            if (!TryReadExact(keystream, x, y) || x <= 0.0f || y <= 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "MaxVelocity <x > 0> <y > 0>");
+                continue;
+            }
+
             CTransform* transform = this->GetComponent<CTransform>();
             if (transform) { transform->SetMaxVelocity(x, y); }
         }
-        else if (type == "JumpVelocity") {
-            float jv;
-            keystream >> jv;
+        else if (type == "JumpVelocity")
+        {
+            float jv = 0.0f;
+            if (!TryReadExact(keystream, jv) || jv <= 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "JumpVelocity <float > 0>");
+                continue;
+            }
+
             CController* controller = this->GetComponent<CController>();
             if (controller) { controller->m_jumpVelocity = jv; }
         }
-        else if (type == "RangedCooldown") {
-            float value;
-            keystream >> value;
+        else if (type == "RangedCooldown")
+        {
+            float value = 0.0f;
+            if (!TryReadExact(keystream, value) || value < 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "RangedCooldown <float >= 0>");
+                continue;
+            }
+
             CController* controller = this->GetComponent<CController>();
-            if (controller && value >= 0.0f) { controller->m_rangedCooldown = value; }
+            if (controller) { controller->m_rangedCooldown = value; }
         }
-        else if (type == "RangedSpeed") {
-            float speed;
-            keystream >> speed;
+        else if (type == "RangedSpeed")
+        {
+            float speed = 0.0f;
+            if (!TryReadExact(keystream, speed) || speed <= 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "RangedSpeed <float > 0>");
+                continue;
+            }
+
             CController* controller = this->GetComponent<CController>();
-            if (controller && speed > 0.0f) { controller->m_rangedSpeed = speed; }
+            if (controller) { controller->m_rangedSpeed = speed; }
         }
-        else if (type == "RangedLifetime") {
-            float lifetime;
-            keystream >> lifetime;
+        else if (type == "RangedLifetime")
+        {
+            float lifetime = 0.0f;
+            if (!TryReadExact(keystream, lifetime) || lifetime <= 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "RangedLifetime <float > 0>");
+                continue;
+            }
+
             CController* controller = this->GetComponent<CController>();
-            if (controller && lifetime > 0.0f) { controller->m_rangedLifetime = lifetime; }
+            if (controller) { controller->m_rangedLifetime = lifetime; }
         }
-        else if (type == "RangedDamage") {
-            int damage;
-            keystream >> damage;
+        else if (type == "RangedDamage")
+        {
+            int damage = 0;
+            if (!TryReadExact(keystream, damage) || damage <= 0)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "RangedDamage <int > 0>");
+                continue;
+            }
+
             CController* controller = this->GetComponent<CController>();
-            if (controller && damage > 0) { controller->m_rangedDamage = damage; }
+            if (controller) { controller->m_rangedDamage = damage; }
         }
-        else if (type == "CoyoteTime") {
-            float value;
-            keystream >> value;
+        else if (type == "RangedEnabled")
+        {
+            int value = 0;
+            if (!TryReadExact(keystream, value) || (value != 0 && value != 1))
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "RangedEnabled <0|1>");
+                continue;
+            }
+
             CController* controller = this->GetComponent<CController>();
-            if (controller && value >= 0.0f) { controller->m_coyoteTimeWindow = value; }
+            if (controller) { controller->m_rangedEnabled = (value == 1); }
         }
-        else if (type == "JumpBufferTime") {
-            float value;
-            keystream >> value;
+        else if (type == "CoyoteTime")
+        {
+            float value = 0.0f;
+            if (!TryReadExact(keystream, value) || value < 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "CoyoteTime <float >= 0>");
+                continue;
+            }
+
             CController* controller = this->GetComponent<CController>();
-            if (controller && value >= 0.0f) { controller->m_jumpBufferWindow = value; }
+            if (controller) { controller->m_coyoteTimeWindow = value; }
         }
-        else if (type == "AttackCooldown") {
-            float value;
-            keystream >> value;
+        else if (type == "JumpBufferTime")
+        {
+            float value = 0.0f;
+            if (!TryReadExact(keystream, value) || value < 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "JumpBufferTime <float >= 0>");
+                continue;
+            }
+
             CController* controller = this->GetComponent<CController>();
-            if (controller && value >= 0.0f) { controller->m_attackCooldown = value; }
+            if (controller) { controller->m_jumpBufferWindow = value; }
         }
-        else if (type == "AttackDamage") {
-            int damage;
-            keystream >> damage;
+        else if (type == "AttackCooldown")
+        {
+            float value = 0.0f;
+            if (!TryReadExact(keystream, value) || value < 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "AttackCooldown <float >= 0>");
+                continue;
+            }
+
+            CController* controller = this->GetComponent<CController>();
+            if (controller) { controller->m_attackCooldown = value; }
+        }
+        else if (type == "AttackDamage")
+        {
+            int damage = 0;
+            if (!TryReadExact(keystream, damage) || damage <= 0)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "AttackDamage <int > 0>");
+                continue;
+            }
+
             CState* state = this->GetComponent<CState>();
             if (state) { state->SetAttackDamage(damage); }
         }
-        else if (type == "AttackKnockback") {
-            float x, y;
-            if (keystream >> x >> y)
+        else if (type == "AttackKnockback")
+        {
+            float x = 0.0f, y = 0.0f;
+            if (!TryReadExact(keystream, x, y) || x < 0.0f)
             {
-                // Load per-character attack knockback tuning from .char data.
-                CState* state = this->GetComponent<CState>();
-                if (state) { state->SetAttackKnockback(x, y); }
+                WarnInvalidCharValue(path, lineNumber, type, "AttackKnockback <x >= 0> <y>");
+                continue;
             }
+
+            CState* state = this->GetComponent<CState>();
+            if (state) { state->SetAttackKnockback(x, y); }
         }
-        else if (type == "TouchDamage") {
-            int damage;
-            keystream >> damage;
+        else if (type == "TouchDamage")
+        {
+            int damage = 0;
+            if (!TryReadExact(keystream, damage) || damage < 0)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "TouchDamage <int >= 0>");
+                continue;
+            }
+
             CState* state = this->GetComponent<CState>();
             if (state) { state->SetTouchDamage(damage); }
         }
-        else if (type == "InvulnerabilityTime") {
-            float seconds;
-            keystream >> seconds;
+        else if (type == "InvulnerabilityTime")
+        {
+            float seconds = 0.0f;
+            if (!TryReadExact(keystream, seconds) || seconds < 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "InvulnerabilityTime <float >= 0>");
+                continue;
+            }
+
             CState* state = this->GetComponent<CState>();
             if (state) { state->SetInvulnerabilityTime(seconds); }
         }
-        else if (type == "JumpCancelMultiplier") {
-            float value;
-            keystream >> value;
-            CController* controller = this->GetComponent<CController>();
-            if (controller && value > 0.0f && value <= 1.0f) { controller->m_jumpCancelMultiplier = value; }
-        }
-        else if (type == "VerticalAirThreshold") {
-            float value;
-            keystream >> value;
-            CController* controller = this->GetComponent<CController>();
-            if (controller && value >= 0.0f) { controller->m_verticalAirThreshold = value; }
-        }
-        else if (type == "HorizontalWalkThreshold") {
-            float value;
-            keystream >> value;
-            CController* controller = this->GetComponent<CController>();
-            if (controller && value >= 0.0f) { controller->m_horizontalWalkThreshold = value; }
-        }
-        else if (type == "AI_ChaseRange") {
-            float value;
-            keystream >> value;
-            CAIPatrol* ai = this->GetComponent<CAIPatrol>();
-            if (ai && value > 0.0f) { ai->m_chaseRange = value; }
-        }
-        else if (type == "AI_ChaseDeadZone") {
-            float value;
-            keystream >> value;
-            CAIPatrol* ai = this->GetComponent<CAIPatrol>();
-            if (ai && value >= 0.0f) { ai->m_chaseDeadZone = value; }
-        }
-        else if (type == "AI_ArrivalThreshold") {
-            float value;
-            keystream >> value;
-            CAIPatrol* ai = this->GetComponent<CAIPatrol>();
-            if (ai && value >= 0.0f) { ai->m_arrivalThreshold = value; }
-        }
-        else if (type == "AI_IdleInterval") {
-            float value;
-            keystream >> value;
-            CAIPatrol* ai = this->GetComponent<CAIPatrol>();
-            if (ai && value > 0.0f) { ai->m_idleInterval = value; }
-        }
-        else if (type == "AI_PatrolMinDistance") {
-            int value;
-            keystream >> value;
-            CAIPatrol* ai = this->GetComponent<CAIPatrol>();
-            if (ai && value > 0) { ai->m_patrolMinDistance = value; }
-        }
-        else if (type == "AI_PatrolMaxDistance") {
-            int value;
-            keystream >> value;
-            CAIPatrol* ai = this->GetComponent<CAIPatrol>();
-            if (ai && value > 0) { ai->m_patrolMaxDistance = value; }
-        }
-        else if (type == "AI_PatrolDirectionChance") {
-            float value;
-            keystream >> value;
-            CAIPatrol* ai = this->GetComponent<CAIPatrol>();
-            if (ai) {
-                if (value < 0.0f) value = 0.0f;
-                else if (value > 1.0f) value = 1.0f;
-                ai->m_patrolDirectionChance = value;
+        else if (type == "JumpCancelMultiplier")
+        {
+            float value = 0.0f;
+            if (!TryReadExact(keystream, value) || value <= 0.0f || value > 1.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "JumpCancelMultiplier <0 < value <= 1>");
+                continue;
             }
+
+            CController* controller = this->GetComponent<CController>();
+            if (controller) { controller->m_jumpCancelMultiplier = value; }
         }
-        else if (type == "AI_AttackRange") {
-            float value;
-            keystream >> value;
+        else if (type == "VerticalAirThreshold")
+        {
+            float value = 0.0f;
+            if (!TryReadExact(keystream, value) || value < 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "VerticalAirThreshold <float >= 0>");
+                continue;
+            }
+
+            CController* controller = this->GetComponent<CController>();
+            if (controller) { controller->m_verticalAirThreshold = value; }
+        }
+        else if (type == "HorizontalWalkThreshold")
+        {
+            float value = 0.0f;
+            if (!TryReadExact(keystream, value) || value < 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "HorizontalWalkThreshold <float >= 0>");
+                continue;
+            }
+
+            CController* controller = this->GetComponent<CController>();
+            if (controller) { controller->m_horizontalWalkThreshold = value; }
+        }
+        else if (type == "AI_ChaseRange")
+        {
+            float value = 0.0f;
+            if (!TryReadExact(keystream, value) || value <= 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "AI_ChaseRange <float > 0>");
+                continue;
+            }
+
             CAIPatrol* ai = this->GetComponent<CAIPatrol>();
-            if (ai && value > 0.0f) {
+            if (ai) { ai->m_chaseRange = value; }
+        }
+        else if (type == "AI_ChaseDeadZone")
+        {
+            float value = 0.0f;
+            if (!TryReadExact(keystream, value) || value < 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "AI_ChaseDeadZone <float >= 0>");
+                continue;
+            }
+
+            CAIPatrol* ai = this->GetComponent<CAIPatrol>();
+            if (ai) { ai->m_chaseDeadZone = value; }
+        }
+        else if (type == "AI_ArrivalThreshold")
+        {
+            float value = 0.0f;
+            if (!TryReadExact(keystream, value) || value < 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "AI_ArrivalThreshold <float >= 0>");
+                continue;
+            }
+
+            CAIPatrol* ai = this->GetComponent<CAIPatrol>();
+            if (ai) { ai->m_arrivalThreshold = value; }
+        }
+        else if (type == "AI_IdleInterval")
+        {
+            float value = 0.0f;
+            if (!TryReadExact(keystream, value) || value <= 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "AI_IdleInterval <float > 0>");
+                continue;
+            }
+
+            CAIPatrol* ai = this->GetComponent<CAIPatrol>();
+            if (ai) { ai->m_idleInterval = value; }
+        }
+        else if (type == "AI_PatrolMinDistance")
+        {
+            int value = 0;
+            if (!TryReadExact(keystream, value) || value <= 0)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "AI_PatrolMinDistance <int > 0>");
+                continue;
+            }
+
+            CAIPatrol* ai = this->GetComponent<CAIPatrol>();
+            if (ai) { ai->m_patrolMinDistance = value; }
+        }
+        else if (type == "AI_PatrolMaxDistance")
+        {
+            int value = 0;
+            if (!TryReadExact(keystream, value) || value <= 0)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "AI_PatrolMaxDistance <int > 0>");
+                continue;
+            }
+
+            CAIPatrol* ai = this->GetComponent<CAIPatrol>();
+            if (ai) { ai->m_patrolMaxDistance = value; }
+        }
+        else if (type == "AI_PatrolDirectionChance")
+        {
+            float value = 0.0f;
+            if (!TryReadExact(keystream, value))
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "AI_PatrolDirectionChance <float 0..1>");
+                continue;
+            }
+
+            if (value < 0.0f || value > 1.0f)
+            {
+                EngineLog::Warn(
+                    "AI_PatrolDirectionChance out of range in '" + path + "' at line " +
+                    std::to_string(lineNumber) + ". Clamping to [0,1].");
+                if (value < 0.0f) value = 0.0f;
+                if (value > 1.0f) value = 1.0f;
+            }
+
+            CAIPatrol* ai = this->GetComponent<CAIPatrol>();
+            if (ai) { ai->m_patrolDirectionChance = value; }
+        }
+        else if (type == "AI_AttackRange")
+        {
+            float value = 0.0f;
+            if (!TryReadExact(keystream, value) || value <= 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "AI_AttackRange <float > 0>");
+                continue;
+            }
+
+            CAIPatrol* ai = this->GetComponent<CAIPatrol>();
+            if (ai)
+            {
                 ai->m_attackRangeX = value;
                 ai->m_attackRangeY = value;
             }
         }
-        else if (type == "AI_AttackRangeX") {
-            float value;
-            keystream >> value;
+        else if (type == "AI_AttackRangeX")
+        {
+            float value = 0.0f;
+            if (!TryReadExact(keystream, value) || value <= 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "AI_AttackRangeX <float > 0>");
+                continue;
+            }
+
             CAIPatrol* ai = this->GetComponent<CAIPatrol>();
-            if (ai && value > 0.0f) { ai->m_attackRangeX = value; }
+            if (ai) { ai->m_attackRangeX = value; }
         }
-        else if (type == "AI_AttackRangeY") {
-            float value;
-            keystream >> value;
+        else if (type == "AI_AttackRangeY")
+        {
+            float value = 0.0f;
+            if (!TryReadExact(keystream, value) || value <= 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "AI_AttackRangeY <float > 0>");
+                continue;
+            }
+
             CAIPatrol* ai = this->GetComponent<CAIPatrol>();
-            if (ai && value > 0.0f) { ai->m_attackRangeY = value; }
+            if (ai) { ai->m_attackRangeY = value; }
         }
         else
-            EngineLog::WarnOnce("char.unknown_type", "Unknown type in character file: " + type);
+        {
+            EngineLog::WarnOnce(
+                "char.unknown_type." + path + "." + type,
+                "Unknown type '" + type + "' in character file '" + path +
+                "' at line " + std::to_string(lineNumber));
+        }
     }
 
     // Set default animation to ensure the character is visible
     CSprite* sprite = this->GetComponent<CSprite>();
-    if (sprite) {
-        sprite->GetSpriteSheet().SetAnimation("Idle", true, true);
+    if (sprite && !sprite->GetSpriteSheet().SetAnimation("Idle", true, true))
+    {
+        EngineLog::WarnOnce(
+            "char.missing_idle." + path,
+            "Missing or invalid 'Idle' animation in character sheet for '" + path + "'");
     }
 }
 

@@ -2,7 +2,6 @@
 #include "StateManager.h"
 #include "SharedContext.h"
 #include "Window.h"
-#include "EngineLog.h"
 
 State_Paused::State_Paused(StateManager& stateManager)
     : BaseState(stateManager),
@@ -18,8 +17,7 @@ void State_Paused::OnCreate()
 
     SetTransparent(true);
 
-    if (!m_font.openFromFile("media/fonts/EightBitDragon.ttf"))
-        EngineLog::WarnOnce("font.paused.failed", "Failed to load font for Paused State");
+    LoadFontOrWarn(m_font, "media/fonts/EightBitDragon.ttf", "State_Paused", "main");
 
     m_text.setString("PAUSED");
     m_text.setCharacterSize(40);

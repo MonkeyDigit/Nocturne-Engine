@@ -51,8 +51,6 @@ private:
     std::unique_ptr<HUD> m_hud;
     bool m_debugMode;
 
-    int m_playerIdCache;
-
     sf::Font m_debugFont;
     sf::Text m_fpsText;
     sf::Clock m_fpsClock;
@@ -60,5 +58,4 @@ private:
     unsigned int m_fpsFrameCount;
     float m_currentFps;
     bool m_debugFontLoaded;
-
 };

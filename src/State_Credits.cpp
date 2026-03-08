@@ -4,8 +4,6 @@
 #include "StateManager.h"
 #include "SharedContext.h"
 #include "Window.h"
-#include "TextureManager.h"
-#include "EngineLog.h"
 
 State_Credits::State_Credits(StateManager& stateManager)
     : BaseState(stateManager),
@@ -25,30 +23,23 @@ void State_Credits::OnCreate()
     sf::Vector2f uiRes = context.m_window.GetUIResolution();
 
     // Background and overlay
-    context.m_textureManager.RequireResource("MenuBg");
-    sf::Texture* bgTex = context.m_textureManager.GetResource("MenuBg");
-    if (bgTex)
-    {
-        m_backgroundSprite.emplace(*bgTex);
-        m_backgroundSprite->setOrigin({ m_backgroundSprite->getLocalBounds().size.x * 0.5f, m_backgroundSprite->getLocalBounds().size.y * 0.5f });
-        m_backgroundSprite->setPosition(uiRes * 0.5f);
-    }
+    SetupCenteredBackground(
+        m_backgroundSprite,
+        "MenuBg",
+        uiRes,
+        "State_Credits");
 
     m_overlay.setSize(uiRes);
     m_overlay.setFillColor(sf::Color(0, 0, 0, 180));
 
     // Load fonts
-    if (!m_fontTitle.openFromFile("media/fonts/EightBitDragon.ttf"))
-        EngineLog::WarnOnce("font.credits.title_failed", "Failed to load title font");
-    if (!m_fontBody.openFromFile("media/fonts/EightBitDragon.ttf"))
-        EngineLog::WarnOnce("font.credits.body_failed", "Failed to load body font");
+    LoadFontOrWarn(m_fontTitle, "media/fonts/EightBitDragon.ttf", "State_Credits", "title");
+    LoadFontOrWarn(m_fontBody, "media/fonts/EightBitDragon.ttf", "State_Credits", "body");
 
     // Text setup
     m_title.setString("CREDITS");
     m_title.setCharacterSize(80);
-    sf::FloatRect titleRect = m_title.getLocalBounds();
-    m_title.setOrigin({ titleRect.position.x + titleRect.size.x * 0.5f, titleRect.position.y + titleRect.size.y * 0.5f });
-    m_title.setPosition({ uiRes.x * 0.5f, uiRes.y * 0.2f });
+    CenterText(m_title, uiRes.x * 0.5f, uiRes.y * 0.2f);
 
     m_creditsText.setString(CREDITS_CONTENT);
     m_creditsText.setCharacterSize(30);
@@ -62,9 +53,7 @@ void State_Credits::OnCreate()
     // Exit key
     m_promptText.setString("PRESS ESC TO RETURN");
     m_promptText.setCharacterSize(25);
-    sf::FloatRect promptRect = m_promptText.getLocalBounds();
-    m_promptText.setOrigin({ promptRect.position.x + promptRect.size.x * 0.5f, promptRect.position.y + promptRect.size.y * 0.5f });
-    m_promptText.setPosition({ uiRes.x * 0.5f, uiRes.y * 0.9f });
+    CenterText(m_promptText, uiRes.x * 0.5f, uiRes.y * 0.9f);
 
     // Exit callback
     context.m_eventManager.AddCallback(StateType::Credits, "Credits_Back", &State_Credits::ReturnToMenu, *this);
@@ -74,7 +63,7 @@ void State_Credits::OnDestroy()
 {
     SharedContext& context = m_stateManager.GetContext();
     context.m_eventManager.RemoveCallback(StateType::Credits, "Credits_Back");
-    context.m_textureManager.ReleaseResource("MenuBg");
+    ReleaseTrackedTextures("State_Credits");
 }
 
 void State_Credits::Activate() {}

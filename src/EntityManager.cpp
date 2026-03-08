@@ -19,7 +19,8 @@
 EntityManager::EntityManager(SharedContext& context, unsigned int maxEntities)
     : m_context(context),
     m_maxEntities(maxEntities),
-    m_idCounter(0)
+    m_idCounter(0),
+    m_playerId(-1)
 {
     m_cameraSystem.SetInitialView(m_context.m_window.GetGameView());
     m_controlSystem.Initialize(this);
@@ -57,6 +58,8 @@ int EntityManager::Add(EntityType type, const std::string& name)
     // Attach specific components and load data
     if (type == EntityType::Player)
     {
+        m_playerId = static_cast<int>(entity->m_id);
+
         // Player needs a Joypad
         entity->AddComponent<CController>();
 
@@ -116,20 +119,36 @@ void EntityManager::Remove(unsigned int id)
 
 void EntityManager::Update(float deltaTime)
 {
+    Map* gameMap = m_context.m_gameMap;
+
     m_aiSystem.Update(*this, deltaTime);
     m_controlSystem.Update(deltaTime);
-    m_physicsSystem.Update(*this, m_context.m_gameMap, deltaTime);
-    m_combatSystem.Update(*this);
+
+    if (gameMap)
+    {
+        m_physicsSystem.Update(*this, gameMap, deltaTime);
+        m_combatSystem.Update(*this);
+    }
+    else
+    {
+        // Defensive guard: avoid null dereference if Update is called outside gameplay state
+        EngineLog::WarnOnce(
+            "entity.update.no_map",
+            "EntityManager::Update called without an active map. Skipping physics/combat/camera.");
+    }
+
     m_animationSystem.Update(*this, deltaTime);
 
-    // Update each entity
     for (auto& pair : m_entities)
     {
         pair.second->Update(deltaTime);
     }
 
-    // Camera updates last, after all movements are resolved
-    m_cameraSystem.Update(*this, *m_context.m_gameMap);
+    if (gameMap)
+    {
+        m_cameraSystem.Update(*this, *gameMap);
+        EngineLog::ResetOnce("entity.update.no_map");
+    }
 
     ProcessRemovals();
 }
@@ -145,6 +164,7 @@ void EntityManager::Purge()
     m_entities.clear();
     m_entitiesToRemove.clear(); // Clear pending removals to avoid stale IDs
     m_idCounter = 0;
+    m_playerId = -1;
 }
 
 SharedContext& EntityManager::GetContext()
@@ -196,6 +216,22 @@ int EntityManager::SpawnProjectile(EntityBase* shooter, const sf::Vector2f& posi
     return m_idCounter - 1;
 }
 
+EntityBase* EntityManager::GetPlayer()
+{
+    if (m_playerId >= 0)
+    {
+        if (EntityBase* cached = Find(static_cast<unsigned int>(m_playerId)))
+            return cached;
+
+        // Cache was stale (player removed).
+        m_playerId = -1;
+    }
+
+    EntityBase* player = Find("Player");
+    m_playerId = player ? static_cast<int>(player->GetId()) : -1;
+    return player;
+}
+
 void EntityManager::ProcessRemovals()
 {
     EngineLog::ResetOnce("entity.limit.reached");
@@ -208,7 +244,8 @@ void EntityManager::ProcessRemovals()
 #if NOCTURNE_DEBUG_ENTITY_LOGS
             EngineLog::Info("Discarding entity ID: " + std::to_string(id));
 #endif
-
+            if (static_cast<int>(id) == m_playerId)
+                m_playerId = -1;
             m_entities.erase(itr);
         }
     }

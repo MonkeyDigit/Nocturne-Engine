@@ -6,8 +6,17 @@
 #include "CBoxCollider.h"
 #include "CState.h"
 
+namespace
+{
+    constexpr float kMapKillZoneTilesBelowMap = 4.0f;
+    constexpr float kFallbackFixedDt = 1.0f / 60.0f;
+    constexpr float kOneWayFootTolerance = 1.0f;
+}
+
 void PhysicsSystem::Update(EntityManager& entityManager, Map* gameMap, float deltaTime)
 {
+    if (!gameMap) return;
+
     // Loop through all entities in the game
     for (auto& entityPair : entityManager.GetEntities())
     {
@@ -123,7 +132,8 @@ void PhysicsSystem::ConstrainToMapBounds(EntityBase* entity, Map* map)
         transform->SetPosition(transform->GetPosition().x, 0.0f);
         transform->SetVelocity(transform->GetVelocity().x, 0.0f);
     }
-    else if (transform->GetPosition().y > (mapSize.y + 4) * tileSize)
+    else if (transform->GetPosition().y >
+        (static_cast<float>(mapSize.y) + kMapKillZoneTilesBelowMap) * tileSize)
     {
         // Avoid null dereference on entities without CState.
         if (CState* state = entity->GetComponent<CState>())
@@ -184,13 +194,14 @@ void PhysicsSystem::ResolveMapCollisions(EntityBase* entity, Map* map, float del
 
     if (collider->m_collisions.empty()) return;
 
-    // Sort collisions by area (Your brilliant fix for the Tile Seam Bug!)
+    // Resolve the most significant overlaps first
+    // This helps reduce jitter on tile seams and corners
     std::sort(collider->m_collisions.begin(), collider->m_collisions.end(),
         [](const CollisionElement& e1, const CollisionElement& e2) {
             return e1.m_area > e2.m_area;
         });
 
-    float tileSize = static_cast<float>(map->GetTileSize());
+    const float tileSize = static_cast<float>(map->GetTileSize());
 
     for (auto& itr : collider->m_collisions)
     {
@@ -198,66 +209,73 @@ void PhysicsSystem::ResolveMapCollisions(EntityBase* entity, Map* map, float del
         std::optional<sf::FloatRect> intersection = aabb.findIntersection(itr.m_tileBounds);
         if (!intersection.has_value()) continue;
 
+        // Delta between entity center and tile center
         sf::Vector2f delta;
         delta.x = (aabb.position.x + (aabb.size.x * 0.5f)) - (itr.m_tileBounds.position.x + (itr.m_tileBounds.size.x * 0.5f));
         delta.y = (aabb.position.y + (aabb.size.y * 0.5f)) - (itr.m_tileBounds.position.y + (itr.m_tileBounds.size.y * 0.5f));
 
+        // Overlap metrics used to choose the primary resolution axis
         sf::Vector2f deltaDiff;
         deltaDiff.x = std::abs(delta.x) - (aabb.size.x * 0.5f + itr.m_tileBounds.size.x * 0.5f);
         deltaDiff.y = std::abs(delta.y) - (aabb.size.y * 0.5f + itr.m_tileBounds.size.y * 0.5f);
 
-        // --- ONEWAY PLATFORMS LOGIC ---
+        bool forceVerticalResolution = false;
+
+        // One-way platform rules:
+        // 1) Only collide while descending
+        // 2) Ignore hits coming from below
+        // 3) If we were already below platform top last frame, keep falling through
         if (itr.m_tile->collision == TileCollision::OneWay)
         {
-            // Ignore if the player is jumping upwards or is stationary
             if (transform->GetVelocity().y <= 0.0f) continue;
-
-            // Ignore if hitting from BELOW (player center is below tile center)
             if (delta.y > 0.0f) continue;
 
-            // ROBUST LOGIC: Calculate where the feet were in the PREVIOUS FRAME
-            // Since the engine uses a fixed timestep of 60 FPS, we can use 1.0f / 60.0f
-            // Use the real frame delta for previous-frame reconstruction
-            const float frameDt = (deltaTime > 0.0f) ? deltaTime : (1.0f / 60.0f);
+            const float frameDt = (deltaTime > 0.0f) ? deltaTime : kFallbackFixedDt;
             const float moveY = transform->GetVelocity().y * frameDt;
             const float previousBottom = (aabb.position.y + aabb.size.y) - moveY;
-            float tileTop = itr.m_tileBounds.position.y;
+            const float tileTop = itr.m_tileBounds.position.y;
 
-            // If the feet were ALREADY below the platform's edge in the last frame, 
-            // it means we were inside and are falling through it. Ignore
-            // (Adding 1.0f as a safe tolerance for floating point calculations)
-            if (previousBottom > tileTop + 1.0f) continue;
+            if (previousBottom > tileTop + kOneWayFootTolerance) continue;
 
-            // FORCE VERTICAL RESOLUTION
-            // By setting deltaDiff.x to a tiny negative value, we fake the condition
-            // 'if (deltaDiff.x > deltaDiff.y)'. This FORCES the engine to apply 
-            // the upward push (Y) and prevents the player from slipping off tile edges
-            deltaDiff.x = -1000.0f;
+            // Valid landing from above: always resolve on Y
+            forceVerticalResolution = true;
         }
-        double resolve = 0.0;
 
-        // Push to the side
-        if (deltaDiff.x > deltaDiff.y)
+        double resolve = 0.0;
+        const bool resolveOnX = !forceVerticalResolution && (deltaDiff.x > deltaDiff.y);
+
+        if (resolveOnX)
         {
+            // Horizontal separation
             if (delta.x > 0.0f) resolve = (itr.m_tileBounds.position.x + tileSize) - aabb.position.x;
             else resolve = -(((double)aabb.position.x + (double)aabb.size.x) - (double)itr.m_tileBounds.position.x);
 
-            if ((delta.x > 0.0f && transform->GetVelocity().x < 0.0f) || (delta.x < 0.0f && transform->GetVelocity().x > 0.0f))
+            // Cancel X velocity only if moving into the blocking side
+            if ((delta.x > 0.0f && transform->GetVelocity().x < 0.0f) ||
+                (delta.x < 0.0f && transform->GetVelocity().x > 0.0f))
+            {
                 transform->SetVelocity(0.0f, transform->GetVelocity().y);
+            }
 
             transform->AddPosition(static_cast<float>(resolve), 0.0f);
             collider->SetCollidingX(true);
         }
-        else // Push to top or bottom
+        else
         {
+            // Vertical separation
             if (delta.y > 0.0f) resolve = (itr.m_tileBounds.position.y + tileSize) - aabb.position.y;
             else resolve = -((aabb.position.y + aabb.size.y) - itr.m_tileBounds.position.y);
 
-            if ((delta.y > 0.0f && transform->GetVelocity().y < 0.0f) || (delta.y < 0.0f && transform->GetVelocity().y > 0.0f))
+            // Cancel Y velocity only if moving into the blocking side
+            if ((delta.y > 0.0f && transform->GetVelocity().y < 0.0f) ||
+                (delta.y < 0.0f && transform->GetVelocity().y > 0.0f))
+            {
                 transform->SetVelocity(transform->GetVelocity().x, 0.0f);
+            }
 
             transform->AddPosition(0.0f, static_cast<float>(resolve));
 
+            // Keep the first valid ground-contact tile for this frame
             if (collider->IsCollidingY()) continue;
 
             if (delta.y < 0.0f) collider->SetReferenceTile(itr.m_tile);
@@ -266,13 +284,15 @@ void PhysicsSystem::ResolveMapCollisions(EntityBase* entity, Map* map, float del
             collider->SetCollidingY(true);
         }
 
-        // Extremely important: Update the AABB immediately after being pushed by a wall!
+        // Keep collider aligned after each correction to avoid cascading errors
         collider->SetAABB(sf::FloatRect(
             { transform->GetPosition().x - (transform->GetSize().x * 0.5f), transform->GetPosition().y - transform->GetSize().y },
             { transform->GetSize().x, transform->GetSize().y }
         ));
     }
+
     collider->m_collisions.clear();
 
+    // If no vertical collision survived, entity is not grounded this frame
     if (!collider->IsCollidingY()) collider->SetReferenceTile(nullptr);
 }

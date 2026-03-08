@@ -5,6 +5,7 @@
 #include "EventManager.h"
 #include "StateManager.h"
 #include "EngineLog.h"
+#include <unordered_set>
 
 // --- TRANSLATION DICTIONARIES ---
 // Using an anonymous namespace to confine this data in this file only
@@ -16,6 +17,23 @@ namespace
         std::transform(value.begin(), value.end(), value.begin(),
             [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
         return value;
+    }
+
+    void WarnBindingLine(unsigned int lineNumber, const std::string& message)
+    {
+        EngineLog::Warn("bindings.cfg line " + std::to_string(lineNumber) + ": " + message);
+    }
+
+    bool TrySplitEventToken(const std::string& token, std::string& outType, std::string& outInfo)
+    {
+        const size_t colonPos = token.find(':');
+        if (colonPos == std::string::npos) return false;
+        if (colonPos == 0 || colonPos == token.size() - 1) return false;
+        if (token.find(':', colonPos + 1) != std::string::npos) return false; // Only one ':'
+
+        outType = token.substr(0, colonPos);
+        outInfo = token.substr(colonPos + 1);
+        return true;
     }
 
     const std::unordered_map<std::string, EventType> STRING_TO_EVENT_MAP = {
@@ -121,7 +139,6 @@ int EventManager::ParseEventInfo(EventType evtype, const std::string& evinfoStr)
 {
     const std::string normalized = ToLowerCopy(evinfoStr);
 
-    // KEYBOARD EVENT
     switch (evtype)
     {
     case EventType::KeyDown: case EventType::KeyUp:
@@ -138,20 +155,23 @@ int EventManager::ParseEventInfo(EventType evtype, const std::string& evinfoStr)
         if (it != STRING_TO_MOUSE_MAP.end()) return static_cast<int>(it->second);
         break;
     }
-    default: break;
+    default:
+        break;
     }
 
-    // Fallback to int value
+    // Fallback to numeric code (strict: full string must be numeric)
     try
     {
-        return std::stoi(evinfoStr);
+        size_t parsedChars = 0;
+        const int value = std::stoi(evinfoStr, &parsedChars);
+        if (parsedChars != evinfoStr.size())
+            return -1;
+        return value;
     }
     catch (...)
     {
-        EngineLog::WarnOnce("bindings.stoi_error", "Error (stoi): impossible conversion: " + evinfoStr);
         return -1;
     }
-
 }
 
 void EventManager::LoadBindings(const std::string& path)
@@ -164,74 +184,84 @@ void EventManager::LoadBindings(const std::string& path)
         return;
     }
 
-    std::string line;                       // Each line is a binding with the callback name and the events
+    std::string line;
+    unsigned int lineNumber = 0;
+
     while (std::getline(bindings, line))
     {
-        // Support inline comments and full-line comments
+        ++lineNumber;
+
+        // Support inline comments and full-line comments.
         const size_t commentPos = line.find('#');
         if (commentPos != std::string::npos)
             line.erase(commentPos);
-        // Ignore empty lines
-        const size_t first = line.find_first_not_of(" \t\r\n");
-        if (first == std::string::npos) continue;       // empty/whitespace
-        if (line[first] == '|') continue;               // custom comment marker
 
-        // GET CALLBACK NAME
+        const size_t first = line.find_first_not_of(" \t\r\n");
+        if (first == std::string::npos) continue; // empty/whitespace
+        if (line[first] == '|') continue;         // custom comment marker
+
         std::stringstream keystream(line);
+
         std::string callbackName;
         if (!(keystream >> callbackName) || callbackName.empty())
         {
-            EngineLog::WarnOnce("bindings.invalid_line", "Invalid binding line: " + line);
+            WarnBindingLine(lineNumber, "Missing callback name.");
             continue;
         }
 
         auto bind = std::make_unique<Binding>(callbackName);
-
-        // READ EVENTS
+        std::unordered_set<std::string> uniqueEvents;
         std::string eventToken;
-        while (keystream >> eventToken)    // // e.g. "KeyDown:Left" or "Closed:0"
+
+        while (keystream >> eventToken)
         {
-            const size_t colonPos = eventToken.find(':');
-            if (colonPos == std::string::npos)
+            std::string evtypeStr;
+            std::string evinfoStr;
+            if (!TrySplitEventToken(eventToken, evtypeStr, evinfoStr))
             {
-                EngineLog::WarnOnce("bindings.invalid_token", "Invalid token format: " + eventToken);
+                WarnBindingLine(lineNumber, "Invalid token '" + eventToken + "' (expected EventType:EventInfo).");
                 continue;
             }
 
-            std::string evtypeStr = eventToken.substr(0, colonPos);
-            std::string evinfoStr = eventToken.substr(colonPos + 1);
-
-            // String translation
             const std::string evtypeNorm = ToLowerCopy(evtypeStr);
             auto typeIt = STRING_TO_EVENT_MAP.find(evtypeNorm);
             if (typeIt == STRING_TO_EVENT_MAP.end())
             {
-                EngineLog::WarnOnce("bindings.unknown_event_type", "Unknown event type in config file: " + evtypeStr);
+                WarnBindingLine(lineNumber, "Unknown event type '" + evtypeStr + "'.");
                 continue;
             }
 
-            // BIND EVENT
             const EventType evtype = typeIt->second;
             const int code = ParseEventInfo(evtype, evinfoStr);
             if (code < 0)
             {
-                EngineLog::WarnOnce("bindings.invalid_event_code", "Invalid event code for token: " + eventToken);
+                WarnBindingLine(lineNumber, "Invalid event info '" + evinfoStr + "' for token '" + eventToken + "'.");
                 continue;
             }
+
+            const std::string dedupKey =
+                std::to_string(static_cast<int>(evtype)) + ":" + std::to_string(code);
+
+            if (!uniqueEvents.insert(dedupKey).second)
+            {
+                WarnBindingLine(lineNumber, "Duplicate event '" + eventToken + "' in binding '" + callbackName + "'.");
+                continue;
+            }
+
             bind->BindEvent(evtype, code);
         }
 
         if (bind->m_events.empty())
         {
-            EngineLog::WarnOnce("bindings.empty_after_parse", "Skipping binding with no valid events: " + callbackName);
+            WarnBindingLine(lineNumber, "Binding '" + callbackName + "' has no valid events and will be skipped.");
             continue;
         }
 
         if (!AddBinding(std::move(bind)))
-            EngineLog::WarnOnce("bindings.duplicate_or_failed_insert", "Couldn't load binding: " + callbackName);
+        {
+            WarnBindingLine(lineNumber, "Duplicate binding name '" + callbackName + "' ignored.");
+        }
     }
-
-    // bindings.close(); ISN'T NECESSARY as std::ifstream gets closed automatically when going out of scope
 }
 
 void EventManager::ProcessPolledEvent(const sf::Event& event)

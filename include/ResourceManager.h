@@ -12,6 +12,7 @@ class ResourceManager
 {
 public:
     ResourceManager(const std::string& pathsFile)
+        : m_pathsFile(pathsFile)
     {
         LoadPaths(pathsFile);
     }
@@ -32,6 +33,14 @@ public:
 
     bool RequireResource(const std::string& id)
     {
+        if (id.empty())
+        {
+            EngineLog::WarnOnce(
+                "resource.require.empty." + m_pathsFile,
+                "RequireResource called with an empty id for '" + m_pathsFile + "'");
+            return false;
+        }
+
         auto res = Find(id);
         if (res)
         {
@@ -41,12 +50,21 @@ public:
 
         auto path = m_paths.find(id);
         if (path == m_paths.end())
+        {
+            EngineLog::WarnOnce(
+                "resource.require.unknown_id." + m_pathsFile + "." + id,
+                "Unknown resource id '" + id + "' requested in '" + m_pathsFile + "'");
             return false;
+        }
 
-        // Using unique_ptr to handle safe and temporary allocation
         std::unique_ptr<T> resource = Load(path->second);
         if (!resource)
+        {
+            EngineLog::ErrorOnce(
+                "resource.require.load_failed." + m_pathsFile + "." + id,
+                "Failed to load resource '" + id + "' from path '" + path->second + "'");
             return false;
+        }
 
         m_resources.emplace(id, std::make_pair(std::move(resource), 1));
         return true;
@@ -54,11 +72,36 @@ public:
 
     bool ReleaseResource(const std::string& id)
     {
+        if (id.empty())
+        {
+            EngineLog::WarnOnce(
+                "resource.release.empty." + m_pathsFile,
+                "ReleaseResource called with an empty id for '" + m_pathsFile + "'");
+            return false;
+        }
+
         auto res = Find(id);
-        if (!res) return false;
+        if (!res)
+        {
+            EngineLog::WarnOnce(
+                "resource.release.unknown_id." + m_pathsFile + "." + id,
+                "ReleaseResource called for unknown id '" + id + "' in '" + m_pathsFile + "'");
+            return false;
+        }
+
+        // Defensive guard: reference count should never be zero here.
+        if (res->second == 0)
+        {
+            EngineLog::WarnOnce(
+                "resource.release.zero_ref." + m_pathsFile + "." + id,
+                "Resource '" + id + "' has invalid zero ref-count before release. Unloading.");
+            Unload(id);
+            return false;
+        }
 
         --res->second;
-        if (!res->second) Unload(id);
+        if (res->second == 0)
+            Unload(id);
 
         return true;
     }
@@ -99,6 +142,12 @@ public:
             return;
         }
 
+        auto warnLine = [&](unsigned int lineNumber, const std::string& message)
+            {
+                EngineLog::Warn(pathFile + " line " + std::to_string(lineNumber) + ": " + message);
+            };
+
+        std::unordered_map<std::string, unsigned int> firstSeenLineById;
         std::string line;
         unsigned int lineNumber = 0;
 
@@ -106,8 +155,15 @@ public:
         {
             ++lineNumber;
 
-            // Skip empty lines and comment lines
-            if (line.empty() || line[0] == '|') continue;
+            // Support inline comments and full-line comments
+            const size_t hashPos = line.find('#');
+            if (hashPos != std::string::npos)
+                line.erase(hashPos);
+
+            // Skip empty/whitespace and custom comment marker '|'
+            const size_t first = line.find_first_not_of(" \t\r\n");
+            if (first == std::string::npos) continue;
+            if (line[first] == '|') continue;
 
             std::stringstream keystream{ line };
             std::string pathName;
@@ -115,23 +171,44 @@ public:
 
             if (!(keystream >> pathName >> path))
             {
-                EngineLog::Warn("Invalid path entry at line " + std::to_string(lineNumber) + " in " + pathFile);
+                warnLine(lineNumber, "Invalid entry (expected: <ResourceId> <RelativePath>).");
                 continue;
             }
+
+            // Reject trailing unexpected tokens
+            std::string trailing;
+            if (keystream >> trailing)
+            {
+                warnLine(
+                    lineNumber,
+                    "Too many tokens in entry for id '" + pathName +
+                    "' (expected exactly 2 tokens).");
+                continue;
+            }
+
+            if (pathName.empty() || path.empty())
+            {
+                warnLine(lineNumber, "Resource id/path cannot be empty.");
+                continue;
+            }
+
+            auto [seenIt, insertedSeen] = firstSeenLineById.emplace(pathName, lineNumber);
 
             auto [it, inserted] = m_paths.emplace(pathName, path);
             if (!inserted)
             {
-                EngineLog::Warn("Duplicate resource id '" + pathName + "' in " + pathFile + ". Overwriting previous value.");
+                warnLine(
+                    lineNumber,
+                    "Duplicate resource id '" + pathName +
+                    "' (first seen at line " + std::to_string(seenIt->second) +
+                    "). Overwriting previous path.");
                 it->second = path;
             }
         }
-
-        // paths.close(); Optional, not required (RAII already handles this)
     }
-
 
 private:
     std::unordered_map<std::string, std::pair<std::unique_ptr<T>, unsigned int>> m_resources;
     std::unordered_map<std::string, std::string> m_paths;
+    std::string m_pathsFile;
 };

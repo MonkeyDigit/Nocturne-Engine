@@ -1,4 +1,5 @@
 #include <cmath>
+#include <vector>
 #include "MovementControlSystem.h"
 #include "EntityManager.h"
 #include "SharedContext.h"
@@ -72,23 +73,46 @@ namespace
         return collider && collider->GetReferenceTile() != nullptr;
     }
 
-    inline void SpawnRangedProjectile(
-        EntityManager& entityManager,
-        EntityBase& shooter,
+    struct ProjectileSpawnRequest
+    {
+        unsigned int shooterId = 0;
+        sf::Vector2f position = { 0.0f, 0.0f };
+        sf::Vector2f velocity = { 0.0f, 0.0f };
+        int damage = 0;
+        float lifetime = 0.0f;
+    };
+
+    inline ProjectileSpawnRequest BuildRangedProjectileRequest(
+        const EntityBase& shooter,
         const CTransform& transform,
         const CSprite& sprite,
         const CController& controller)
     {
-        sf::Vector2f velocity(controller.m_rangedSpeed, 0.0f);
-        if (sprite.GetDirection() == Direction::Left)
-            velocity.x = -controller.m_rangedSpeed;
+        ProjectileSpawnRequest request;
+        request.shooterId = shooter.GetId();
+        request.position = transform.GetPosition();
+        request.velocity = { controller.m_rangedSpeed, 0.0f };
 
-        entityManager.SpawnProjectile(
-            &shooter,
-            transform.GetPosition(),
-            velocity,
-            controller.m_rangedDamage,
-            controller.m_rangedLifetime);
+        if (sprite.GetDirection() == Direction::Left)
+            request.velocity.x = -controller.m_rangedSpeed;
+
+        request.damage = controller.m_rangedDamage;
+        request.lifetime = controller.m_rangedLifetime;
+        return request;
+    }
+
+    enum class HorizontalIntent
+    {
+        None,
+        Left,
+        Right
+    };
+
+    inline HorizontalIntent ResolveHorizontalIntent(bool moveLeft, bool moveRight)
+    {
+        // Explicit conflict policy: opposite directions cancel each other.
+        if (moveLeft == moveRight) return HorizontalIntent::None;
+        return moveLeft ? HorizontalIntent::Left : HorizontalIntent::Right;
     }
 }
 
@@ -123,31 +147,30 @@ void MovementControlSystem::Destroy()
 void MovementControlSystem::React(EventDetails& details)
 {
     if (!m_entityManager) return;
-    std::string action = details.m_name;
 
-    // Route the input to any entity that is a Player and has a Controller
-    for (auto& entityPair : m_entityManager->GetEntities())
-    {
-        EntityBase* entity = entityPair.second.get();
+    // This input path is intentionally single-player
+    // We resolve the player directly instead of scanning all entities
+    EntityBase* player = m_entityManager->GetPlayer();
+    if (!player) return;
 
-        if (entity->GetType() == EntityType::Player)
-        {
-            CController* controller = entity->GetComponent<CController>();
-            if (!controller) continue;
+    CController* controller = player->GetComponent<CController>();
+    if (!controller) return;
 
-            if (action == "Player_MoveLeft")            controller->m_moveLeft = true;
-            else if (action == "Player_MoveRight")      controller->m_moveRight = true;
-            else if (action == "Player_Jump")           controller->m_jump = true;
-            else if (action == "Player_Jump_Cancel")    controller->m_cancelJump = true;
-            else if (action == "Player_Attack")         controller->m_attack = true;
-            else if (action == "Attack_Ranged")         controller->m_attackRanged = true;
-        }
-    }
+    const std::string& action = details.m_name;
+
+    if (action == "Player_MoveLeft")           controller->m_moveLeft = true;
+    else if (action == "Player_MoveRight")     controller->m_moveRight = true;
+    else if (action == "Player_Jump")          controller->m_jump = true;
+    else if (action == "Player_Jump_Cancel")   controller->m_cancelJump = true;
+    else if (action == "Player_Attack")        controller->m_attack = true;
+    else if (action == "Attack_Ranged" && controller->m_rangedEnabled) controller->m_attackRanged = true;
 }
 
 void MovementControlSystem::Update(float deltaTime)
 {
     if (!m_entityManager) return;
+
+    std::vector<ProjectileSpawnRequest> pendingProjectiles;
 
     for (auto& entityPair : m_entityManager->GetEntities())
     {
@@ -175,16 +198,19 @@ void MovementControlSystem::Update(float deltaTime)
         else
             DecreaseToZero(controller->m_coyoteTimer, deltaTime);
 
+        const HorizontalIntent horizontalIntent =
+            ResolveHorizontalIntent(controller->m_moveLeft, controller->m_moveRight);
+
         // Movement
         if (CanMove(currentState))
         {
-            if (controller->m_moveLeft)
+            if (horizontalIntent == HorizontalIntent::Left)
             {
                 if (sprite) sprite->SetDirection(Direction::Left);
                 transform->AddAcceleration(-transform->GetSpeed().x, 0.0f);
                 if (currentState == EntityState::Idle) state->SetState(EntityState::Walking);
             }
-            else if (controller->m_moveRight)
+            else if (horizontalIntent == HorizontalIntent::Right)
             {
                 if (sprite) sprite->SetDirection(Direction::Right);
                 transform->AddAcceleration(transform->GetSpeed().x, 0.0f);
@@ -247,10 +273,13 @@ void MovementControlSystem::Update(float deltaTime)
         {
             const EntityState rangedState = state->GetState();
             if (!meleeTriggered &&
+                controller->m_rangedEnabled &&
                 sprite &&
                 CanStartRangedAttack(rangedState, controller->m_rangedCooldownTimer))
             {
-                SpawnRangedProjectile(*m_entityManager, *entity, *transform, *sprite, *controller);
+                pendingProjectiles.push_back(
+                    BuildRangedProjectileRequest(*entity, *transform, *sprite, *controller));
+
                 controller->m_rangedCooldownTimer = controller->m_rangedCooldown;
             }
 
@@ -265,5 +294,18 @@ void MovementControlSystem::Update(float deltaTime)
         // Reset continuous movement flags
         controller->m_moveLeft = false;
         controller->m_moveRight = false;
+    }
+
+    for (const ProjectileSpawnRequest& request : pendingProjectiles)
+    {
+        EntityBase* shooter = m_entityManager->Find(request.shooterId);
+        if (!shooter) continue;
+
+        m_entityManager->SpawnProjectile(
+            shooter,
+            request.position,
+            request.velocity,
+            request.damage,
+            request.lifetime);
     }
 }

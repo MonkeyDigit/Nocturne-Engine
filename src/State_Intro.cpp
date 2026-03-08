@@ -4,8 +4,6 @@
 #include "StateManager.h"
 #include "SharedContext.h"
 #include "Window.h"
-#include "TextureManager.h"
-#include "EngineLog.h"
 
 State_Intro::State_Intro(StateManager& stateManager)
     : BaseState(stateManager), m_text(m_font), m_timePassed(0.0f), m_alpha(90.0f)
@@ -20,19 +18,15 @@ void State_Intro::OnCreate()
 
     sf::Vector2f uiRes = context.m_window.GetUIResolution();
 
-    TextureManager& textureMgr = context.m_textureManager;
+    // Load textures
+    SetupCenteredBackground(
+        m_backgroundSprite,
+        "MenuBg",
+        uiRes,
+        "State_Intro");
 
-    textureMgr.RequireResource("Intro");
-    textureMgr.RequireResource("MenuBg");
+    sf::Texture* introText = AcquireTrackedTexture("Intro", "State_Intro");
 
-    sf::Texture* bgTex = textureMgr.GetResource("MenuBg");
-    if (bgTex) {
-        m_backgroundSprite.emplace(*bgTex);
-        m_backgroundSprite->setOrigin({ m_backgroundSprite->getLocalBounds().size.x * 0.5f, m_backgroundSprite->getLocalBounds().size.y * 0.5f });
-        m_backgroundSprite->setPosition(uiRes * 0.5f);
-    }
-
-    sf::Texture* introText = textureMgr.GetResource("Intro");
     if (introText)
     {
         m_introSprite.emplace(*introText);
@@ -40,16 +34,11 @@ void State_Intro::OnCreate()
         m_introSprite->setPosition({ uiRes.x * 0.5f, -(int)introText->getSize().y * 0.5f });
     }
 
-    if (!m_font.openFromFile("media/fonts/EightBitDragon.ttf")) {
-        EngineLog::WarnOnce("font.intro.failed", "Failed to load font for Intro");
-    }
+    LoadFontOrWarn(m_font, "media/fonts/EightBitDragon.ttf", "State_Intro", "main");
 
     m_text.setString("PRESS SPACE TO CONTINUE");
     m_text.setCharacterSize(30);
-    sf::FloatRect textRect = m_text.getLocalBounds();
-    m_text.setOrigin({ textRect.position.x + textRect.size.x * 0.5f,
-                       textRect.position.y + textRect.size.y * 0.5f });
-    m_text.setPosition({ uiRes.x * 0.5f, uiRes.y * 0.8f });
+    CenterText(m_text, uiRes.x * 0.5f, uiRes.y * 0.8f);
 
     context.m_eventManager.AddCallback(StateType::Intro, "Intro_Continue", &State_Intro::Continue, *this);
 }
@@ -58,8 +47,7 @@ void State_Intro::OnDestroy()
 {
     SharedContext& context = m_stateManager.GetContext();
     context.m_eventManager.RemoveCallback(StateType::Intro, "Intro_Continue");
-    context.m_textureManager.ReleaseResource("Intro");
-    context.m_textureManager.ReleaseResource("MenuBg");
+    ReleaseTrackedTextures("State_Intro");
 }
 
 void State_Intro::Activate() {}

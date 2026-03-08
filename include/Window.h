@@ -1,7 +1,8 @@
 #pragma once
+#include <string>
+#include <cstdint>
 #include <SFML/Graphics.hpp>
 #include "EventManager.h"
-#include <string>
 
 class Window {
 public:
@@ -37,6 +38,9 @@ public:
     void Close(EventDetails&);
     void ToggleFullscreen(EventDetails&);
 
+    bool HasFixedAISeed() const { return m_hasFixedAISeed; }
+    std::uint32_t GetFixedAISeed() const { return m_fixedAISeed; }
+
 private:
     void Setup(const std::string& title, const sf::Vector2u& size);
     void Destroy();
@@ -57,4 +61,6 @@ private:
     bool m_isResizeable;
     int m_frameRateLimit;
 
+    bool m_hasFixedAISeed;
+    std::uint32_t m_fixedAISeed;
 };
