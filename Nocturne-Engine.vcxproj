@@ -218,6 +218,7 @@
     <ClCompile Include="src\MovementControlSystem.cpp" />
     <ClCompile Include="src\RenderSystem.cpp" />
     <ClCompile Include="src\SpriteSheet.cpp" />
+    <ClCompile Include="src\SpriteSheetLoader.cpp" />
     <ClCompile Include="src\StateManager.cpp" />
     <ClCompile Include="src\State_Credits.cpp" />
     <ClCompile Include="src\State_Game.cpp" />
