@@ -224,6 +224,7 @@
     <ClCompile Include="src\State_Settings.cpp" />
     <ClCompile Include="src\Utilities.cpp" />
     <ClCompile Include="src\Window.cpp" />
+    <ClCompile Include="src\WindowConfigLoader.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
