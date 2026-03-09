@@ -171,6 +171,7 @@
     <ClInclude Include="include\json.hpp" />
     <ClInclude Include="include\Map.h" />
     <ClInclude Include="include\MapTmjLoader.h" />
+    <ClInclude Include="include\MovementControlDetail.h" />
     <ClInclude Include="include\PhysicsSystem.h" />
     <ClInclude Include="include\MovementControlSystem.h" />
     <ClInclude Include="include\RenderSystem.h" />
@@ -222,6 +223,7 @@
     <ClCompile Include="src\MapTmjLayerLoader.cpp" />
     <ClCompile Include="src\MapTmjLoader.cpp" />
     <ClCompile Include="src\MapTmjTilesetLoader.cpp" />
+    <ClCompile Include="src\MovementControlEntityStep.cpp" />
     <ClCompile Include="src\MovementControlUpdate.cpp" />
     <ClCompile Include="src\PhysicsCollision.cpp" />
     <ClCompile Include="src\PhysicsSystem.cpp" />
