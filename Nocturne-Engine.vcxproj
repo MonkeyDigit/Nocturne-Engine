@@ -207,6 +207,7 @@
     <ClCompile Include="src\EntityManagerFactory.cpp" />
     <ClCompile Include="src\EventBindingLoader.cpp" />
     <ClCompile Include="src\EventManager.cpp" />
+    <ClCompile Include="src\EventRuntime.cpp" />
     <ClCompile Include="src\Game.cpp" />
     <ClCompile Include="src\GameplayTuningLoader.cpp" />
     <ClCompile Include="src\HUD.cpp" />
