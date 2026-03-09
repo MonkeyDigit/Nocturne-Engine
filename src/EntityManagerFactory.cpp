@@ -1,9 +1,5 @@
-#include <fstream>
-#include <sstream>
-
 #include "EntityManager.h"
 #include "SharedContext.h"
-#include "Utilities.h"
 #include "CSprite.h"
 #include "CState.h"
 #include "CController.h"
@@ -12,7 +8,6 @@
 #include "CAIPatrol.h"
 #include "CProjectile.h"
 #include "EngineLog.h"
-#include "ConfigParseUtils.h"
 
 int EntityManager::Add(EntityType type, const std::string& name)
 {
@@ -167,96 +162,4 @@ int EntityManager::SpawnProjectile(EntityBase* shooter, const sf::Vector2f& posi
     m_idCounter++;
 
     return m_idCounter - 1;
-}
-
-EntityBase* EntityManager::GetPlayer()
-{
-    if (m_playerId >= 0)
-    {
-        if (EntityBase* cached = Find(static_cast<unsigned int>(m_playerId)))
-            return cached;
-
-        // Cached id is stale
-        m_playerId = -1;
-    }
-
-    EntityBase* foundPlayer = nullptr;
-    unsigned int foundId = 0u;
-
-    for (auto& [id, entity] : m_entities)
-    {
-        if (!entity || entity->GetType() != EntityType::Player)
-            continue;
-
-        if (!foundPlayer)
-        {
-            foundPlayer = entity.get();
-            foundId = id;
-        }
-        else
-        {
-            EngineLog::WarnOnce(
-                "entity.player.multiple",
-                "Multiple Player entities found. Using the first one.");
-            break;
-        }
-    }
-
-    if (foundPlayer)
-    {
-        m_playerId = static_cast<int>(foundId);
-        return foundPlayer;
-    }
-
-    m_playerId = -1;
-    return nullptr;
-}
-
-void EntityManager::LoadEnemyTypes(const std::string& path)
-{
-    std::ifstream file{ Utils::GetWorkingDirectory() + path };
-    if (!file.is_open())
-    {
-        EngineLog::Error("Failed loading enemy type file: " + path);
-        return;
-    }
-
-    auto warnLine = [&](unsigned int lineNumber, const std::string& message)
-        {
-            EngineLog::Warn(path + " line " + std::to_string(lineNumber) + ": " + message);
-        };
-
-    std::string line;
-    unsigned int lineNumber = 0;
-
-    while (std::getline(file, line))
-    {
-        ++lineNumber;
-
-        if (!ParseUtils::PrepareConfigLine(line)) continue;
-
-        std::stringstream keystream(line);
-        std::string enemyName;
-        std::string charFile;
-
-        if (!(keystream >> enemyName >> charFile))
-        {
-            warnLine(lineNumber, "Invalid entry (expected: <EnemyTypeId> <CharacterFile>).");
-            continue;
-        }
-
-        std::string trailing;
-        if (keystream >> trailing)
-        {
-            warnLine(lineNumber, "Too many tokens for enemy type '" + enemyName + "'.");
-            continue;
-        }
-
-        auto [it, inserted] = m_enemyTypes.emplace(enemyName, charFile);
-        if (!inserted)
-        {
-            warnLine(lineNumber, "Duplicate enemy type '" + enemyName + "'. Overwriting previous file.");
-            it->second = charFile;
-        }
-    }
 }

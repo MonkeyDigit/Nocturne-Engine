@@ -205,7 +205,9 @@
     <ClCompile Include="src\EngineLog.cpp" />
     <ClCompile Include="src\EntityBase.cpp" />
     <ClCompile Include="src\EntityManager.cpp" />
+    <ClCompile Include="src\EntityManagerEnemyTypes.cpp" />
     <ClCompile Include="src\EntityManagerFactory.cpp" />
+    <ClCompile Include="src\EntityManagerLookup.cpp" />
     <ClCompile Include="src\EventBindingLoader.cpp" />
     <ClCompile Include="src\EventManager.cpp" />
     <ClCompile Include="src\EventRuntime.cpp" />
