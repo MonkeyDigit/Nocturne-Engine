@@ -4,18 +4,11 @@
 #include "SpriteSheet.h"
 #include "Utilities.h"
 #include "EngineLog.h"
+#include "ConfigParseUtils.h"
 
 namespace
 {
-    template <typename... Args>
-    bool TryReadExact(std::stringstream& stream, Args&... args)
-    {
-        if (!((stream >> args) && ...))
-            return false;
-
-        std::string trailing;
-        return !(stream >> trailing); // Reject extra tokens
-    }
+    using ParseUtils::TryReadExact;
 
     void WarnSheetValue(
         const std::string& file,

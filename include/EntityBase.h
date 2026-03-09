@@ -96,7 +96,7 @@ public:
         m_components.erase(typeid(T));
     }
 
-    void Load(const std::string& path);
+    bool Load(const std::string& path);
     void Destroy();
 
 protected:

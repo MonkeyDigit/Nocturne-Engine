@@ -153,6 +153,7 @@
     <ClInclude Include="include\CombatGeometry.h" />
     <ClInclude Include="include\CombatSystem.h" />
     <ClInclude Include="include\Component.h" />
+    <ClInclude Include="include\ConfigParseUtils.h" />
     <ClInclude Include="include\CProjectile.h" />
     <ClInclude Include="include\CSprite.h" />
     <ClInclude Include="include\CState.h" />
@@ -190,6 +191,7 @@
     <ClCompile Include="src\AudioManager.cpp" />
     <ClCompile Include="src\BaseState.cpp" />
     <ClCompile Include="src\CameraSystem.cpp" />
+    <ClCompile Include="src\CharacterConfigLoader.cpp" />
     <ClCompile Include="src\CombatSystem.cpp" />
     <ClCompile Include="src\EngineLog.cpp" />
     <ClCompile Include="src\EntityBase.cpp" />

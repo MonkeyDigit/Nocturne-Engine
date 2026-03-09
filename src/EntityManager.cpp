@@ -43,30 +43,12 @@ int EntityManager::Add(EntityType type, const std::string& name)
         return -1;
     }
 
-    // Create a raw, empty entity directly
-    std::unique_ptr<EntityBase> entity = std::make_unique<EntityBase>(*this);
+    std::string charPath;
+    bool needsAI = false;
 
-    entity->m_id = m_idCounter;
-    entity->SetType(type);
-
-    if (!name.empty()) entity->m_name = name;
-
-    // Attach the fundamental components (The "Body")
-    entity->AddComponent<CTransform>();
-    entity->AddComponent<CSprite>(m_context.m_textureManager);
-    entity->AddComponent<CBoxCollider>();
-    entity->AddComponent<CState>();
-
-    // Attach specific components and load data
     if (type == EntityType::Player)
     {
-        m_playerId = static_cast<int>(entity->m_id);
-
-        // Player needs a Joypad
-        entity->AddComponent<CController>();
-
-        // Load player data directly from EntityBase
-        entity->Load("media/characters/Player.char");
+        charPath = "media/characters/Player.char";
     }
     else if (type == EntityType::Enemy)
     {
@@ -80,17 +62,52 @@ int EntityManager::Add(EntityType type, const std::string& name)
             return -1;
         }
 
-        // Enemy needs a controller and AI component
-        entity->AddComponent<CController>();
-        entity->AddComponent<CAIPatrol>();
-        entity->Load(typeItr->second);
+        charPath = typeItr->second;
+        needsAI = true;
+    }
+    else
+    {
+        EngineLog::WarnOnce(
+            "entity.type.unsupported." + std::to_string(static_cast<int>(type)),
+            "Unsupported EntityType in EntityManager::Add. Only Player and Enemy are allowed.");
+        return -1;
     }
 
-    // Store the entity in the map
-    m_entities.emplace(m_idCounter, std::move(entity));
-    m_idCounter++;
+    std::unique_ptr<EntityBase> entity = std::make_unique<EntityBase>(*this);
+    entity->m_id = m_idCounter;
+    entity->SetType(type);
 
-    return m_idCounter - 1;
+    if (!name.empty()) entity->m_name = name;
+
+    // Base components shared by spawnable gameplay entities
+    entity->AddComponent<CTransform>();
+    entity->AddComponent<CSprite>(m_context.m_textureManager);
+    entity->AddComponent<CBoxCollider>();
+    entity->AddComponent<CState>();
+    entity->AddComponent<CController>();
+
+    if (needsAI)
+        entity->AddComponent<CAIPatrol>();
+
+    if (!entity->Load(charPath))
+    {
+        EngineLog::ErrorOnce(
+            "entity.char.load.failed." + charPath,
+            "Entity creation aborted: failed loading character file '" + charPath + "'.");
+        return -1;
+    }
+
+    if (type == EntityType::Player) // Keep a canonical runtime name for player lookups and debugging
+        entity->m_name = "Player";
+
+    const unsigned int createdId = m_idCounter;
+    m_entities.emplace(createdId, std::move(entity));
+    ++m_idCounter;
+
+    if (type == EntityType::Player)
+        m_playerId = static_cast<int>(createdId);
+
+    return static_cast<int>(createdId);
 }
 
 EntityBase* EntityManager::Find(unsigned int id)
@@ -99,19 +116,6 @@ EntityBase* EntityManager::Find(unsigned int id)
     if (itr == m_entities.end()) return nullptr;
 
     return itr->second.get(); // .get() returns the raw observer pointer
-}
-
-EntityBase* EntityManager::Find(const std::string& name)
-{
-    for (auto& pair : m_entities)
-    {
-        if (pair.second->GetName() == name)
-        {
-            return pair.second.get();
-        }
-    }
-
-    return nullptr;
 }
 
 void EntityManager::Remove(unsigned int id)
@@ -268,13 +272,40 @@ EntityBase* EntityManager::GetPlayer()
         if (EntityBase* cached = Find(static_cast<unsigned int>(m_playerId)))
             return cached;
 
-        // Cache was stale (player removed).
+        // Cached id is stale.
         m_playerId = -1;
     }
 
-    EntityBase* player = Find("Player");
-    m_playerId = player ? static_cast<int>(player->GetId()) : -1;
-    return player;
+    EntityBase* foundPlayer = nullptr;
+    unsigned int foundId = 0u;
+
+    for (auto& [id, entity] : m_entities)
+    {
+        if (!entity || entity->GetType() != EntityType::Player)
+            continue;
+
+        if (!foundPlayer)
+        {
+            foundPlayer = entity.get();
+            foundId = id;
+        }
+        else
+        {
+            EngineLog::WarnOnce(
+                "entity.player.multiple",
+                "Multiple Player entities found. Using the first one.");
+            break;
+        }
+    }
+
+    if (foundPlayer)
+    {
+        m_playerId = static_cast<int>(foundId);
+        return foundPlayer;
+    }
+
+    m_playerId = -1;
+    return nullptr;
 }
 
 void EntityManager::ProcessRemovals()

@@ -2,13 +2,16 @@
 #include <cctype>
 #include <fstream>
 #include <sstream>
+#include <unordered_set>
 #include <limits>
 #include "Window.h"
 #include "EngineLog.h"
-#include <unordered_set>
+#include "ConfigParseUtils.h"
 
 namespace
 {
+    using ParseUtils::TryReadExact;
+
     std::string ToLowerCopy(std::string value)
     {
         std::transform(value.begin(), value.end(), value.begin(),
@@ -23,16 +26,6 @@ namespace
         if (value == "warn" || value == "warning") { outLevel = EngineLog::Level::Warn; return true; }
         if (value == "error") { outLevel = EngineLog::Level::Error; return true; }
         return false;
-    }
-
-    template <typename... Args>
-    bool TryReadExact(std::stringstream& stream, Args&... args)
-    {
-        if (!((stream >> args) && ...))
-            return false;
-
-        std::string trailing;
-        return !(stream >> trailing); // Reject extra unexpected tokens
     }
 
     std::string CanonicalWindowKey(std::string key)

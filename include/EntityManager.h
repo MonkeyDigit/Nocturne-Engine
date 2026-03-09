@@ -32,7 +32,6 @@ public:
     // Find returns raw pointers because it's just meant for OBSERVATION, not ownership transfer
     // If the entity is not found, it can safely return nullptr
     EntityBase* Find(unsigned int id);
-    EntityBase* Find(const std::string& name);
 
     void Remove(unsigned int id);
     void Update(float deltaTime);
