@@ -202,6 +202,8 @@
     <ClCompile Include="src\CharacterConfigParserState.cpp" />
     <ClCompile Include="src\CombatResolution.cpp" />
     <ClCompile Include="src\CombatSystem.cpp" />
+    <ClCompile Include="src\CState.cpp" />
+    <ClCompile Include="src\CTransform.cpp" />
     <ClCompile Include="src\EngineLog.cpp" />
     <ClCompile Include="src\EntityBase.cpp" />
     <ClCompile Include="src\EntityManager.cpp" />
