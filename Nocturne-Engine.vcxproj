@@ -185,6 +185,7 @@
     <ClInclude Include="include\State_MainMenu.h" />
     <ClInclude Include="include\State_Paused.h" />
     <ClInclude Include="include\State_Settings.h" />
+    <ClInclude Include="include\State_Victory.h" />
     <ClInclude Include="include\TextureManager.h" />
     <ClInclude Include="include\Utilities.h" />
     <ClInclude Include="include\Window.h" />
@@ -240,6 +241,7 @@
     <ClCompile Include="src\State_MainMenu.cpp" />
     <ClCompile Include="src\State_Paused.cpp" />
     <ClCompile Include="src\State_Settings.cpp" />
+    <ClCompile Include="src\State_Victory.cpp" />
     <ClCompile Include="src\Utilities.cpp" />
     <ClCompile Include="src\Window.cpp" />
     <ClCompile Include="src\WindowConfigLoader.cpp" />

@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <functional>
 #include <memory>
+#include <optional>
 #include "BaseState.h"
 
 struct SharedContext; // Forward declared
@@ -16,6 +17,7 @@ enum class StateType
     Game,
     Paused,
     Settings,
+    Victory,
     Credits,
     GameOver
 };
@@ -60,4 +62,6 @@ private:
     StateContainer m_states;
     TypeContainer m_toRemove;
     StateFactory m_stateFactory;
+    bool m_isUpdating;
+    std::optional<StateType> m_pendingSwitch;
 };

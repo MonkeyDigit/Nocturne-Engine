@@ -61,6 +61,7 @@ public:
     const sf::Vector2u& GetMapSize() const;
     const sf::Vector2f& GetPlayerStart() const;
     bool IsNextMapQueued() const { return m_loadNextMap; }
+    bool HasNextMap() const { return !m_nextMap.empty(); }
 
     const sf::FloatRect& GetDoorRect() const { return m_doorRect; }
     const std::vector<sf::FloatRect>& GetTraps() const { return m_traps; }

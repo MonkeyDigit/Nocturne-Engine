@@ -10,6 +10,7 @@
 #include "State_Paused.h"
 #include "State_Settings.h"
 #include "State_Credits.h"
+#include "State_Victory.h"
 
 namespace
 {
@@ -45,7 +46,9 @@ namespace
 }
 
 StateManager::StateManager(SharedContext& shared)
-    : m_shared(shared)
+    : m_shared(shared),
+    m_isUpdating(false),
+    m_pendingSwitch(std::nullopt)
 {
     RegisterState<State_Intro>(StateType::Intro);
     RegisterState<State_MainMenu>(StateType::MainMenu);
@@ -53,6 +56,7 @@ StateManager::StateManager(SharedContext& shared)
     RegisterState<State_Paused>(StateType::Paused);
     RegisterState<State_Settings>(StateType::Settings);
     RegisterState<State_Credits>(StateType::Credits);
+    RegisterState<State_Victory>(StateType::Victory);
 }
 
 StateManager::~StateManager()
@@ -88,6 +92,13 @@ void StateManager::ProcessRequests()
         RemoveState(type);
 
     m_toRemove.clear();
+
+    if (m_pendingSwitch.has_value())
+    {
+        const StateType requested = *m_pendingSwitch;
+        m_pendingSwitch.reset();
+        SwitchTo(requested); // safe here: not inside Update iteration
+    }
 }
 
 SharedContext& StateManager::GetContext() { return m_shared; }
@@ -107,6 +118,13 @@ bool StateManager::HasState(StateType type) const
 
 void StateManager::SwitchTo(StateType type)
 {
+    // Never mutate the state stack while Update() is iterating it
+    if (m_isUpdating)
+    {
+        m_pendingSwitch = type;
+        return;
+    }
+
     if (!m_states.empty() && m_states.back().first == type)
     {
         m_shared.m_eventManager.SetCurrentState(type);
@@ -192,6 +210,8 @@ void StateManager::Update(const sf::Time& time)
 {
     if (m_states.empty()) return;
 
+    m_isUpdating = true;
+
     auto start = ResolveStackStart(
         m_states,
         [](const auto& statePair)
@@ -206,4 +226,6 @@ void StateManager::Update(const sf::Time& time)
         {
             state.Update(time);
         });
+
+    m_isUpdating = false;
 }

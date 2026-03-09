@@ -161,5 +161,20 @@ void State_Game::HandlePlayerHazards(EntityBase& player)
     }
 
     if (m_gameMap.GetDoorRect().findIntersection(pBounds))
-        m_gameMap.LoadNext();
+    {
+        if (m_gameMap.HasNextMap())
+        {
+            m_gameMap.LoadNext();
+        }
+        else
+        {
+            // End-of-slice condition: no next map configured, go to victory state
+            m_stillCursorTime = 0.0f;
+            SetCursorVisible(true);
+            m_stateManager.SwitchTo(StateType::Victory);
+            m_stateManager.Remove(StateType::Game);
+        }
+
+        return;
+    }
 }

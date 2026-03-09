@@ -288,11 +288,6 @@
          "name":"Gravity",
          "type":"float",
          "value":1024
-        }, 
-        {
-         "name":"NextMap",
-         "type":"string",
-         "value":"map_2.tmj"
         }],
  "renderorder":"right-down",
  "tiledversion":"1.11.2",

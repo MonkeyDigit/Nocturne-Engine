@@ -156,6 +156,9 @@
     <ClInclude Include="include\MovementControlDetail.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\State_Victory.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Game.cpp">
@@ -315,6 +318,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\MapTmjObjectHandlers.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\State_Victory.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
