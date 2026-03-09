@@ -1,7 +1,8 @@
 #pragma once
 #include <SFML/Graphics.hpp>
 #include "BaseState.h"
-#include "EventManager.h"
+
+struct EventDetails;
 
 class State_Paused : public BaseState
 {

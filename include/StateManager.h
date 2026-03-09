@@ -43,7 +43,7 @@ public:
     void Remove(StateType type);
 
 private:
-    void CreateState(StateType type);
+    bool CreateState(StateType type);
     void RemoveState(StateType type);
 
     template<class T>

@@ -137,6 +137,12 @@ void CombatSystem::ResolveEnemyVsPlayer(
     if (!playerState || !playerTrans || !playerCol || !playerSprite) return;
     if (playerState->GetState() == EntityState::Dying) return;
 
+    const bool playerIsAttacking = (playerState->GetState() == EntityState::Attacking);
+    const unsigned int playerAttackInstance = playerIsAttacking ? playerState->GetAttackInstance() : 0u;
+    const sf::FloatRect playerSwordBox = playerIsAttacking
+        ? ComputeWorldAttackAABB(playerCol, playerSprite)
+        : sf::FloatRect();
+
     for (EntityBase* enemy : enemies)
     {
         CState* enemyState = enemy->GetComponent<CState>();
@@ -148,28 +154,22 @@ void CombatSystem::ResolveEnemyVsPlayer(
         if (enemyState->GetState() == EntityState::Dying) continue;
 
         // Player sword hit
-        if (playerState->GetState() == EntityState::Attacking)
+        if (playerIsAttacking &&
+            HasIntersection(playerSwordBox, enemyCol->GetAABB()) &&
+            enemyState->TakeDamageFromAttack(
+                player->GetId(),
+                playerAttackInstance,
+                playerState->GetAttackDamage()))
         {
-            const unsigned int playerAttackInstance = playerState->GetAttackInstance();
-            const sf::FloatRect playerSwordBox = ComputeWorldAttackAABB(playerCol, playerSprite);
+            const float knockbackX = playerState->HasAttackKnockbackOverride()
+                ? playerState->GetAttackKnockbackX()
+                : kDefaultPlayerSwordKnockbackX;
 
+            const float knockbackY = playerState->HasAttackKnockbackOverride()
+                ? playerState->GetAttackKnockbackY()
+                : kDefaultPlayerSwordKnockbackY;
 
-            if (HasIntersection(playerSwordBox, enemyCol->GetAABB()) &&
-                enemyState->TakeDamageFromAttack(
-                    player->GetId(),
-                    playerAttackInstance,
-                    playerState->GetAttackDamage()))
-            {
-                const float knockbackX = playerState->HasAttackKnockbackOverride()
-                    ? playerState->GetAttackKnockbackX()
-                    : kDefaultPlayerSwordKnockbackX;
-
-                const float knockbackY = playerState->HasAttackKnockbackOverride()
-                    ? playerState->GetAttackKnockbackY()
-                    : kDefaultPlayerSwordKnockbackY;
-
-                ApplyKnockbackAwayFrom(*enemyTrans, *playerTrans, knockbackX, knockbackY);
-            }
+            ApplyKnockbackAwayFrom(*enemyTrans, *playerTrans, knockbackX, knockbackY);
         }
 
         // Enemy active attack hitbox

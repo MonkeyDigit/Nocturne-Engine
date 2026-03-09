@@ -75,10 +75,11 @@ bool StateManager::HasState(StateType type) const
 
 void StateManager::SwitchTo(StateType type)
 {
-    m_shared.m_eventManager.SetCurrentState(type);
-
     if (!m_states.empty() && m_states.back().first == type)
-        return; // Already active, nothing to do
+    {
+        m_shared.m_eventManager.SetCurrentState(type);
+        return;
+    }
 
     for (auto itr = m_states.begin(); itr != m_states.end(); ++itr)
     {
@@ -86,26 +87,29 @@ void StateManager::SwitchTo(StateType type)
         {
             m_states.back().second->Deactivate();
 
-            // Move the found state to the back of the stack
             StateType tmpType = itr->first;
             std::unique_ptr<BaseState> tmpState = std::move(itr->second);
             m_states.erase(itr);
             m_states.emplace_back(tmpType, std::move(tmpState));
 
             m_states.back().second->Activate();
+            m_shared.m_eventManager.SetCurrentState(type);
             return;
         }
     }
 
-    // State wasn't found, we need to create it
-    if (!m_states.empty()) m_states.back().second->Deactivate();
+    BaseState* previousTop = m_states.empty() ? nullptr : m_states.back().second.get();
+    if (previousTop) previousTop->Deactivate();
 
-    CreateState(type);
-
-    if (!m_states.empty())
+    if (!CreateState(type))
     {
-        m_states.back().second->Activate();
+        // Restore previous state if requested state cannot be created
+        if (previousTop) previousTop->Activate();
+        return;
     }
+
+    m_states.back().second->Activate();
+    m_shared.m_eventManager.SetCurrentState(type);
 }
 
 void StateManager::Remove(StateType type)
@@ -115,15 +119,17 @@ void StateManager::Remove(StateType type)
         m_toRemove.push_back(type);
 }
 
-void StateManager::CreateState(StateType type)
+bool StateManager::CreateState(StateType type)
 {
     auto factory = m_stateFactory.find(type);
-    if (factory == m_stateFactory.end()) return;
+    if (factory == m_stateFactory.end()) return false;
 
     std::unique_ptr<BaseState> state = factory->second();
+    if (!state) return false;
 
     m_states.emplace_back(type, std::move(state));
     m_states.back().second->OnCreate();
+    return true;
 }
 
 void StateManager::RemoveState(StateType type)

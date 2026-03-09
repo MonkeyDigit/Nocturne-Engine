@@ -1,8 +1,9 @@
 #pragma once
 #include <SFML/Graphics.hpp>
 #include <optional>
-#include "EventManager.h"
 #include "BaseState.h"
+
+struct EventDetails;
 
 class State_Intro : public BaseState
 {

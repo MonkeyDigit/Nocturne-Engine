@@ -8,6 +8,8 @@
 #include "Window.h"
 #include "CState.h"
 #include "CController.h"
+#include "CTransform.h"
+#include "CBoxCollider.h"
 #include "CAIPatrol.h"
 #include "CProjectile.h"
 #include "EngineLog.h"
@@ -68,13 +70,20 @@ int EntityManager::Add(EntityType type, const std::string& name)
     }
     else if (type == EntityType::Enemy)
     {
-        // Enemy needs a Joypad and an AI Brain
+        const std::string enemyTypeId = name.empty() ? "<empty>" : name;
+        auto typeItr = m_enemyTypes.find(name);
+        if (typeItr == m_enemyTypes.end())
+        {
+            EngineLog::WarnOnce(
+                "enemy.type.unknown." + enemyTypeId,
+                "Unknown enemy type '" + enemyTypeId + "'. Check media/lists/enemy_list.list.");
+            return -1;
+        }
+
+        // Enemy needs a controller and AI component
         entity->AddComponent<CController>();
         entity->AddComponent<CAIPatrol>();
-
-        auto typeItr = m_enemyTypes.find(name);
-        if (typeItr != m_enemyTypes.end())
-            entity->Load(typeItr->second);
+        entity->Load(typeItr->second);
     }
 
     // Store the entity in the map
@@ -180,6 +189,28 @@ int EntityManager::SpawnProjectile(EntityBase* shooter, const sf::Vector2f& posi
         return -1;
     }
 
+    const CController* shooterController = shooter->GetComponent<CController>();
+
+    const float projectileWidth =
+        (shooterController && shooterController->m_rangedSizeX > 0.0f)
+        ? shooterController->m_rangedSizeX
+        : 16.0f;
+
+    const float projectileHeight =
+        (shooterController && shooterController->m_rangedSizeY > 0.0f)
+        ? shooterController->m_rangedSizeY
+        : 16.0f;
+
+    const std::string projectileSheet =
+        (shooterController && !shooterController->m_rangedSheetPath.empty())
+        ? shooterController->m_rangedSheetPath
+        : "media/spritesheets/Player.sheet";
+
+    const std::string projectileAnimation =
+        (shooterController && !shooterController->m_rangedAnimation.empty())
+        ? shooterController->m_rangedAnimation
+        : "Idle";
+
     if (m_entities.size() >= m_maxEntities)
     {
         EngineLog::ErrorOnce("entity.limit.reached", "Entity limit reached");
@@ -195,10 +226,24 @@ int EntityManager::SpawnProjectile(EntityBase* shooter, const sf::Vector2f& posi
     CTransform* transform = entity->AddComponent<CTransform>();
     transform->SetPosition(position);
     transform->SetVelocity(velocity.x, velocity.y);
-    transform->SetSize(16.0f, 16.0f); // Default size of the fireball
+    transform->SetSize(projectileWidth, projectileHeight);
 
     CSprite* sprite = entity->AddComponent<CSprite>(m_context.m_textureManager);
-    sprite->Load("media/spritesheets/Player.sheet");
+    sprite->Load(projectileSheet);
+
+    // Force a valid animation/texture-rect for the fallback projectile visual
+    bool hasProjectileAnim = sprite->GetSpriteSheet().SetAnimation(projectileAnimation, true, true);
+    if (!hasProjectileAnim && projectileAnimation != "Idle")
+        hasProjectileAnim = sprite->GetSpriteSheet().SetAnimation("Idle", true, true);
+
+    if (!hasProjectileAnim)
+    {
+        EngineLog::WarnOnce(
+            "projectile.sprite.missing_anim." + projectileSheet + "." + projectileAnimation,
+            "Projectile sheet '" + projectileSheet + "' has no usable animation '" + projectileAnimation + "'.");
+    }
+
+    sprite->SetDirection((velocity.x < 0.0f) ? Direction::Left : Direction::Right);
 
     // Collider: So it can hit things
     entity->AddComponent<CBoxCollider>();
@@ -262,17 +307,49 @@ void EntityManager::LoadEnemyTypes(const std::string& path)
         return;
     }
 
+    auto warnLine = [&](unsigned int lineNumber, const std::string& message)
+        {
+            EngineLog::Warn(path + " line " + std::to_string(lineNumber) + ": " + message);
+        };
+
     std::string line;
+    unsigned int lineNumber = 0;
+
     while (std::getline(file, line))
     {
-        if (line.empty() || line[0] == '|') continue;
+        ++lineNumber;
+
+        // Support inline comments and full-line comments
+        const size_t commentPos = line.find('#');
+        if (commentPos != std::string::npos)
+            line.erase(commentPos);
+
+        const size_t first = line.find_first_not_of(" \t\r\n");
+        if (first == std::string::npos) continue;
+        if (line[first] == '|') continue;
 
         std::stringstream keystream(line);
-        std::string name;
+        std::string enemyName;
         std::string charFile;
 
-        keystream >> name >> charFile;
-        m_enemyTypes.emplace(name, charFile);
+        if (!(keystream >> enemyName >> charFile))
+        {
+            warnLine(lineNumber, "Invalid entry (expected: <EnemyTypeId> <CharacterFile>).");
+            continue;
+        }
+
+        std::string trailing;
+        if (keystream >> trailing)
+        {
+            warnLine(lineNumber, "Too many tokens for enemy type '" + enemyName + "'.");
+            continue;
+        }
+
+        auto [it, inserted] = m_enemyTypes.emplace(enemyName, charFile);
+        if (!inserted)
+        {
+            warnLine(lineNumber, "Duplicate enemy type '" + enemyName + "'. Overwriting previous file.");
+            it->second = charFile;
+        }
     }
-    file.close();
 }

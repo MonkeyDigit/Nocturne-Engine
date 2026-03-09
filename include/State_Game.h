@@ -1,10 +1,10 @@
 #pragma once
 #include <memory>
 #include "BaseState.h"
-#include "EventManager.h"
 #include "Map.h"
 #include "HUD.h"
 
+struct EventDetails;
 class EntityBase;
 
 class State_Game : public BaseState

@@ -1,8 +1,9 @@
 #pragma once
-#include "BaseState.h"
-#include "EventManager.h"
-#include <SFML/Graphics.hpp>
 #include <optional>
+#include "BaseState.h"
+#include <SFML/Graphics.hpp>
+
+struct EventDetails;
 
 class State_Credits : public BaseState
 {

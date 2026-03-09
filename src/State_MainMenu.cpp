@@ -34,26 +34,26 @@ void State_MainMenu::OnCreate()
     m_title.setOutlineColor(sf::Color::Red);
     CenterText(m_title, uiRes.x * 0.5f, uiRes.y * 0.2f);
 
-    // Buttons
+    // SETUP BUTTONS
     m_buttonSize = sf::Vector2f(300.0f, 60.0f);
     m_buttonPos = sf::Vector2f(uiRes.x * 0.5f, uiRes.y * 0.4f);
-
     std::vector<std::string> buttonNames = { "PLAY", "CREDITS", "SETTINGS", "EXIT" };
-
     for (size_t i = 0; i < buttonNames.size(); ++i)
     {
         MenuButton btn(m_fontButton);
 
-        btn.rect.setSize(m_buttonSize);
-        btn.rect.setFillColor(sf::Color(0, 0, 128, 160));
-        btn.rect.setOutlineColor(sf::Color(0, 0, 64));
-        btn.rect.setOutlineThickness(2.0f);
-        btn.rect.setOrigin({ m_buttonSize.x * 0.5f, m_buttonSize.y * 0.5f });
-        btn.rect.setPosition({ m_buttonPos.x, m_buttonPos.y + (i * (m_buttonSize.y + m_buttonPadding)) });
+        const sf::Vector2f buttonCenter = {
+            m_buttonPos.x,
+            m_buttonPos.y + (static_cast<float>(i) * (m_buttonSize.y + m_buttonPadding))
+        };
 
-        btn.label.setString(buttonNames[i]);
-        btn.label.setCharacterSize(30);
-        CenterText(btn.label, btn.rect.getPosition().x, btn.rect.getPosition().y);
+        SetupTextButton(
+            btn.rect,
+            btn.label,
+            m_buttonSize,
+            buttonCenter,
+            buttonNames[i],
+            30u);
 
         m_buttons.push_back(std::move(btn));
     }
@@ -79,12 +79,8 @@ void State_MainMenu::Update(const sf::Time&)
     sf::Vector2i mousePos = sf::Mouse::getPosition(window);
     sf::Vector2f mouseWorldPos = window.mapPixelToCoords(mousePos, uiView);
 
-    for (auto& btn : m_buttons) {
-        if (btn.rect.getGlobalBounds().contains(mouseWorldPos))
-            btn.rect.setFillColor(sf::Color(128, 0, 0, 160));
-        else
-            btn.rect.setFillColor(sf::Color(0, 0, 128, 160));
-    }
+    for (auto& btn : m_buttons)
+        UpdateButtonHoverColor(btn.rect, mouseWorldPos);
 }
 
 void State_MainMenu::Draw()

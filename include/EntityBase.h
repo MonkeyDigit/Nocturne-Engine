@@ -1,15 +1,14 @@
 #pragma once
-#include <unordered_map>
 #include <memory>
+#include <string>
+#include <type_traits>
 #include <typeindex>
-#include "Map.h"
+#include <unordered_map>
+#include <utility>
+#include <SFML/System/Vector2.hpp>
 #include "Component.h"
-#include "CTransform.h"
-#include "CBoxCollider.h"
 
 class EntityManager;
-
-bool SortCollisions(const CollisionElement& e1, const CollisionElement& e2);
 
 // Moved here to solve circular dependency issues
 enum class EntityType

@@ -132,3 +132,37 @@ bool BaseState::LoadFontOrWarn(
 {
     return Utils::LoadFontOrWarn(font, path, ownerTag, fontTag);
 }
+
+void BaseState::SetupTextButton(
+    sf::RectangleShape& rect,
+    sf::Text& label,
+    const sf::Vector2f& size,
+    const sf::Vector2f& centerPosition,
+    const std::string& text,
+    unsigned int characterSize,
+    const sf::Color& fillColor,
+    const sf::Color& outlineColor,
+    float outlineThickness)
+{
+    // Shared menu/settings button setup to keep style and layout consistent.
+    rect.setSize(size);
+    rect.setFillColor(fillColor);
+    rect.setOutlineColor(outlineColor);
+    rect.setOutlineThickness(outlineThickness);
+    rect.setOrigin({ size.x * 0.5f, size.y * 0.5f });
+    rect.setPosition(centerPosition);
+
+    label.setString(text);
+    label.setCharacterSize(characterSize);
+    CenterText(label, centerPosition.x, centerPosition.y);
+}
+
+void BaseState::UpdateButtonHoverColor(
+    sf::RectangleShape& rect,
+    const sf::Vector2f& mousePosition,
+    const sf::Color& idleColor,
+    const sf::Color& hoverColor)
+{
+    rect.setFillColor(
+        rect.getGlobalBounds().contains(mousePosition) ? hoverColor : idleColor);
+}

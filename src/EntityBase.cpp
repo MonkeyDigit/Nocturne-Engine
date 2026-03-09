@@ -5,13 +5,10 @@
 #include "CState.h"
 #include "CController.h"
 #include "CSprite.h"
+#include "CTransform.h"
+#include "CBoxCollider.h"
 #include "CAIPatrol.h"
 #include "EngineLog.h"
-
-bool SortCollisions(const CollisionElement& e1, const CollisionElement& e2)
-{
-    return e1.m_area > e2.m_area;
-}
 
 namespace
 {
@@ -35,6 +32,572 @@ namespace
             "Invalid '" + key + "' in '" + path + "' at line " +
             std::to_string(lineNumber) + " (expected: " + expected + ")");
     }
+
+    bool HandleCoreConfigKey(
+        const std::string& type,
+        std::stringstream& keystream,
+        const std::string& path,
+        unsigned int lineNumber,
+        std::string& entityName,
+        CSprite* sprite,
+        CState* state,
+        CTransform* transform,
+        CBoxCollider* collider)
+    {
+        if (type == "Name")
+        {
+            std::string name;
+            if (!TryReadExact(keystream, name))
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "Name <string>");
+                return true;
+            }
+
+            entityName = name;
+            return true;
+        }
+
+        if (type == "Spritesheet")
+        {
+            std::string spritePath;
+            if (!TryReadExact(keystream, spritePath))
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "Spritesheet <path>");
+                return true;
+            }
+
+            if (sprite) { sprite->Load(spritePath); }
+            return true;
+        }
+
+        if (type == "Hitpoints")
+        {
+            int maxHitPoints = 0;
+            if (!TryReadExact(keystream, maxHitPoints) || maxHitPoints <= 0)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "Hitpoints <int > 0>");
+                return true;
+            }
+
+            if (state) { state->SetHitPoints(maxHitPoints); }
+            return true;
+        }
+
+        if (type == "BoundingBox")
+        {
+            float x = 0.0f, y = 0.0f;
+            if (!TryReadExact(keystream, x, y) || x <= 0.0f || y <= 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "BoundingBox <width > 0> <height > 0>");
+                return true;
+            }
+
+            if (transform) { transform->SetSize(x, y); }
+
+            if (collider)
+                collider->SetAABB(sf::FloatRect({ 0.0f, 0.0f }, { x, y }));
+
+            return true;
+        }
+
+        if (type == "DamageBox")
+        {
+            float offsetX = 0.0f, offsetY = 0.0f, width = 0.0f, height = 0.0f;
+            if (!TryReadExact(keystream, offsetX, offsetY, width, height) ||
+                width <= 0.0f || height <= 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "DamageBox <offsetX> <offsetY> <width > 0> <height > 0>");
+                return true;
+            }
+
+            if (collider)
+            {
+                collider->SetAttackAABB(sf::FloatRect({ 0.0f, 0.0f }, { width, height }));
+                collider->SetAttackAABBOffset(sf::Vector2f(offsetX, offsetY));
+            }
+
+            return true;
+        }
+
+        if (type == "Speed")
+        {
+            float x = 0.0f, y = 0.0f;
+            if (!TryReadExact(keystream, x, y) || x <= 0.0f || y <= 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "Speed <x > 0> <y > 0>");
+                return true;
+            }
+
+            if (transform) { transform->SetSpeed(x, y); }
+            return true;
+        }
+
+        if (type == "MaxVelocity")
+        {
+            float x = 0.0f, y = 0.0f;
+            if (!TryReadExact(keystream, x, y) || x <= 0.0f || y <= 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "MaxVelocity <x > 0> <y > 0>");
+                return true;
+            }
+
+            if (transform) { transform->SetMaxVelocity(x, y); }
+            return true;
+        }
+
+        return false;
+    }
+
+    bool HandleStateCombatConfigKey(
+        EntityBase* entity,
+        const std::string& type,
+        std::stringstream& keystream,
+        const std::string& path,
+        unsigned int lineNumber)
+    {
+        // Key is handled even if CState is missing on this entity.
+        CState* state = entity->GetComponent<CState>();
+
+        if (type == "AttackDamage")
+        {
+            int damage = 0;
+            if (!TryReadExact(keystream, damage) || damage <= 0)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "AttackDamage <int > 0>");
+                return true;
+            }
+
+            if (state) { state->SetAttackDamage(damage); }
+            return true;
+        }
+
+        if (type == "AttackKnockback")
+        {
+            float x = 0.0f, y = 0.0f;
+            if (!TryReadExact(keystream, x, y) || x < 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "AttackKnockback <x >= 0> <y>");
+                return true;
+            }
+
+            if (state) { state->SetAttackKnockback(x, y); }
+            return true;
+        }
+
+        if (type == "TouchDamage")
+        {
+            int damage = 0;
+            if (!TryReadExact(keystream, damage) || damage < 0)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "TouchDamage <int >= 0>");
+                return true;
+            }
+
+            if (state) { state->SetTouchDamage(damage); }
+            return true;
+        }
+
+        if (type == "InvulnerabilityTime")
+        {
+            float seconds = 0.0f;
+            if (!TryReadExact(keystream, seconds) || seconds < 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "InvulnerabilityTime <float >= 0>");
+                return true;
+            }
+
+            if (state) { state->SetInvulnerabilityTime(seconds); }
+            return true;
+        }
+
+        return false;
+    }
+
+    bool HandleControllerConfigKey(
+        EntityBase* entity,
+        const std::string& type,
+        std::stringstream& keystream,
+        const std::string& path,
+        unsigned int lineNumber)
+    {
+        // Key is considered handled even when the component is missing.
+        CController* controller = entity->GetComponent<CController>();
+
+        if (type == "JumpVelocity")
+        {
+            float jv = 0.0f;
+            if (!TryReadExact(keystream, jv) || jv <= 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "JumpVelocity <float > 0>");
+                return true;
+            }
+
+            if (controller) { controller->m_jumpVelocity = jv; }
+            return true;
+        }
+
+        if (type == "RangedCooldown")
+        {
+            float value = 0.0f;
+            if (!TryReadExact(keystream, value) || value < 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "RangedCooldown <float >= 0>");
+                return true;
+            }
+
+            if (controller) { controller->m_rangedCooldown = value; }
+            return true;
+        }
+
+        if (type == "RangedSpeed")
+        {
+            float speed = 0.0f;
+            if (!TryReadExact(keystream, speed) || speed <= 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "RangedSpeed <float > 0>");
+                return true;
+            }
+
+            if (controller) { controller->m_rangedSpeed = speed; }
+            return true;
+        }
+
+        if (type == "RangedLifetime")
+        {
+            float lifetime = 0.0f;
+            if (!TryReadExact(keystream, lifetime) || lifetime <= 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "RangedLifetime <float > 0>");
+                return true;
+            }
+
+            if (controller) { controller->m_rangedLifetime = lifetime; }
+            return true;
+        }
+
+        if (type == "RangedDamage")
+        {
+            int damage = 0;
+            if (!TryReadExact(keystream, damage) || damage <= 0)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "RangedDamage <int > 0>");
+                return true;
+            }
+
+            if (controller) { controller->m_rangedDamage = damage; }
+            return true;
+        }
+
+        if (type == "RangedSpawnOffset")
+        {
+            float offsetX = 0.0f, offsetY = 0.0f;
+            if (!TryReadExact(keystream, offsetX, offsetY) || offsetX < 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "RangedSpawnOffset <x >= 0> <y>");
+                return true;
+            }
+
+            if (controller)
+            {
+                controller->m_rangedSpawnOffsetX = offsetX;
+                controller->m_rangedSpawnOffsetY = offsetY;
+            }
+            return true;
+        }
+
+        if (type == "RangedSize")
+        {
+            float sx = 0.0f, sy = 0.0f;
+            if (!TryReadExact(keystream, sx, sy) || sx <= 0.0f || sy <= 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "RangedSize <x > 0> <y > 0>");
+                return true;
+            }
+
+            if (controller)
+            {
+                controller->m_rangedSizeX = sx;
+                controller->m_rangedSizeY = sy;
+            }
+            return true;
+        }
+
+        if (type == "RangedSheet")
+        {
+            std::string sheetPath;
+            if (!TryReadExact(keystream, sheetPath) || sheetPath.empty())
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "RangedSheet <path>");
+                return true;
+            }
+
+            if (controller) { controller->m_rangedSheetPath = sheetPath; }
+            return true;
+        }
+
+        if (type == "RangedAnimation")
+        {
+            std::string animName;
+            if (!TryReadExact(keystream, animName) || animName.empty())
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "RangedAnimation <name>");
+                return true;
+            }
+
+            if (controller) { controller->m_rangedAnimation = animName; }
+            return true;
+        }
+
+        if (type == "RangedEnabled")
+        {
+            int value = 0;
+            if (!TryReadExact(keystream, value) || (value != 0 && value != 1))
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "RangedEnabled <0|1>");
+                return true;
+            }
+
+            if (controller) { controller->m_rangedEnabled = (value == 1); }
+            return true;
+        }
+
+        if (type == "CoyoteTime")
+        {
+            float value = 0.0f;
+            if (!TryReadExact(keystream, value) || value < 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "CoyoteTime <float >= 0>");
+                return true;
+            }
+
+            if (controller) { controller->m_coyoteTimeWindow = value; }
+            return true;
+        }
+
+        if (type == "JumpBufferTime")
+        {
+            float value = 0.0f;
+            if (!TryReadExact(keystream, value) || value < 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "JumpBufferTime <float >= 0>");
+                return true;
+            }
+
+            if (controller) { controller->m_jumpBufferWindow = value; }
+            return true;
+        }
+
+        if (type == "AttackCooldown")
+        {
+            float value = 0.0f;
+            if (!TryReadExact(keystream, value) || value < 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "AttackCooldown <float >= 0>");
+                return true;
+            }
+
+            if (controller) { controller->m_attackCooldown = value; }
+            return true;
+        }
+
+        if (type == "JumpCancelMultiplier")
+        {
+            float value = 0.0f;
+            if (!TryReadExact(keystream, value) || value <= 0.0f || value > 1.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "JumpCancelMultiplier <0 < value <= 1>");
+                return true;
+            }
+
+            if (controller) { controller->m_jumpCancelMultiplier = value; }
+            return true;
+        }
+
+        if (type == "VerticalAirThreshold")
+        {
+            float value = 0.0f;
+            if (!TryReadExact(keystream, value) || value < 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "VerticalAirThreshold <float >= 0>");
+                return true;
+            }
+
+            if (controller) { controller->m_verticalAirThreshold = value; }
+            return true;
+        }
+
+        if (type == "HorizontalWalkThreshold")
+        {
+            float value = 0.0f;
+            if (!TryReadExact(keystream, value) || value < 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "HorizontalWalkThreshold <float >= 0>");
+                return true;
+            }
+
+            if (controller) { controller->m_horizontalWalkThreshold = value; }
+            return true;
+        }
+
+        return false;
+    }
+
+    bool HandleAiConfigKey(
+        EntityBase* entity,
+        const std::string& type,
+        std::stringstream& keystream,
+        const std::string& path,
+        unsigned int lineNumber)
+    {
+        // Cache once: key is recognized even if entity has no AI component
+        CAIPatrol* ai = entity->GetComponent<CAIPatrol>();
+
+        if (type == "AI_ChaseRange")
+        {
+            float value = 0.0f;
+            if (!TryReadExact(keystream, value) || value <= 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "AI_ChaseRange <float > 0>");
+                return true;
+            }
+
+            if (ai) { ai->m_chaseRange = value; }
+            return true;
+        }
+
+        if (type == "AI_ChaseDeadZone")
+        {
+            float value = 0.0f;
+            if (!TryReadExact(keystream, value) || value < 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "AI_ChaseDeadZone <float >= 0>");
+                return true;
+            }
+
+            if (ai) { ai->m_chaseDeadZone = value; }
+            return true;
+        }
+
+        if (type == "AI_ArrivalThreshold")
+        {
+            float value = 0.0f;
+            if (!TryReadExact(keystream, value) || value < 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "AI_ArrivalThreshold <float >= 0>");
+                return true;
+            }
+
+            if (ai) { ai->m_arrivalThreshold = value; }
+            return true;
+        }
+
+        if (type == "AI_IdleInterval")
+        {
+            float value = 0.0f;
+            if (!TryReadExact(keystream, value) || value <= 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "AI_IdleInterval <float > 0>");
+                return true;
+            }
+
+            if (ai) { ai->m_idleInterval = value; }
+            return true;
+        }
+
+        if (type == "AI_PatrolMinDistance")
+        {
+            int value = 0;
+            if (!TryReadExact(keystream, value) || value <= 0)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "AI_PatrolMinDistance <int > 0>");
+                return true;
+            }
+
+            if (ai) { ai->m_patrolMinDistance = value; }
+            return true;
+        }
+
+        if (type == "AI_PatrolMaxDistance")
+        {
+            int value = 0;
+            if (!TryReadExact(keystream, value) || value <= 0)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "AI_PatrolMaxDistance <int > 0>");
+                return true;
+            }
+
+            if (ai) { ai->m_patrolMaxDistance = value; }
+            return true;
+        }
+
+        if (type == "AI_PatrolDirectionChance")
+        {
+            float value = 0.0f;
+            if (!TryReadExact(keystream, value))
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "AI_PatrolDirectionChance <float 0..1>");
+                return true;
+            }
+
+            if (value < 0.0f || value > 1.0f)
+            {
+                EngineLog::Warn(
+                    "AI_PatrolDirectionChance out of range in '" + path + "' at line " +
+                    std::to_string(lineNumber) + ". Clamping to [0,1].");
+                if (value < 0.0f) value = 0.0f;
+                if (value > 1.0f) value = 1.0f;
+            }
+
+            if (ai) { ai->m_patrolDirectionChance = value; }
+            return true;
+        }
+
+        if (type == "AI_AttackRange")
+        {
+            float value = 0.0f;
+            if (!TryReadExact(keystream, value) || value <= 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "AI_AttackRange <float > 0>");
+                return true;
+            }
+
+            if (ai)
+            {
+                ai->m_attackRangeX = value;
+                ai->m_attackRangeY = value;
+            }
+            return true;
+        }
+
+        if (type == "AI_AttackRangeX")
+        {
+            float value = 0.0f;
+            if (!TryReadExact(keystream, value) || value <= 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "AI_AttackRangeX <float > 0>");
+                return true;
+            }
+
+            if (ai) { ai->m_attackRangeX = value; }
+            return true;
+        }
+
+        if (type == "AI_AttackRangeY")
+        {
+            float value = 0.0f;
+            if (!TryReadExact(keystream, value) || value <= 0.0f)
+            {
+                WarnInvalidCharValue(path, lineNumber, type, "AI_AttackRangeY <float > 0>");
+                return true;
+            }
+
+            if (ai) { ai->m_attackRangeY = value; }
+            return true;
+        }
+
+        return false;
+    }
+
 }
 
 EntityBase::EntityBase(EntityManager& entityManager)
@@ -160,6 +723,11 @@ void EntityBase::Load(const std::string& path)
         return;
     }
 
+    CSprite* spriteComp = this->GetComponent<CSprite>();
+    CState* stateComp = this->GetComponent<CState>();
+    CTransform* transformComp = this->GetComponent<CTransform>();
+    CBoxCollider* colliderComp = this->GetComponent<CBoxCollider>();
+
     std::string line;
     unsigned int lineNumber = 0;
 
@@ -181,422 +749,16 @@ void EntityBase::Load(const std::string& path)
         std::string type;
         if (!(keystream >> type)) continue;
 
-        if (type == "Name")
-        {
-            std::string name;
-            if (!TryReadExact(keystream, name))
-            {
-                WarnInvalidCharValue(path, lineNumber, type, "Name <string>");
-                continue;
-            }
-            m_name = name;
-        }
-        else if (type == "Spritesheet")
-        {
-            std::string spritePath;
-            if (!TryReadExact(keystream, spritePath))
-            {
-                WarnInvalidCharValue(path, lineNumber, type, "Spritesheet <path>");
-                continue;
-            }
-
-            CSprite* sprite = this->GetComponent<CSprite>();
-            if (sprite) { sprite->Load(spritePath); }
-        }
-        else if (type == "Hitpoints")
-        {
-            int maxHitPoints = 0;
-            if (!TryReadExact(keystream, maxHitPoints) || maxHitPoints <= 0)
-            {
-                WarnInvalidCharValue(path, lineNumber, type, "Hitpoints <int > 0>");
-                continue;
-            }
-
-            CState* state = this->GetComponent<CState>();
-            if (state) { state->SetHitPoints(maxHitPoints); }
-        }
-        else if (type == "BoundingBox")
-        {
-            float x = 0.0f, y = 0.0f;
-            if (!TryReadExact(keystream, x, y) || x <= 0.0f || y <= 0.0f)
-            {
-                WarnInvalidCharValue(path, lineNumber, type, "BoundingBox <width > 0> <height > 0>");
-                continue;
-            }
-
-            CTransform* transform = this->GetComponent<CTransform>();
-            if (transform) { transform->SetSize(x, y); }
-
-            CBoxCollider* collider = this->GetComponent<CBoxCollider>();
-            if (collider)
-                collider->SetAABB(sf::FloatRect({ 0.0f, 0.0f }, { x, y }));
-        }
-        else if (type == "DamageBox")
-        {
-            float offsetX = 0.0f, offsetY = 0.0f, width = 0.0f, height = 0.0f;
-            if (!TryReadExact(keystream, offsetX, offsetY, width, height) ||
-                width <= 0.0f || height <= 0.0f)
-            {
-                WarnInvalidCharValue(path, lineNumber, type, "DamageBox <offsetX> <offsetY> <width > 0> <height > 0>");
-                continue;
-            }
-
-            CBoxCollider* collider = this->GetComponent<CBoxCollider>();
-            if (collider)
-            {
-                collider->SetAttackAABB(sf::FloatRect({ 0.0f, 0.0f }, { width, height }));
-                collider->SetAttackAABBOffset(sf::Vector2f(offsetX, offsetY));
-            }
-        }
-        else if (type == "Speed")
-        {
-            float x = 0.0f, y = 0.0f;
-            if (!TryReadExact(keystream, x, y) || x <= 0.0f || y <= 0.0f)
-            {
-                WarnInvalidCharValue(path, lineNumber, type, "Speed <x > 0> <y > 0>");
-                continue;
-            }
-
-            CTransform* transform = this->GetComponent<CTransform>();
-            if (transform) { transform->SetSpeed(x, y); }
-        }
-        else if (type == "MaxVelocity")
-        {
-            float x = 0.0f, y = 0.0f;
-            if (!TryReadExact(keystream, x, y) || x <= 0.0f || y <= 0.0f)
-            {
-                WarnInvalidCharValue(path, lineNumber, type, "MaxVelocity <x > 0> <y > 0>");
-                continue;
-            }
-
-            CTransform* transform = this->GetComponent<CTransform>();
-            if (transform) { transform->SetMaxVelocity(x, y); }
-        }
-        else if (type == "JumpVelocity")
-        {
-            float jv = 0.0f;
-            if (!TryReadExact(keystream, jv) || jv <= 0.0f)
-            {
-                WarnInvalidCharValue(path, lineNumber, type, "JumpVelocity <float > 0>");
-                continue;
-            }
-
-            CController* controller = this->GetComponent<CController>();
-            if (controller) { controller->m_jumpVelocity = jv; }
-        }
-        else if (type == "RangedCooldown")
-        {
-            float value = 0.0f;
-            if (!TryReadExact(keystream, value) || value < 0.0f)
-            {
-                WarnInvalidCharValue(path, lineNumber, type, "RangedCooldown <float >= 0>");
-                continue;
-            }
-
-            CController* controller = this->GetComponent<CController>();
-            if (controller) { controller->m_rangedCooldown = value; }
-        }
-        else if (type == "RangedSpeed")
-        {
-            float speed = 0.0f;
-            if (!TryReadExact(keystream, speed) || speed <= 0.0f)
-            {
-                WarnInvalidCharValue(path, lineNumber, type, "RangedSpeed <float > 0>");
-                continue;
-            }
-
-            CController* controller = this->GetComponent<CController>();
-            if (controller) { controller->m_rangedSpeed = speed; }
-        }
-        else if (type == "RangedLifetime")
-        {
-            float lifetime = 0.0f;
-            if (!TryReadExact(keystream, lifetime) || lifetime <= 0.0f)
-            {
-                WarnInvalidCharValue(path, lineNumber, type, "RangedLifetime <float > 0>");
-                continue;
-            }
-
-            CController* controller = this->GetComponent<CController>();
-            if (controller) { controller->m_rangedLifetime = lifetime; }
-        }
-        else if (type == "RangedDamage")
-        {
-            int damage = 0;
-            if (!TryReadExact(keystream, damage) || damage <= 0)
-            {
-                WarnInvalidCharValue(path, lineNumber, type, "RangedDamage <int > 0>");
-                continue;
-            }
-
-            CController* controller = this->GetComponent<CController>();
-            if (controller) { controller->m_rangedDamage = damage; }
-        }
-        else if (type == "RangedEnabled")
-        {
-            int value = 0;
-            if (!TryReadExact(keystream, value) || (value != 0 && value != 1))
-            {
-                WarnInvalidCharValue(path, lineNumber, type, "RangedEnabled <0|1>");
-                continue;
-            }
-
-            CController* controller = this->GetComponent<CController>();
-            if (controller) { controller->m_rangedEnabled = (value == 1); }
-        }
-        else if (type == "CoyoteTime")
-        {
-            float value = 0.0f;
-            if (!TryReadExact(keystream, value) || value < 0.0f)
-            {
-                WarnInvalidCharValue(path, lineNumber, type, "CoyoteTime <float >= 0>");
-                continue;
-            }
-
-            CController* controller = this->GetComponent<CController>();
-            if (controller) { controller->m_coyoteTimeWindow = value; }
-        }
-        else if (type == "JumpBufferTime")
-        {
-            float value = 0.0f;
-            if (!TryReadExact(keystream, value) || value < 0.0f)
-            {
-                WarnInvalidCharValue(path, lineNumber, type, "JumpBufferTime <float >= 0>");
-                continue;
-            }
-
-            CController* controller = this->GetComponent<CController>();
-            if (controller) { controller->m_jumpBufferWindow = value; }
-        }
-        else if (type == "AttackCooldown")
-        {
-            float value = 0.0f;
-            if (!TryReadExact(keystream, value) || value < 0.0f)
-            {
-                WarnInvalidCharValue(path, lineNumber, type, "AttackCooldown <float >= 0>");
-                continue;
-            }
-
-            CController* controller = this->GetComponent<CController>();
-            if (controller) { controller->m_attackCooldown = value; }
-        }
-        else if (type == "AttackDamage")
-        {
-            int damage = 0;
-            if (!TryReadExact(keystream, damage) || damage <= 0)
-            {
-                WarnInvalidCharValue(path, lineNumber, type, "AttackDamage <int > 0>");
-                continue;
-            }
-
-            CState* state = this->GetComponent<CState>();
-            if (state) { state->SetAttackDamage(damage); }
-        }
-        else if (type == "AttackKnockback")
-        {
-            float x = 0.0f, y = 0.0f;
-            if (!TryReadExact(keystream, x, y) || x < 0.0f)
-            {
-                WarnInvalidCharValue(path, lineNumber, type, "AttackKnockback <x >= 0> <y>");
-                continue;
-            }
-
-            CState* state = this->GetComponent<CState>();
-            if (state) { state->SetAttackKnockback(x, y); }
-        }
-        else if (type == "TouchDamage")
-        {
-            int damage = 0;
-            if (!TryReadExact(keystream, damage) || damage < 0)
-            {
-                WarnInvalidCharValue(path, lineNumber, type, "TouchDamage <int >= 0>");
-                continue;
-            }
-
-            CState* state = this->GetComponent<CState>();
-            if (state) { state->SetTouchDamage(damage); }
-        }
-        else if (type == "InvulnerabilityTime")
-        {
-            float seconds = 0.0f;
-            if (!TryReadExact(keystream, seconds) || seconds < 0.0f)
-            {
-                WarnInvalidCharValue(path, lineNumber, type, "InvulnerabilityTime <float >= 0>");
-                continue;
-            }
-
-            CState* state = this->GetComponent<CState>();
-            if (state) { state->SetInvulnerabilityTime(seconds); }
-        }
-        else if (type == "JumpCancelMultiplier")
-        {
-            float value = 0.0f;
-            if (!TryReadExact(keystream, value) || value <= 0.0f || value > 1.0f)
-            {
-                WarnInvalidCharValue(path, lineNumber, type, "JumpCancelMultiplier <0 < value <= 1>");
-                continue;
-            }
-
-            CController* controller = this->GetComponent<CController>();
-            if (controller) { controller->m_jumpCancelMultiplier = value; }
-        }
-        else if (type == "VerticalAirThreshold")
-        {
-            float value = 0.0f;
-            if (!TryReadExact(keystream, value) || value < 0.0f)
-            {
-                WarnInvalidCharValue(path, lineNumber, type, "VerticalAirThreshold <float >= 0>");
-                continue;
-            }
-
-            CController* controller = this->GetComponent<CController>();
-            if (controller) { controller->m_verticalAirThreshold = value; }
-        }
-        else if (type == "HorizontalWalkThreshold")
-        {
-            float value = 0.0f;
-            if (!TryReadExact(keystream, value) || value < 0.0f)
-            {
-                WarnInvalidCharValue(path, lineNumber, type, "HorizontalWalkThreshold <float >= 0>");
-                continue;
-            }
-
-            CController* controller = this->GetComponent<CController>();
-            if (controller) { controller->m_horizontalWalkThreshold = value; }
-        }
-        else if (type == "AI_ChaseRange")
-        {
-            float value = 0.0f;
-            if (!TryReadExact(keystream, value) || value <= 0.0f)
-            {
-                WarnInvalidCharValue(path, lineNumber, type, "AI_ChaseRange <float > 0>");
-                continue;
-            }
-
-            CAIPatrol* ai = this->GetComponent<CAIPatrol>();
-            if (ai) { ai->m_chaseRange = value; }
-        }
-        else if (type == "AI_ChaseDeadZone")
-        {
-            float value = 0.0f;
-            if (!TryReadExact(keystream, value) || value < 0.0f)
-            {
-                WarnInvalidCharValue(path, lineNumber, type, "AI_ChaseDeadZone <float >= 0>");
-                continue;
-            }
-
-            CAIPatrol* ai = this->GetComponent<CAIPatrol>();
-            if (ai) { ai->m_chaseDeadZone = value; }
-        }
-        else if (type == "AI_ArrivalThreshold")
-        {
-            float value = 0.0f;
-            if (!TryReadExact(keystream, value) || value < 0.0f)
-            {
-                WarnInvalidCharValue(path, lineNumber, type, "AI_ArrivalThreshold <float >= 0>");
-                continue;
-            }
-
-            CAIPatrol* ai = this->GetComponent<CAIPatrol>();
-            if (ai) { ai->m_arrivalThreshold = value; }
-        }
-        else if (type == "AI_IdleInterval")
-        {
-            float value = 0.0f;
-            if (!TryReadExact(keystream, value) || value <= 0.0f)
-            {
-                WarnInvalidCharValue(path, lineNumber, type, "AI_IdleInterval <float > 0>");
-                continue;
-            }
-
-            CAIPatrol* ai = this->GetComponent<CAIPatrol>();
-            if (ai) { ai->m_idleInterval = value; }
-        }
-        else if (type == "AI_PatrolMinDistance")
-        {
-            int value = 0;
-            if (!TryReadExact(keystream, value) || value <= 0)
-            {
-                WarnInvalidCharValue(path, lineNumber, type, "AI_PatrolMinDistance <int > 0>");
-                continue;
-            }
-
-            CAIPatrol* ai = this->GetComponent<CAIPatrol>();
-            if (ai) { ai->m_patrolMinDistance = value; }
-        }
-        else if (type == "AI_PatrolMaxDistance")
-        {
-            int value = 0;
-            if (!TryReadExact(keystream, value) || value <= 0)
-            {
-                WarnInvalidCharValue(path, lineNumber, type, "AI_PatrolMaxDistance <int > 0>");
-                continue;
-            }
-
-            CAIPatrol* ai = this->GetComponent<CAIPatrol>();
-            if (ai) { ai->m_patrolMaxDistance = value; }
-        }
-        else if (type == "AI_PatrolDirectionChance")
-        {
-            float value = 0.0f;
-            if (!TryReadExact(keystream, value))
-            {
-                WarnInvalidCharValue(path, lineNumber, type, "AI_PatrolDirectionChance <float 0..1>");
-                continue;
-            }
-
-            if (value < 0.0f || value > 1.0f)
-            {
-                EngineLog::Warn(
-                    "AI_PatrolDirectionChance out of range in '" + path + "' at line " +
-                    std::to_string(lineNumber) + ". Clamping to [0,1].");
-                if (value < 0.0f) value = 0.0f;
-                if (value > 1.0f) value = 1.0f;
-            }
-
-            CAIPatrol* ai = this->GetComponent<CAIPatrol>();
-            if (ai) { ai->m_patrolDirectionChance = value; }
-        }
-        else if (type == "AI_AttackRange")
-        {
-            float value = 0.0f;
-            if (!TryReadExact(keystream, value) || value <= 0.0f)
-            {
-                WarnInvalidCharValue(path, lineNumber, type, "AI_AttackRange <float > 0>");
-                continue;
-            }
-
-            CAIPatrol* ai = this->GetComponent<CAIPatrol>();
-            if (ai)
-            {
-                ai->m_attackRangeX = value;
-                ai->m_attackRangeY = value;
-            }
-        }
-        else if (type == "AI_AttackRangeX")
-        {
-            float value = 0.0f;
-            if (!TryReadExact(keystream, value) || value <= 0.0f)
-            {
-                WarnInvalidCharValue(path, lineNumber, type, "AI_AttackRangeX <float > 0>");
-                continue;
-            }
-
-            CAIPatrol* ai = this->GetComponent<CAIPatrol>();
-            if (ai) { ai->m_attackRangeX = value; }
-        }
-        else if (type == "AI_AttackRangeY")
-        {
-            float value = 0.0f;
-            if (!TryReadExact(keystream, value) || value <= 0.0f)
-            {
-                WarnInvalidCharValue(path, lineNumber, type, "AI_AttackRangeY <float > 0>");
-                continue;
-            }
-
-            CAIPatrol* ai = this->GetComponent<CAIPatrol>();
-            if (ai) { ai->m_attackRangeY = value; }
-        }
+        if (HandleCoreConfigKey(
+            type, keystream, path, lineNumber, m_name,
+            spriteComp, stateComp, transformComp, colliderComp))
+            continue;
+        else if (HandleStateCombatConfigKey(this, type, keystream, path, lineNumber))
+            continue;
+        else if (HandleControllerConfigKey(this, type, keystream, path, lineNumber))
+            continue;
+        else if (HandleAiConfigKey(this, type, keystream, path, lineNumber))
+            continue;
         else
         {
             EngineLog::WarnOnce(
@@ -607,8 +769,7 @@ void EntityBase::Load(const std::string& path)
     }
 
     // Set default animation to ensure the character is visible
-    CSprite* sprite = this->GetComponent<CSprite>();
-    if (sprite && !sprite->GetSpriteSheet().SetAnimation("Idle", true, true))
+    if (spriteComp && !spriteComp->GetSpriteSheet().SetAnimation("Idle", true, true))
     {
         EngineLog::WarnOnce(
             "char.missing_idle." + path,

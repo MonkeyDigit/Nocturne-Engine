@@ -1,10 +1,12 @@
 #include <cmath>
 #include <algorithm>
 #include "PhysicsSystem.h"
+#include "Map.h"
 #include "EntityManager.h"
 #include "CTransform.h"
 #include "CBoxCollider.h"
 #include "CState.h"
+#include "CProjectile.h"
 
 namespace
 {
@@ -32,7 +34,15 @@ void PhysicsSystem::Update(EntityManager& entityManager, Map* gameMap, float del
         ApplyGravityAndMovement(entity, gameMap, deltaTime);
 
         // Map Boundaries
-        ConstrainToMapBounds(entity, gameMap);
+        if (!ConstrainToMapBounds(entity, gameMap))
+        {
+            // Entity is leaving play-space and should not be resolved further this frame
+            collider->SetCollidingX(false);
+            collider->SetCollidingY(false);
+            collider->SetReferenceTile(nullptr);
+            collider->m_collisions.clear();
+            continue;
+        }
 
         // Reset collision flags for this frame
         collider->SetCollidingX(false);
@@ -105,7 +115,7 @@ void PhysicsSystem::ApplyGravityAndMovement(EntityBase* entity, Map* map, float 
     ));
 }
 
-void PhysicsSystem::ConstrainToMapBounds(EntityBase* entity, Map* map)
+bool PhysicsSystem::ConstrainToMapBounds(EntityBase* entity, Map* map)
 {
     CTransform* transform = entity->GetComponent<CTransform>();
     CBoxCollider* collider = entity->GetComponent<CBoxCollider>();
@@ -135,13 +145,26 @@ void PhysicsSystem::ConstrainToMapBounds(EntityBase* entity, Map* map)
     else if (transform->GetPosition().y >
         (static_cast<float>(mapSize.y) + kMapKillZoneTilesBelowMap) * tileSize)
     {
-        // Avoid null dereference on entities without CState.
         if (CState* state = entity->GetComponent<CState>())
+        {
             state->SetState(EntityState::Dying);
+            transform->SetVelocity(transform->GetVelocity().x, 0.0f);
+        }
+        else
+        {
+            if (entity->GetType() == EntityType::Projectile)
+            {
+                // Ensure projectile is ignored by CombatSystem in this same frame
+                entity->RemoveComponent<CProjectile>();
+            }
 
-        transform->SetVelocity(transform->GetVelocity().x, 0.0f);
+            entity->Destroy();
+        }
+
+        return false;
     }
 
+    return true;
 }
 
 void PhysicsSystem::CheckMapCollisions(EntityBase* entity, Map* map)
@@ -193,6 +216,16 @@ void PhysicsSystem::ResolveMapCollisions(EntityBase* entity, Map* map, float del
     CBoxCollider* collider = entity->GetComponent<CBoxCollider>();
 
     if (collider->m_collisions.empty()) return;
+
+    if (entity->GetType() == EntityType::Projectile)
+    {
+        // Ensure projectile cannot deal damage after map collision in the same frame
+        entity->RemoveComponent<CProjectile>();
+        entity->Destroy();
+        collider->m_collisions.clear();
+        collider->SetReferenceTile(nullptr);
+        return;
+    }
 
     // Resolve the most significant overlaps first
     // This helps reduce jitter on tile seams and corners

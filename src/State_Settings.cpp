@@ -46,10 +46,8 @@ void State_Settings::OnCreate()
     // Volume label on center
     m_volumeLabel.setCharacterSize(40);
     m_volumeLabel.setPosition({ uiRes.x * 0.5f, uiRes.y * CONTROLS_Y_RATIO });
-    // Re-center after the final anchor position is known
-    UpdateVolumeText();
 
-    // Buttons
+    // SETUP BUTTONS
     std::vector<std::string> btnNames = { "-", "+", "BACK TO MENU" };
     sf::Vector2f btnSizes[] = { {60.f, 60.f}, {60.f, 60.f}, {300.f, 60.f} };
 
@@ -66,16 +64,14 @@ void State_Settings::OnCreate()
 
     for (size_t i = 0; i < 3; ++i) {
         SettingsButton btn(m_fontButton);
-        btn.rect.setSize(btnSizes[i]);
-        btn.rect.setFillColor(sf::Color(0, 0, 128, 160));
-        btn.rect.setOutlineColor(sf::Color(0, 0, 64));
-        btn.rect.setOutlineThickness(2.0f);
-        btn.rect.setOrigin({ btnSizes[i].x * 0.5f, btnSizes[i].y * 0.5f });
-        btn.rect.setPosition(btnPos[i]);
 
-        btn.label.setString(btnNames[i]);
-        btn.label.setCharacterSize(30);
-        CenterText(btn.label, btn.rect.getPosition().x, btn.rect.getPosition().y);
+        SetupTextButton(
+            btn.rect,
+            btn.label,
+            btnSizes[i],
+            btnPos[i],
+            btnNames[i],
+            30u);
 
         m_buttons.push_back(std::move(btn));
     }
@@ -99,12 +95,8 @@ void State_Settings::Update(const sf::Time&)
     sf::View uiView = m_stateManager.GetContext().m_window.GetUIView();
     sf::Vector2f mouseWorldPos = window.mapPixelToCoords(mousePos, uiView);
 
-    for (auto& btn : m_buttons) {
-        if (btn.rect.getGlobalBounds().contains(mouseWorldPos))
-            btn.rect.setFillColor(sf::Color(128, 0, 0, 160));
-        else
-            btn.rect.setFillColor(sf::Color(0, 0, 128, 160));
-    }
+    for (auto& btn : m_buttons)
+        UpdateButtonHoverColor(btn.rect, mouseWorldPos);
 }
 
 void State_Settings::Draw()

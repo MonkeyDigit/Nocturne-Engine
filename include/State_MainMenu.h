@@ -3,7 +3,8 @@
 #include <vector>
 #include <optional>
 #include "BaseState.h"
-#include "EventManager.h"
+
+struct EventDetails;
 
 struct MenuButton {
     MenuButton(const sf::Font& font) : label(font) {}

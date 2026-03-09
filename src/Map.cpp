@@ -77,11 +77,18 @@ void Map::LoadMap(const std::string& path)
     file.close();
 
     // Safely extract values with fallbacks to prevent crashes
-    m_maxMapSize.x = mapData.value("width", 32);
-    m_maxMapSize.y = mapData.value("height", 32);
-    // Dynamically read tile sizes from the JSON file
-    m_tileWidth = mapData.value("tilewidth", 16);
-    m_tileHeight = mapData.value("tileheight", 16);
+    m_maxMapSize.x = mapData.value("width", 32u);
+    m_maxMapSize.y = mapData.value("height", 32u);
+
+    // Read tile size from JSON and guard invalid values
+    m_tileWidth = mapData.value("tilewidth", 16u);
+    m_tileHeight = mapData.value("tileheight", 16u);
+
+    if (m_tileWidth == 0u || m_tileHeight == 0u)
+    {
+        EngineLog::Error("Invalid map tile size in '" + path + "' (tilewidth/tileheight must be > 0).");
+        return;
+    }
 
     // Release any past textures
     if (m_tileTexture)
@@ -94,9 +101,27 @@ void Map::LoadMap(const std::string& path)
     if (m_context.m_textureManager.RequireResource("MapTileSet"))
         m_tileTexture = m_context.m_textureManager.GetResource("MapTileSet");
 
-    int tilesPerRow = 1; // Prevent division by zero
-    if (m_tileTexture && m_tileWidth > 0)
-        tilesPerRow = m_tileTexture->getSize().x / m_tileWidth; // Calculate how many tiles fit in a single row of the texture sheet
+    unsigned int tilesPerRow = 1u;
+
+    if (!m_tileTexture)
+    {
+        EngineLog::WarnOnce("map.tileset.missing", "Map tileset texture 'MapTileSet' is missing or failed to load.");
+    }
+    else
+    {
+        const unsigned int textureWidth = m_tileTexture->getSize().x;
+        if (textureWidth < m_tileWidth)
+        {
+            EngineLog::WarnOnce(
+                "map.tileset.too_narrow",
+                "Tileset texture width is smaller than tile width. Falling back to one column.");
+        }
+        else
+        {
+            tilesPerRow = textureWidth / m_tileWidth;
+            if (tilesPerRow == 0u) tilesPerRow = 1u;
+        }
+    }
 
     // LOADING PROPERTIES AND BACKGROUNDS
     if (mapData.contains("properties") && mapData["properties"].is_array())

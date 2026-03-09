@@ -7,10 +7,14 @@ Speed 800 128
 JumpVelocity 400
 MaxVelocity 128 512
 RangedCooldown 0.20
-RangedSpeed 300
+RangedSpeed 700
 RangedLifetime 1.5
 RangedDamage 10
-RangedEnabled 0
+RangedSpawnOffset 18 -22
+RangedSize 16 16
+RangedSheet media/spritesheets/Player.sheet
+RangedAnimation Idle
+RangedEnabled 1
 CoyoteTime 0.10
 JumpBufferTime 0.15
 AttackCooldown 0.00

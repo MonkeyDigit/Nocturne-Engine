@@ -57,4 +57,21 @@ protected:
         const std::string& path,
         const std::string& ownerTag,
         const std::string& fontTag);
+
+    void SetupTextButton(
+        sf::RectangleShape& rect,
+        sf::Text& label,
+        const sf::Vector2f& size,
+        const sf::Vector2f& centerPosition,
+        const std::string& text,
+        unsigned int characterSize = 30u,
+        const sf::Color& fillColor = sf::Color(0, 0, 128, 160),
+        const sf::Color& outlineColor = sf::Color(0, 0, 64),
+        float outlineThickness = 2.0f);
+
+    void UpdateButtonHoverColor(
+        sf::RectangleShape& rect,
+        const sf::Vector2f& mousePosition,
+        const sf::Color& idleColor = sf::Color(0, 0, 128, 160),
+        const sf::Color& hoverColor = sf::Color(128, 0, 0, 160));
 };

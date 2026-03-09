@@ -86,15 +86,49 @@ namespace
         const EntityBase& shooter,
         const CTransform& transform,
         const CSprite& sprite,
-        const CController& controller)
+        const CController& controller,
+        const CBoxCollider* collider)
     {
         ProjectileSpawnRequest request;
         request.shooterId = shooter.GetId();
-        request.position = transform.GetPosition();
-        request.velocity = { controller.m_rangedSpeed, 0.0f };
 
-        if (sprite.GetDirection() == Direction::Left)
-            request.velocity.x = -controller.m_rangedSpeed;
+        const bool facingLeft = (sprite.GetDirection() == Direction::Left);
+        const float dirSign = facingLeft ? -1.0f : 1.0f;
+
+        request.velocity = { dirSign * controller.m_rangedSpeed, 0.0f };
+
+        request.position = transform.GetPosition();
+        request.position.x += dirSign * controller.m_rangedSpawnOffsetX;
+        request.position.y += controller.m_rangedSpawnOffsetY;
+
+        if (collider)
+        {
+            const sf::FloatRect body = collider->GetAABB();
+
+            float halfW = controller.m_rangedSizeX * 0.5f;
+            if (halfW < 0.0f) halfW = 0.0f;
+
+            float halfH = controller.m_rangedSizeY * 0.5f;
+            if (halfH < 0.0f) halfH = 0.0f;
+
+            // Keep spawn vertically inside the body column to avoid floor overlap
+            const float minY = body.position.y + halfH + 1.0f;
+            const float maxY = body.position.y + body.size.y - halfH - 1.0f;
+            if (request.position.y < minY) request.position.y = minY;
+            if (request.position.y > maxY) request.position.y = maxY;
+
+            // Push spawn just outside the body on facing side
+            if (facingLeft)
+            {
+                const float maxX = body.position.x - halfW - 1.0f;
+                if (request.position.x > maxX) request.position.x = maxX;
+            }
+            else
+            {
+                const float minX = body.position.x + body.size.x + halfW + 1.0f;
+                if (request.position.x < minX) request.position.x = minX;
+            }
+        }
 
         request.damage = controller.m_rangedDamage;
         request.lifetime = controller.m_rangedLifetime;
@@ -278,7 +312,7 @@ void MovementControlSystem::Update(float deltaTime)
                 CanStartRangedAttack(rangedState, controller->m_rangedCooldownTimer))
             {
                 pendingProjectiles.push_back(
-                    BuildRangedProjectileRequest(*entity, *transform, *sprite, *controller));
+                    BuildRangedProjectileRequest(*entity, *transform, *sprite, *controller, collider));
 
                 controller->m_rangedCooldownTimer = controller->m_rangedCooldown;
             }

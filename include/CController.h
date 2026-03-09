@@ -1,4 +1,5 @@
 #pragma once
+#include <string>
 #include "Component.h"
 
 class CController : public Component
@@ -27,7 +28,13 @@ public:
         m_cancelJump(false),
         m_attack(false),
         m_rangedEnabled(false),   // Feature flag: ranged is opt-in per character
-        m_attackRanged(false)
+        m_attackRanged(false),
+        m_rangedSpawnOffsetX(20.0f),
+        m_rangedSpawnOffsetY(-22.0f),
+        m_rangedSizeX(16.0f),
+        m_rangedSizeY(16.0f),
+        m_rangedSheetPath("media/spritesheets/Player.sheet"),
+        m_rangedAnimation("Idle")
     {
     }
 
@@ -45,6 +52,12 @@ public:
     float m_rangedSpeed;
     float m_rangedLifetime;
     int m_rangedDamage;
+    float m_rangedSpawnOffsetX; // Forward offset (magnitude, direction applied automatically)
+    float m_rangedSpawnOffsetY; // Vertical offset from pivot (negative = up)
+    float m_rangedSizeX;
+    float m_rangedSizeY;
+    std::string m_rangedSheetPath;
+    std::string m_rangedAnimation;
 
     // --- RUNTIME TIMERS ---
     float m_coyoteTimer;

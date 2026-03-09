@@ -1,10 +1,12 @@
 #pragma once
-#include "BaseState.h"
-#include "EventManager.h"
 #include <SFML/Graphics.hpp>
 #include <optional>
 #include <vector>
 #include <string>
+#include "BaseState.h"
+#include "EventManager.h"
+
+struct EventDetails;
 
 struct SettingsButton {
     SettingsButton(const sf::Font& font) : label(font) {}
