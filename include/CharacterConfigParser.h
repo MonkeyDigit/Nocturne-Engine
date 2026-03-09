@@ -2,6 +2,7 @@
 
 #include <sstream>
 #include <string>
+#include <unordered_set>
 
 class CSprite;
 class CState;
@@ -23,6 +24,7 @@ namespace CharacterConfigParser
         CBoxCollider* collider;
         CController* controller;
         CAIPatrol* ai;
+        std::unordered_set<std::string>* parsedValidKeys; // Keys parsed successfully
     };
 
     // Shared diagnostics helpers used by all parser modules
@@ -37,6 +39,12 @@ namespace CharacterConfigParser
         unsigned int lineNumber,
         const std::string& key,
         const std::string& componentName);
+
+    inline void MarkKeyParsed(const ParseContext& context, const std::string& key)
+    {
+        if (context.parsedValidKeys)
+            context.parsedValidKeys->insert(key);
+    }
 
     bool HandleCoreKey(const std::string& type, std::stringstream& keystream, const ParseContext& context);
     bool HandleStateCombatKey(const std::string& type, std::stringstream& keystream, const ParseContext& context);

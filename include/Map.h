@@ -49,7 +49,7 @@ public:
     Map(SharedContext& context, BaseState* currentState);
     ~Map();
 
-    void LoadMap(const std::string& path);
+    bool LoadMap(const std::string& path);
     void LoadNext();
     void Update();
     void Draw(sf::RenderWindow& window);

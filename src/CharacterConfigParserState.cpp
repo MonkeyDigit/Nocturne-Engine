@@ -6,11 +6,11 @@
 
 namespace
 {
-    using ParseContext = CharacterConfigParser::ParseContext;
     using ParseUtils::TryReadExact;
-    using HandlerFn = bool (*)(std::stringstream&, const ParseContext&, const std::string&);
+    using CfgCtx = CharacterConfigParser::ParseContext;
+    using HandlerFn = bool (*)(std::stringstream&, const CfgCtx&, const std::string&);
 
-    bool ParseAttackDamage(std::stringstream& keystream, const ParseContext& context, const std::string& key)
+    bool ParseAttackDamage(std::stringstream& keystream, const CfgCtx& context, const std::string& key)
     {
         int damage = 0;
         if (!TryReadExact(keystream, damage) || damage <= 0)
@@ -20,10 +20,12 @@ namespace
         }
 
         context.state->SetAttackDamage(damage);
+        MarkKeyParsed(context, key);
+
         return true;
     }
 
-    bool ParseAttackKnockback(std::stringstream& keystream, const ParseContext& context, const std::string& key)
+    bool ParseAttackKnockback(std::stringstream& keystream, const CfgCtx& context, const std::string& key)
     {
         float x = 0.0f;
         float y = 0.0f;
@@ -34,10 +36,12 @@ namespace
         }
 
         context.state->SetAttackKnockback(x, y);
+        MarkKeyParsed(context, key);
+
         return true;
     }
 
-    bool ParseTouchDamage(std::stringstream& keystream, const ParseContext& context, const std::string& key)
+    bool ParseTouchDamage(std::stringstream& keystream, const CfgCtx& context, const std::string& key)
     {
         int damage = 0;
         if (!TryReadExact(keystream, damage) || damage < 0)
@@ -47,10 +51,12 @@ namespace
         }
 
         context.state->SetTouchDamage(damage);
+        MarkKeyParsed(context, key);
+
         return true;
     }
 
-    bool ParseInvulnerabilityTime(std::stringstream& keystream, const ParseContext& context, const std::string& key)
+    bool ParseInvulnerabilityTime(std::stringstream& keystream, const CfgCtx& context, const std::string& key)
     {
         float seconds = 0.0f;
         if (!TryReadExact(keystream, seconds) || seconds < 0.0f)
@@ -60,6 +66,8 @@ namespace
         }
 
         context.state->SetInvulnerabilityTime(seconds);
+        MarkKeyParsed(context, key);
+
         return true;
     }
 
@@ -75,7 +83,7 @@ namespace
 bool CharacterConfigParser::HandleStateCombatKey(
     const std::string& type,
     std::stringstream& keystream,
-    const ParseContext& context)
+    const CfgCtx& context)
 {
     const auto it = kStateCombatHandlers.find(type);
     if (it == kStateCombatHandlers.end())

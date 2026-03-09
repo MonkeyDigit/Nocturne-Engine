@@ -6,11 +6,13 @@
 
 namespace
 {
-    using ParseContext = CharacterConfigParser::ParseContext;
     using ParseUtils::TryReadExact;
-    using HandlerFn = bool (*)(std::stringstream&, const ParseContext&, const std::string&);
+    using CfgCtx = CharacterConfigParser::ParseContext;
+    using HandlerFn = bool (*)(std::stringstream&, const CfgCtx&, const std::string&);
 
-    bool ParseJumpVelocity(std::stringstream& keystream, const ParseContext& context, const std::string& key)
+    using HandlerFn = bool (*)(std::stringstream&, const CfgCtx&, const std::string&);
+
+    bool ParseJumpVelocity(std::stringstream& keystream, const CfgCtx& context, const std::string& key)
     {
         float value = 0.0f;
         if (!TryReadExact(keystream, value) || value <= 0.0f)
@@ -20,10 +22,12 @@ namespace
         }
 
         context.controller->m_jumpVelocity = value;
+        MarkKeyParsed(context, key);
+
         return true;
     }
 
-    bool ParseRangedCooldown(std::stringstream& keystream, const ParseContext& context, const std::string& key)
+    bool ParseRangedCooldown(std::stringstream& keystream, const CfgCtx& context, const std::string& key)
     {
         float value = 0.0f;
         if (!TryReadExact(keystream, value) || value < 0.0f)
@@ -33,10 +37,12 @@ namespace
         }
 
         context.controller->m_rangedCooldown = value;
+        MarkKeyParsed(context, key);
+
         return true;
     }
 
-    bool ParseRangedSpeed(std::stringstream& keystream, const ParseContext& context, const std::string& key)
+    bool ParseRangedSpeed(std::stringstream& keystream, const CfgCtx& context, const std::string& key)
     {
         float value = 0.0f;
         if (!TryReadExact(keystream, value) || value <= 0.0f)
@@ -46,10 +52,12 @@ namespace
         }
 
         context.controller->m_rangedSpeed = value;
+        MarkKeyParsed(context, key);
+
         return true;
     }
 
-    bool ParseRangedLifetime(std::stringstream& keystream, const ParseContext& context, const std::string& key)
+    bool ParseRangedLifetime(std::stringstream& keystream, const CfgCtx& context, const std::string& key)
     {
         float value = 0.0f;
         if (!TryReadExact(keystream, value) || value <= 0.0f)
@@ -59,10 +67,12 @@ namespace
         }
 
         context.controller->m_rangedLifetime = value;
+        MarkKeyParsed(context, key);
+
         return true;
     }
 
-    bool ParseRangedDamage(std::stringstream& keystream, const ParseContext& context, const std::string& key)
+    bool ParseRangedDamage(std::stringstream& keystream, const CfgCtx& context, const std::string& key)
     {
         int value = 0;
         if (!TryReadExact(keystream, value) || value <= 0)
@@ -72,10 +82,12 @@ namespace
         }
 
         context.controller->m_rangedDamage = value;
+        MarkKeyParsed(context, key);
+
         return true;
     }
 
-    bool ParseRangedSpawnOffset(std::stringstream& keystream, const ParseContext& context, const std::string& key)
+    bool ParseRangedSpawnOffset(std::stringstream& keystream, const CfgCtx& context, const std::string& key)
     {
         float offsetX = 0.0f;
         float offsetY = 0.0f;
@@ -87,10 +99,12 @@ namespace
 
         context.controller->m_rangedSpawnOffsetX = offsetX;
         context.controller->m_rangedSpawnOffsetY = offsetY;
+        MarkKeyParsed(context, key);
+
         return true;
     }
 
-    bool ParseRangedSize(std::stringstream& keystream, const ParseContext& context, const std::string& key)
+    bool ParseRangedSize(std::stringstream& keystream, const CfgCtx& context, const std::string& key)
     {
         float sizeX = 0.0f;
         float sizeY = 0.0f;
@@ -102,10 +116,12 @@ namespace
 
         context.controller->m_rangedSizeX = sizeX;
         context.controller->m_rangedSizeY = sizeY;
+        MarkKeyParsed(context, key);
+
         return true;
     }
 
-    bool ParseRangedSheet(std::stringstream& keystream, const ParseContext& context, const std::string& key)
+    bool ParseRangedSheet(std::stringstream& keystream, const CfgCtx& context, const std::string& key)
     {
         std::string sheetPath;
         if (!TryReadExact(keystream, sheetPath) || sheetPath.empty())
@@ -115,10 +131,12 @@ namespace
         }
 
         context.controller->m_rangedSheetPath = sheetPath;
+        MarkKeyParsed(context, key);
+
         return true;
     }
 
-    bool ParseRangedAnimation(std::stringstream& keystream, const ParseContext& context, const std::string& key)
+    bool ParseRangedAnimation(std::stringstream& keystream, const CfgCtx& context, const std::string& key)
     {
         std::string animationName;
         if (!TryReadExact(keystream, animationName) || animationName.empty())
@@ -128,10 +146,12 @@ namespace
         }
 
         context.controller->m_rangedAnimation = animationName;
+        MarkKeyParsed(context, key);
+
         return true;
     }
 
-    bool ParseRangedEnabled(std::stringstream& keystream, const ParseContext& context, const std::string& key)
+    bool ParseRangedEnabled(std::stringstream& keystream, const CfgCtx& context, const std::string& key)
     {
         int value = 0;
         if (!TryReadExact(keystream, value) || (value != 0 && value != 1))
@@ -141,10 +161,12 @@ namespace
         }
 
         context.controller->m_rangedEnabled = (value == 1);
+        MarkKeyParsed(context, key);
+
         return true;
     }
 
-    bool ParseCoyoteTime(std::stringstream& keystream, const ParseContext& context, const std::string& key)
+    bool ParseCoyoteTime(std::stringstream& keystream, const CfgCtx& context, const std::string& key)
     {
         float value = 0.0f;
         if (!TryReadExact(keystream, value) || value < 0.0f)
@@ -154,10 +176,12 @@ namespace
         }
 
         context.controller->m_coyoteTimeWindow = value;
+        MarkKeyParsed(context, key);
+
         return true;
     }
 
-    bool ParseJumpBufferTime(std::stringstream& keystream, const ParseContext& context, const std::string& key)
+    bool ParseJumpBufferTime(std::stringstream& keystream, const CfgCtx& context, const std::string& key)
     {
         float value = 0.0f;
         if (!TryReadExact(keystream, value) || value < 0.0f)
@@ -167,10 +191,12 @@ namespace
         }
 
         context.controller->m_jumpBufferWindow = value;
+        MarkKeyParsed(context, key);
+
         return true;
     }
 
-    bool ParseAttackCooldown(std::stringstream& keystream, const ParseContext& context, const std::string& key)
+    bool ParseAttackCooldown(std::stringstream& keystream, const CfgCtx& context, const std::string& key)
     {
         float value = 0.0f;
         if (!TryReadExact(keystream, value) || value < 0.0f)
@@ -180,10 +206,12 @@ namespace
         }
 
         context.controller->m_attackCooldown = value;
+        MarkKeyParsed(context, key);
+
         return true;
     }
 
-    bool ParseJumpCancelMultiplier(std::stringstream& keystream, const ParseContext& context, const std::string& key)
+    bool ParseJumpCancelMultiplier(std::stringstream& keystream, const CfgCtx& context, const std::string& key)
     {
         float value = 0.0f;
         if (!TryReadExact(keystream, value) || value <= 0.0f || value > 1.0f)
@@ -193,10 +221,12 @@ namespace
         }
 
         context.controller->m_jumpCancelMultiplier = value;
+        MarkKeyParsed(context, key);
+
         return true;
     }
 
-    bool ParseVerticalAirThreshold(std::stringstream& keystream, const ParseContext& context, const std::string& key)
+    bool ParseVerticalAirThreshold(std::stringstream& keystream, const CfgCtx& context, const std::string& key)
     {
         float value = 0.0f;
         if (!TryReadExact(keystream, value) || value < 0.0f)
@@ -206,10 +236,12 @@ namespace
         }
 
         context.controller->m_verticalAirThreshold = value;
+        MarkKeyParsed(context, key);
+
         return true;
     }
 
-    bool ParseHorizontalWalkThreshold(std::stringstream& keystream, const ParseContext& context, const std::string& key)
+    bool ParseHorizontalWalkThreshold(std::stringstream& keystream, const CfgCtx& context, const std::string& key)
     {
         float value = 0.0f;
         if (!TryReadExact(keystream, value) || value < 0.0f)
@@ -219,6 +251,8 @@ namespace
         }
 
         context.controller->m_horizontalWalkThreshold = value;
+        MarkKeyParsed(context, key);
+
         return true;
     }
 
@@ -246,7 +280,7 @@ namespace
 bool CharacterConfigParser::HandleControllerKey(
     const std::string& type,
     std::stringstream& keystream,
-    const ParseContext& context)
+    const CfgCtx& context)
 {
     const auto it = kControllerHandlers.find(type);
     if (it == kControllerHandlers.end())

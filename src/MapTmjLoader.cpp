@@ -136,16 +136,26 @@ bool MapTmjLoader::LoadLayers(
     for (const auto& layer : mapData["layers"])
     {
         const std::string layerType = layer.value("type", "");
+        const std::string layerName = layer.value("name", "<unnamed>");
 
         if (layerType == "tilelayer")
         {
             ++tileLayerCount;
-            ProcessTileLayer(map, layer, tileTemplates, tilesPerRow, path);
+            if (!ProcessTileLayer(map, layer, tileTemplates, tilesPerRow, path))
+                return false;
         }
         else if (layerType == "objectgroup")
         {
             ++objectLayerCount;
-            ProcessObjectLayer(map, layer, path, playerObjectCount, doorObjectCount);
+            if (!ProcessObjectLayer(map, layer, path, playerObjectCount, doorObjectCount))
+                return false;
+        }
+        else
+        {
+            EngineLog::WarnOnce(
+                "map.layer.unknown." + path + "." + layerName,
+                "Unsupported layer type '" + layerType + "' in map '" + path +
+                "' (layer '" + layerName + "'). Layer ignored.");
         }
     }
 
@@ -168,10 +178,16 @@ bool MapTmjLoader::LoadLayers(
         return false;
     }
 
+    if (playerObjectCount > 1u)
+    {
+        EngineLog::Error("Map '" + path + "' has multiple Player objects. Aborting load.");
+        return false;
+    }
+
     return true;
 }
 
-void MapTmjLoader::Load(Map& map, const std::string& path)
+bool MapTmjLoader::Load(Map& map, const std::string& path)
 {
     EngineLog::ResetOnce("map.tileset.external_tsx");
     EngineLog::ResetOnce("map.spawn.player.failed");
@@ -179,29 +195,46 @@ void MapTmjLoader::Load(Map& map, const std::string& path)
 
     nlohmann::json mapData;
     if (!LoadJson(path, mapData))
-        return;
+        return false;
 
     ResetPerMapDefaults(map);
 
     if (!ReadMapGeometry(map, mapData, path))
-        return;
+        return false;
+
+    if (mapData.value("infinite", false))
+    {
+        EngineLog::Error(
+            "Map '" + path +
+            "' uses infinite/chunked layers. This loader supports only finite maps.");
+        return false;
+    }
+
+    const std::string orientation = mapData.value("orientation", "orthogonal");
+    if (orientation != "orthogonal")
+    {
+        EngineLog::Error(
+            "Map '" + path + "' has unsupported orientation '" + orientation +
+            "'. Expected 'orthogonal'.");
+        return false;
+    }
 
     if (!mapData.contains("tilesets") || !mapData["tilesets"].is_array() || mapData["tilesets"].empty())
     {
         EngineLog::Error("Map '" + path + "' has no valid 'tilesets' array.");
-        return;
+        return false;
     }
 
     if (!mapData.contains("layers") || !mapData["layers"].is_array() || mapData["layers"].empty())
     {
         EngineLog::Error("Map '" + path + "' has no valid 'layers' array.");
-        return;
+        return false;
     }
 
     if (CountLayersOfType(mapData, "tilelayer") == 0u)
     {
         EngineLog::Error("Map '" + path + "' has zero tile layers.");
-        return;
+        return false;
     }
 
     const unsigned int tilesPerRow = PrepareTilesetTexture(map);
@@ -212,7 +245,8 @@ void MapTmjLoader::Load(Map& map, const std::string& path)
     BuildTileTemplates(map, mapData, tileTemplates);
 
     if (!LoadLayers(map, mapData, tileTemplates, tilesPerRow, path))
-        return;
+        return false;
 
     map.RefreshBackgroundScale();
+    return true;
 }

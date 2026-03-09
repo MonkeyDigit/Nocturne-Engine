@@ -2,6 +2,7 @@
 #include "EntityManager.h"
 #include "SharedContext.h"
 #include "TextureManager.h"
+#include "EngineLog.h"
 
 Map::Map(SharedContext& context, BaseState* currentState)
     : m_context(context),
@@ -60,7 +61,10 @@ void Map::Update()
     {
         PurgeMap();
         m_loadNextMap = false;
-        if (!m_nextMap.empty()) LoadMap("media/maps/" + m_nextMap);
+
+        if (!m_nextMap.empty() && !LoadMap("media/maps/" + m_nextMap))
+            EngineLog::Error("Failed loading queued map: media/maps/" + m_nextMap);
+
         m_nextMap = "";
     }
 

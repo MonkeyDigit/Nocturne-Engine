@@ -1,7 +1,7 @@
 #include "Map.h"
 #include "MapTmjLoader.h"
 
-void Map::LoadMap(const std::string& path)
+bool Map::LoadMap(const std::string& path)
 {
-    MapTmjLoader::Load(*this, path);
+    return MapTmjLoader::Load(*this, path);
 }

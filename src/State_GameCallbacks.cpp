@@ -26,7 +26,13 @@ void State_Game::OnCreate()
     m_mousePos = evMgr.GetMousePos(m_stateManager.GetContext().m_window.GetRenderWindow());
     m_cursorVisible = true;
 
-    m_gameMap.LoadMap("media/maps/map_1.tmj");
+    if (!m_gameMap.LoadMap("media/maps/map_1.tmj"))
+    {
+        EngineLog::Error("State_Game initialization failed: map load failed.");
+        m_stateManager.SwitchTo(StateType::MainMenu);
+        return;
+    }
+
     m_hud = std::make_unique<HUD>(m_stateManager.GetContext().GetEntityManager());
 
     InitializeDebugOverlay();

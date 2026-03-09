@@ -7,6 +7,26 @@
 #include "EntityBase.h"
 #include "EngineLog.h"
 
+namespace
+{
+    bool TryReadFiniteNumber(
+        const nlohmann::json& object,
+        const char* key,
+        float& outValue,
+        bool required)
+    {
+        if (!object.contains(key))
+            return !required;
+
+        const auto& value = object[key];
+        if (!value.is_number_float() && !value.is_number_integer() && !value.is_number_unsigned())
+            return false;
+
+        outValue = value.get<float>();
+        return std::isfinite(outValue);
+    }
+}
+
 std::string MapTmjLoader::ResolveRawObjectType(const nlohmann::json& object)
 {
     std::string typeStr = object.value("class", object.value("type", ""));
@@ -45,15 +65,18 @@ bool MapTmjLoader::TryReadFiniteObjectRect(
     float& outW,
     float& outH)
 {
-    outX = object.value("x", 0.0f);
-    outY = object.value("y", 0.0f);
-    outW = object.value("width", 32.0f);
-    outH = object.value("height", 32.0f);
+    outX = 0.0f;
+    outY = 0.0f;
+    outW = 0.0f;
+    outH = 0.0f;
 
-    return std::isfinite(outX) &&
-        std::isfinite(outY) &&
-        std::isfinite(outW) &&
-        std::isfinite(outH);
+    // x/y are mandatory for object placement; width/height are optional for point objects
+    if (!TryReadFiniteNumber(object, "x", outX, true)) return false;
+    if (!TryReadFiniteNumber(object, "y", outY, true)) return false;
+    if (!TryReadFiniteNumber(object, "width", outW, false)) return false;
+    if (!TryReadFiniteNumber(object, "height", outH, false)) return false;
+
+    return true;
 }
 
 void MapTmjLoader::HandlePlayerObject(

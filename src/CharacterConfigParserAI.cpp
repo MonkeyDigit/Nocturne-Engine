@@ -7,11 +7,13 @@
 
 namespace
 {
-    using ParseContext = CharacterConfigParser::ParseContext;
     using ParseUtils::TryReadExact;
-    using HandlerFn = bool (*)(std::stringstream&, const ParseContext&, const std::string&);
+    using CfgCtx = CharacterConfigParser::ParseContext;
+    using HandlerFn = bool (*)(std::stringstream&, const CfgCtx&, const std::string&);
 
-    bool ParseAiChaseRange(std::stringstream& keystream, const ParseContext& context, const std::string& key)
+    using HandlerFn = bool (*)(std::stringstream&, const CfgCtx&, const std::string&);
+
+    bool ParseAiChaseRange(std::stringstream& keystream, const CfgCtx& context, const std::string& key)
     {
         float value = 0.0f;
         if (!TryReadExact(keystream, value) || value <= 0.0f)
@@ -21,10 +23,12 @@ namespace
         }
 
         context.ai->m_chaseRange = value;
+        MarkKeyParsed(context, key);
+
         return true;
     }
 
-    bool ParseAiChaseDeadZone(std::stringstream& keystream, const ParseContext& context, const std::string& key)
+    bool ParseAiChaseDeadZone(std::stringstream& keystream, const CfgCtx& context, const std::string& key)
     {
         float value = 0.0f;
         if (!TryReadExact(keystream, value) || value < 0.0f)
@@ -34,10 +38,12 @@ namespace
         }
 
         context.ai->m_chaseDeadZone = value;
+        MarkKeyParsed(context, key);
+
         return true;
     }
 
-    bool ParseAiArrivalThreshold(std::stringstream& keystream, const ParseContext& context, const std::string& key)
+    bool ParseAiArrivalThreshold(std::stringstream& keystream, const CfgCtx& context, const std::string& key)
     {
         float value = 0.0f;
         if (!TryReadExact(keystream, value) || value < 0.0f)
@@ -47,10 +53,12 @@ namespace
         }
 
         context.ai->m_arrivalThreshold = value;
+        MarkKeyParsed(context, key);
+
         return true;
     }
 
-    bool ParseAiIdleInterval(std::stringstream& keystream, const ParseContext& context, const std::string& key)
+    bool ParseAiIdleInterval(std::stringstream& keystream, const CfgCtx& context, const std::string& key)
     {
         float value = 0.0f;
         if (!TryReadExact(keystream, value) || value <= 0.0f)
@@ -60,10 +68,12 @@ namespace
         }
 
         context.ai->m_idleInterval = value;
+        MarkKeyParsed(context, key);
+
         return true;
     }
 
-    bool ParseAiPatrolMinDistance(std::stringstream& keystream, const ParseContext& context, const std::string& key)
+    bool ParseAiPatrolMinDistance(std::stringstream& keystream, const CfgCtx& context, const std::string& key)
     {
         int value = 0;
         if (!TryReadExact(keystream, value) || value <= 0)
@@ -73,10 +83,12 @@ namespace
         }
 
         context.ai->m_patrolMinDistance = value;
+        MarkKeyParsed(context, key);
+
         return true;
     }
 
-    bool ParseAiPatrolMaxDistance(std::stringstream& keystream, const ParseContext& context, const std::string& key)
+    bool ParseAiPatrolMaxDistance(std::stringstream& keystream, const CfgCtx& context, const std::string& key)
     {
         int value = 0;
         if (!TryReadExact(keystream, value) || value <= 0)
@@ -86,10 +98,12 @@ namespace
         }
 
         context.ai->m_patrolMaxDistance = value;
+        MarkKeyParsed(context, key);
+
         return true;
     }
 
-    bool ParseAiPatrolDirectionChance(std::stringstream& keystream, const ParseContext& context, const std::string& key)
+    bool ParseAiPatrolDirectionChance(std::stringstream& keystream, const CfgCtx& context, const std::string& key)
     {
         float value = 0.0f;
         if (!TryReadExact(keystream, value))
@@ -108,10 +122,12 @@ namespace
         }
 
         context.ai->m_patrolDirectionChance = value;
+        MarkKeyParsed(context, key);
+
         return true;
     }
 
-    bool ParseAiAttackRange(std::stringstream& keystream, const ParseContext& context, const std::string& key)
+    bool ParseAiAttackRange(std::stringstream& keystream, const CfgCtx& context, const std::string& key)
     {
         float value = 0.0f;
         if (!TryReadExact(keystream, value) || value <= 0.0f)
@@ -122,10 +138,12 @@ namespace
 
         context.ai->m_attackRangeX = value;
         context.ai->m_attackRangeY = value;
+        MarkKeyParsed(context, key);
+
         return true;
     }
 
-    bool ParseAiAttackRangeX(std::stringstream& keystream, const ParseContext& context, const std::string& key)
+    bool ParseAiAttackRangeX(std::stringstream& keystream, const CfgCtx& context, const std::string& key)
     {
         float value = 0.0f;
         if (!TryReadExact(keystream, value) || value <= 0.0f)
@@ -135,10 +153,12 @@ namespace
         }
 
         context.ai->m_attackRangeX = value;
+        MarkKeyParsed(context, key);
+
         return true;
     }
 
-    bool ParseAiAttackRangeY(std::stringstream& keystream, const ParseContext& context, const std::string& key)
+    bool ParseAiAttackRangeY(std::stringstream& keystream, const CfgCtx& context, const std::string& key)
     {
         float value = 0.0f;
         if (!TryReadExact(keystream, value) || value <= 0.0f)
@@ -148,6 +168,8 @@ namespace
         }
 
         context.ai->m_attackRangeY = value;
+        MarkKeyParsed(context, key);
+
         return true;
     }
 
@@ -169,7 +191,7 @@ namespace
 bool CharacterConfigParser::HandleAiKey(
     const std::string& type,
     std::stringstream& keystream,
-    const ParseContext& context)
+    const CfgCtx& context)
 {
     const auto it = kAiHandlers.find(type);
     if (it == kAiHandlers.end())

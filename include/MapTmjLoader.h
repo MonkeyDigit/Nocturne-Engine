@@ -8,7 +8,7 @@
 class MapTmjLoader
 {
 public:
-    static void Load(Map& map, const std::string& path);
+    static bool Load(Map& map, const std::string& path);
 
 private:
     static std::string ToLowerCopy(std::string value);
@@ -32,14 +32,14 @@ private:
         unsigned int tilesPerRow,
         const std::string& path);
 
-    static void ProcessTileLayer(
+    static bool ProcessTileLayer(
         Map& map,
         const nlohmann::json& layer,
         const std::unordered_map<int, TileInfo>& tileTemplates,
         unsigned int tilesPerRow,
         const std::string& path);
 
-    static void ProcessObjectLayer(
+    static bool ProcessObjectLayer(
         Map& map,
         const nlohmann::json& layer,
         const std::string& path,

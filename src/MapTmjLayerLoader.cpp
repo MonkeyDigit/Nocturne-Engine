@@ -59,18 +59,49 @@ namespace
     }
 }
 
-void MapTmjLoader::ProcessTileLayer(
+bool MapTmjLoader::ProcessTileLayer(
     Map& map,
     const nlohmann::json& layer,
     const std::unordered_map<int, TileInfo>& tileTemplates,
     unsigned int tilesPerRow,
     const std::string& path)
 {
-    if (!layer.contains("data") || !layer["data"].is_array()) return;
+    const std::string layerName = layer.value("name", "<unnamed>");
+
+    if (!layer.contains("data") || !layer["data"].is_array())
+    {
+        EngineLog::Error(
+            "Tile layer '" + layerName + "' in map '" + path +
+            "' is missing a valid 'data' array.");
+        return false;
+    }
+
+    const auto& data = layer["data"];
+    const std::size_t expectedTiles =
+        static_cast<std::size_t>(map.m_maxMapSize.x) * static_cast<std::size_t>(map.m_maxMapSize.y);
+
+    if (data.size() != expectedTiles)
+    {
+        EngineLog::Error(
+            "Tile layer '" + layerName + "' in map '" + path + "' has invalid size: expected " +
+            std::to_string(expectedTiles) + ", got " + std::to_string(data.size()) + ".");
+        return false;
+    }
+
+    for (std::size_t i = 0; i < data.size(); ++i)
+    {
+        if (!data[i].is_number_integer())
+        {
+            EngineLog::Error(
+                "Tile layer '" + layerName + "' in map '" + path +
+                "' contains non-integer tile value at index " + std::to_string(i) + ".");
+            return false;
+        }
+    }
 
     const bool layerHasCollisions = LayerHasCollisions(layer);
 
-    // Must stay here: accesses Map private members (friend context).
+    // Must stay here: accesses Map private members (friend context)
     auto addCollisionTileIfNeeded =
         [&](const TileInfo& tileInfo,
             const sf::Vector2f& tileSize,
@@ -92,31 +123,10 @@ void MapTmjLoader::ProcessTileLayer(
         };
 
     sf::VertexArray vertexArray(sf::PrimitiveType::Triangles);
-    const auto& data = layer["data"];
 
-    const std::size_t expectedTiles =
-        static_cast<std::size_t>(map.m_maxMapSize.x) * static_cast<std::size_t>(map.m_maxMapSize.y);
-
-    if (data.size() != expectedTiles)
+    for (std::size_t i = 0; i < expectedTiles; ++i)
     {
-        EngineLog::Warn("Tile layer size mismatch: expected " +
-            std::to_string(expectedTiles) + ", got " + std::to_string(data.size()) + ".");
-    }
-
-    const std::size_t tilesToRead = std::min(expectedTiles, data.size());
-    const std::string layerName = layer.value("name", "<unnamed>");
-    unsigned int invalidTileTypeCount = 0u;
-
-    for (std::size_t i = 0; i < tilesToRead; ++i)
-    {
-        const auto& tileValue = data[i];
-        if (!tileValue.is_number_integer())
-        {
-            ++invalidTileTypeCount;
-            continue;
-        }
-
-        const int tileID = tileValue.get<int>();
+        const int tileID = data[i].get<int>();
         if (tileID <= 0) continue;
 
         const int actualID = tileID - 1;
@@ -135,25 +145,53 @@ void MapTmjLoader::ProcessTileLayer(
         addCollisionTileIfNeeded(currentTileInfo, size, texPos, x, y);
     }
 
-    if (invalidTileTypeCount > 0u)
-    {
-        EngineLog::Warn(
-            "Layer '" + layerName + "' in map '" + path + "' has " +
-            std::to_string(invalidTileTypeCount) +
-            " non-integer tile entries (ignored).");
-    }
-
     map.m_layerVertices.push_back(vertexArray);
+    return true;
 }
 
-void MapTmjLoader::ProcessObjectLayer(
+bool MapTmjLoader::ProcessObjectLayer(
     Map& map,
     const nlohmann::json& layer,
     const std::string& path,
     unsigned int& playerObjectCount,
     unsigned int& doorObjectCount)
 {
-    if (!layer.contains("objects") || !layer["objects"].is_array()) return;
+    const std::string layerName = layer.value("name", "<unnamed>");
+    const bool isEntitiesLayer = (ToLowerCopy(layerName) == "entities");
+
+    if (!layer.contains("objects") || !layer["objects"].is_array())
+    {
+        if (isEntitiesLayer)
+        {
+            EngineLog::Error(
+                "Object layer '" + layerName + "' in map '" + path +
+                "' is missing a valid 'objects' array.");
+            return false;
+        }
+
+        EngineLog::WarnOnce(
+            "map.object_layer.invalid." + path + "." + layerName,
+            "Object layer '" + layerName + "' in map '" + path +
+            "' has no valid 'objects' array. Layer ignored.");
+        return true;
+    }
+
+    if (layer["objects"].empty())
+    {
+        if (isEntitiesLayer)
+        {
+            EngineLog::Error(
+                "Object layer '" + layerName + "' in map '" + path +
+                "' has no objects.");
+            return false;
+        }
+
+        EngineLog::WarnOnce(
+            "map.object_layer.empty." + path + "." + layerName,
+            "Object layer '" + layerName + "' in map '" + path +
+            "' is empty. Layer ignored.");
+        return true;
+    }
 
     const float mapPixelWidth = static_cast<float>(map.m_maxMapSize.x * map.m_tileWidth);
     const float mapPixelHeight = static_cast<float>(map.m_maxMapSize.y * map.m_tileHeight);
@@ -168,7 +206,9 @@ void MapTmjLoader::ProcessObjectLayer(
         float objH = 0.0f;
         if (!TryReadFiniteObjectRect(object, objX, objY, objW, objH))
         {
-            EngineLog::Warn("Skipping object '" + name + "' in '" + path + "' (non-finite coordinates/size).");
+            EngineLog::Warn(
+                "Skipping object '" + name + "' in '" + path +
+                "' (invalid or non-finite coordinates/size).");
             continue;
         }
 
@@ -210,4 +250,6 @@ void MapTmjLoader::ProcessObjectLayer(
             }
         }
     }
+
+    return true;
 }

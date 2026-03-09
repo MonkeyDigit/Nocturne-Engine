@@ -10,6 +10,8 @@
 namespace
 {
     using ParseUtils::TryReadExact;
+    using CharacterConfigParser::MarkKeyParsed;
+
 }
 
 void CharacterConfigParser::WarnInvalidValue(
@@ -51,6 +53,8 @@ bool CharacterConfigParser::HandleCoreKey(
         }
 
         context.entityName = name;
+        MarkKeyParsed(context, type);
+
         return true;
     }
 
@@ -75,7 +79,9 @@ bool CharacterConfigParser::HandleCoreKey(
                 "char.spritesheet.load.failed." + context.path + "." + spritePath,
                 "Failed loading Spritesheet '" + spritePath + "' in '" + context.path +
                 "' at line " + std::to_string(context.lineNumber));
+            return true;
         }
+        MarkKeyParsed(context, type);
 
         return true;
     }
@@ -96,6 +102,8 @@ bool CharacterConfigParser::HandleCoreKey(
         }
 
         context.state->SetHitPoints(maxHitPoints);
+        MarkKeyParsed(context, type);
+
         return true;
     }
 
@@ -118,6 +126,8 @@ bool CharacterConfigParser::HandleCoreKey(
         else
             context.collider->SetAABB(sf::FloatRect({ 0.0f, 0.0f }, { x, y }));
 
+        MarkKeyParsed(context, type);
+
         return true;
     }
 
@@ -139,6 +149,8 @@ bool CharacterConfigParser::HandleCoreKey(
 
         context.collider->SetAttackAABB(sf::FloatRect({ 0.0f, 0.0f }, { width, height }));
         context.collider->SetAttackAABBOffset(sf::Vector2f(offsetX, offsetY));
+        MarkKeyParsed(context, type);
+
         return true;
     }
 
@@ -158,6 +170,8 @@ bool CharacterConfigParser::HandleCoreKey(
         }
 
         context.transform->SetSpeed(x, y);
+        MarkKeyParsed(context, type);
+
         return true;
     }
 
@@ -177,6 +191,8 @@ bool CharacterConfigParser::HandleCoreKey(
         }
 
         context.transform->SetMaxVelocity(x, y);
+        MarkKeyParsed(context, type);
+
         return true;
     }
 
