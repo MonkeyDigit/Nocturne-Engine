@@ -204,6 +204,7 @@
     <ClCompile Include="src\HUD.cpp" />
     <ClCompile Include="src\Main.cpp" />
     <ClCompile Include="src\Map.cpp" />
+    <ClCompile Include="src\MapLoadTmj.cpp" />
     <ClCompile Include="src\PhysicsSystem.cpp" />
     <ClCompile Include="src\MovementControlSystem.cpp" />
     <ClCompile Include="src\RenderSystem.cpp" />
