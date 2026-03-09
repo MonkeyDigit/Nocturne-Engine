@@ -12,6 +12,7 @@
 #include "CharacterConfigParser.h"
 #include "EngineLog.h"
 #include "Utilities.h"
+#include "ConfigParseUtils.h"
 
 bool EntityBase::Load(const std::string& path)
 {
@@ -36,15 +37,7 @@ bool EntityBase::Load(const std::string& path)
     {
         ++lineNumber;
 
-        // Support inline comments and full-line comments
-        const size_t commentPos = line.find('#');
-        if (commentPos != std::string::npos)
-            line.erase(commentPos);
-
-        // Skip empty/whitespace lines and custom comment marker
-        const size_t first = line.find_first_not_of(" \t\r\n");
-        if (first == std::string::npos) continue;
-        if (line[first] == '|') continue;
+        if (!ParseUtils::PrepareConfigLine(line)) continue;
 
         std::stringstream keystream{ line };
         std::string type;

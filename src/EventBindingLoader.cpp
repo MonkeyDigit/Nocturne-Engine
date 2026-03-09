@@ -6,8 +6,8 @@
 #include <unordered_map>
 #include "EventManager.h"
 #include "EngineLog.h"
+#include "ConfigParseUtils.h"
 
-// after includes
 namespace
 {
     std::string ToLowerCopy(std::string value)
@@ -105,7 +105,7 @@ int EventManager::ParseEventInfo(EventType evtype, const std::string& evinfoStr)
     }
 
     case EventType::MouseWheel:
-        // Keep config human-readable and stable.
+        // Keep config human-readable and stable
         if (normalized == "vertical" || normalized == "v" || normalized == "0") return 0;
         if (normalized == "horizontal" || normalized == "h" || normalized == "1") return 1;
         return -1;
@@ -156,14 +156,7 @@ void EventManager::LoadBindings(const std::string& path)
     {
         ++lineNumber;
 
-        // Support inline comments and full-line comments.
-        const size_t commentPos = line.find('#');
-        if (commentPos != std::string::npos)
-            line.erase(commentPos);
-
-        const size_t first = line.find_first_not_of(" \t\r\n");
-        if (first == std::string::npos) continue; // empty/whitespace
-        if (line[first] == '|') continue;         // custom comment marker
+        if (!ParseUtils::PrepareConfigLine(line)) continue;
 
         std::stringstream keystream(line);
 

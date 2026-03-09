@@ -9,6 +9,7 @@
 namespace
 {
     using ParseUtils::TryReadExact;
+    using ParseUtils::PrepareConfigLine;
 
     void WarnSheetValue(
         const std::string& file,
@@ -84,14 +85,7 @@ bool SpriteSheet::LoadSheet(const std::string& file)
     {
         ++lineNumber;
 
-        // Support inline comments and full-line comments
-        const size_t commentPos = line.find('#');
-        if (commentPos != std::string::npos)
-            line.erase(commentPos);
-
-        const size_t first = line.find_first_not_of(" \t\r\n");
-        if (first == std::string::npos) continue; // empty/whitespace
-        if (line[first] == '|') continue;         // custom comment marker
+        if (!PrepareConfigLine(line)) continue;
 
         std::stringstream keystream(line);
         std::string type;

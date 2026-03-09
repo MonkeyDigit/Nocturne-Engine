@@ -10,6 +10,7 @@
 namespace
 {
     using ParseUtils::TryReadExact;
+    using ParseUtils::PrepareConfigLine;
 
     void WarnLine(unsigned int line, const std::string& msg)
     {
@@ -33,11 +34,7 @@ void GameplayTuningLoader::Load(const std::string& path, GameplayTuning& outTuni
     {
         ++lineNumber;
 
-        const size_t commentPos = line.find('#');
-        if (commentPos != std::string::npos) line.erase(commentPos);
-
-        const size_t first = line.find_first_not_of(" \t\r\n");
-        if (first == std::string::npos || line[first] == '|') continue;
+        if (!PrepareConfigLine(line)) continue;
 
         std::stringstream ss(line);
         std::string key;

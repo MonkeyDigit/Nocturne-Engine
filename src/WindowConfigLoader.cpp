@@ -13,6 +13,7 @@
 namespace
 {
     using ParseUtils::TryReadExact;
+    using ParseUtils::PrepareConfigLine;
 
     std::string ToLowerCopy(std::string value)
     {
@@ -65,14 +66,7 @@ void Window::LoadConfig()
     {
         ++lineNumber;
 
-        // Support inline comments and full-line comments
-        const size_t commentPos = line.find('#');
-        if (commentPos != std::string::npos)
-            line.erase(commentPos);
-
-        const size_t first = line.find_first_not_of(" \t\r\n");
-        if (first == std::string::npos) continue;
-        if (line[first] == '|') continue;
+        if (!PrepareConfigLine(line)) continue;
 
         std::stringstream keystream(line);
         std::string rawType;
