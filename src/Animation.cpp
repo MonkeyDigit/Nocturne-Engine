@@ -1,9 +1,37 @@
 #include "Animation.h"
 
 Animation::Animation()
-    : m_startFrame(0), m_endFrame(0), m_currentFrame(0),
-    m_frameRow(0), m_frameTime(0.f), m_playing(false),
-    m_loop(false), m_elapsedTime(0.f) {
+    : m_startFrame(0),
+    m_endFrame(0),
+    m_currentFrame(0),
+    m_frameRow(0),
+    m_frameTime(0.f),
+    m_playing(false),
+    m_loop(false),
+    m_elapsedTime(0.f)
+{
+}
+
+void Animation::Configure(
+    const std::string& name,
+    unsigned int startFrame,
+    unsigned int endFrame,
+    unsigned int row,
+    float frameTime,
+    bool loop)
+{
+    // Configure a full animation definition in one place
+    m_name = name;
+    m_startFrame = startFrame;
+    m_endFrame = endFrame;
+    m_frameRow = row;
+    m_frameTime = frameTime;
+    m_loop = loop;
+
+    // Reset runtime state so reused Animation objects are deterministic
+    m_currentFrame = m_startFrame;
+    m_elapsedTime = 0.0f;
+    m_playing = false;
 }
 
 void Animation::Play() { m_playing = true; }
@@ -35,8 +63,8 @@ void Animation::Update(float deltaTime)
             }
             else
             {
-                m_currentFrame = m_endFrame;    // Lock the last frame
-                m_playing = false;              // Stop animation
+                m_currentFrame = m_endFrame;
+                m_playing = false;
             }
         }
     }
@@ -51,9 +79,27 @@ bool Animation::IsLooped() const { return m_loop; }
 std::istream& operator>>(std::istream& is, Animation& a)
 {
     std::string type;
-    // Expected format: Animation Name StartFrame EndFrame Row FrameTime Loop
-    is >> type >> a.m_name >> a.m_startFrame >> a.m_endFrame >> a.m_frameRow >> a.m_frameTime >> a.m_loop;
+    std::string name;
+    unsigned int startFrame = 0;
+    unsigned int endFrame = 0;
+    unsigned int row = 0;
+    float frameTime = 0.0f;
+    int loop = 0;
 
-    a.m_currentFrame = a.m_startFrame;
+    // Expected format: Animation Name StartFrame EndFrame Row FrameTime Loop
+    if (!(is >> type >> name >> startFrame >> endFrame >> row >> frameTime >> loop))
+        return is;
+
+    if (type != "Animation" ||
+        name.empty() ||
+        endFrame < startFrame ||
+        frameTime <= 0.0f ||
+        (loop != 0 && loop != 1))
+    {
+        is.setstate(std::ios::failbit);
+        return is;
+    }
+
+    a.Configure(name, startFrame, endFrame, row, frameTime, loop == 1);
     return is;
 }

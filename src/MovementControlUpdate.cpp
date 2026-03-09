@@ -120,13 +120,13 @@ namespace
             float halfH = projectileSizeY * 0.5f;
             if (halfH < 0.0f) halfH = 0.0f;
 
-            // Keep spawn vertically inside the body column to avoid floor overlap
+            // Keep spawn vertically inside the body column to avoid floor overlap.
             const float minY = body.position.y + halfH + 1.0f;
             const float maxY = body.position.y + body.size.y - halfH - 1.0f;
             if (request.position.y < minY) request.position.y = minY;
             if (request.position.y > maxY) request.position.y = maxY;
 
-            // Push spawn just outside the body on facing side
+            // Push spawn just outside the body on facing side.
             if (facingLeft)
             {
                 const float maxX = body.position.x - halfW - 1.0f;
@@ -153,9 +153,236 @@ namespace
 
     inline HorizontalIntent ResolveHorizontalIntent(bool moveLeft, bool moveRight)
     {
-        // Explicit conflict policy: opposite directions cancel each other
+        // Explicit conflict policy: opposite directions cancel each other.
         if (moveLeft == moveRight) return HorizontalIntent::None;
         return moveLeft ? HorizontalIntent::Left : HorizontalIntent::Right;
+    }
+
+    inline bool TryGetControllableComponents(
+        EntityBase& entity,
+        CController*& outController,
+        CTransform*& outTransform,
+        CState*& outState,
+        CSprite*& outSprite,
+        CBoxCollider*& outCollider)
+    {
+        outController = entity.GetComponent<CController>();
+        outTransform = entity.GetComponent<CTransform>();
+        outState = entity.GetComponent<CState>();
+        outSprite = entity.GetComponent<CSprite>();
+        outCollider = entity.GetComponent<CBoxCollider>();
+
+        // Controller logic requires controller + transform + state.
+        return outController && outTransform && outState;
+    }
+
+    inline void UpdateTimersAndGrounding(CController& controller, float deltaTime, bool grounded)
+    {
+        DecreaseToZero(controller.m_attackCooldownTimer, deltaTime);
+        DecreaseToZero(controller.m_jumpBufferTimer, deltaTime);
+        DecreaseToZero(controller.m_rangedCooldownTimer, deltaTime);
+
+        if (grounded)
+            controller.m_coyoteTimer = controller.m_coyoteTimeWindow;
+        else
+            DecreaseToZero(controller.m_coyoteTimer, deltaTime);
+    }
+
+    inline void HandleHorizontalMovement(
+        HorizontalIntent horizontalIntent,
+        EntityState currentState,
+        CTransform& transform,
+        CState& state,
+        CSprite* sprite)
+    {
+        if (!CanMove(currentState)) return;
+
+        if (horizontalIntent == HorizontalIntent::Left)
+        {
+            if (sprite) sprite->SetDirection(Direction::Left);
+            transform.AddAcceleration(-transform.GetSpeed().x, 0.0f);
+            if (currentState == EntityState::Idle) state.SetState(EntityState::Walking);
+        }
+        else if (horizontalIntent == HorizontalIntent::Right)
+        {
+            if (sprite) sprite->SetDirection(Direction::Right);
+            transform.AddAcceleration(transform.GetSpeed().x, 0.0f);
+            if (currentState == EntityState::Idle) state.SetState(EntityState::Walking);
+        }
+    }
+
+    inline void HandleJumpInput(
+        CController& controller,
+        CTransform& transform,
+        CState& state,
+        bool grounded)
+    {
+        if (controller.m_jump)
+        {
+            const EntityState jumpState = state.GetState();
+            if (CanQueueJump(jumpState))
+                controller.m_jumpBufferTimer = controller.m_jumpBufferWindow;
+
+            controller.m_jump = false;
+        }
+
+        const bool canConsumeBufferedJump =
+            controller.m_jumpBufferTimer > 0.0f &&
+            (grounded || controller.m_coyoteTimer > 0.0f) &&
+            CanQueueJump(state.GetState());
+
+        if (canConsumeBufferedJump)
+        {
+            controller.m_jumpBufferTimer = 0.0f;
+            controller.m_coyoteTimer = 0.0f;
+            state.SetState(EntityState::Jumping);
+            transform.SetVelocity(transform.GetVelocity().x, -controller.m_jumpVelocity);
+        }
+
+        if (controller.m_cancelJump)
+        {
+            if (transform.GetVelocity().y < 0.0f)
+            {
+                transform.SetVelocity(
+                    transform.GetVelocity().x,
+                    transform.GetVelocity().y * controller.m_jumpCancelMultiplier);
+            }
+
+            controller.m_cancelJump = false;
+        }
+    }
+
+    inline bool HandleMeleeInput(CController& controller, CTransform& transform, CState& state)
+    {
+        bool meleeTriggered = false;
+
+        if (controller.m_attack)
+        {
+            const EntityState attackState = state.GetState();
+            if (CanStartMeleeAttack(attackState, controller.m_attackCooldownTimer))
+            {
+                transform.SetAcceleration(0.0f, 0.0f);
+                transform.SetVelocity(0.0f, 0.0f);
+                state.SetState(EntityState::Attacking);
+                controller.m_attackCooldownTimer = controller.m_attackCooldown;
+                meleeTriggered = true;
+            }
+
+            controller.m_attack = false;
+        }
+
+        return meleeTriggered;
+    }
+
+    inline void HandleRangedInput(
+        const EntityBase& entity,
+        CController& controller,
+        const CTransform& transform,
+        CState& state,
+        const CSprite* sprite,
+        const CBoxCollider* collider,
+        const GameplayTuning& tuning,
+        bool meleeTriggered,
+        std::vector<ProjectileSpawnRequest>& pendingProjectiles)
+    {
+        if (controller.m_attackRanged)
+        {
+            const EntityState rangedState = state.GetState();
+            if (!meleeTriggered &&
+                controller.m_rangedEnabled &&
+                sprite &&
+                CanStartRangedAttack(rangedState, controller.m_rangedCooldownTimer))
+            {
+                pendingProjectiles.push_back(
+                    BuildRangedProjectileRequest(entity, transform, *sprite, controller, collider, tuning));
+
+                controller.m_rangedCooldownTimer = controller.m_rangedCooldown;
+            }
+
+            controller.m_attackRanged = false;
+        }
+    }
+
+    inline void UpdateAutoState(CController& controller, CTransform& transform, CState& state)
+    {
+        const EntityState updatedState = state.GetState();
+        if (CanAutoState(updatedState))
+        {
+            state.SetState(
+                ResolveLocomotionState(
+                    transform.GetVelocity(),
+                    controller.m_verticalAirThreshold,
+                    controller.m_horizontalWalkThreshold));
+        }
+    }
+
+    inline void ResetDirectionalInput(CController& controller)
+    {
+        controller.m_moveLeft = false;
+        controller.m_moveRight = false;
+    }
+
+    inline void UpdateSingleControllableEntity(
+        EntityBase& entity,
+        const GameplayTuning& tuning,
+        float deltaTime,
+        std::vector<ProjectileSpawnRequest>& pendingProjectiles)
+    {
+        CController* controller = nullptr;
+        CTransform* transform = nullptr;
+        CState* state = nullptr;
+        CSprite* sprite = nullptr;
+        CBoxCollider* collider = nullptr;
+
+        if (!TryGetControllableComponents(entity, controller, transform, state, sprite, collider))
+            return;
+
+        const EntityState currentState = state->GetState();
+        if (currentState == EntityState::Dying)
+            return;
+
+        const bool grounded = IsGrounded(collider);
+        UpdateTimersAndGrounding(*controller, deltaTime, grounded);
+
+        const HorizontalIntent horizontalIntent =
+            ResolveHorizontalIntent(controller->m_moveLeft, controller->m_moveRight);
+
+        HandleHorizontalMovement(horizontalIntent, currentState, *transform, *state, sprite);
+        HandleJumpInput(*controller, *transform, *state, grounded);
+
+        const bool meleeTriggered = HandleMeleeInput(*controller, *transform, *state);
+
+        HandleRangedInput(
+            entity,
+            *controller,
+            *transform,
+            *state,
+            sprite,
+            collider,
+            tuning,
+            meleeTriggered,
+            pendingProjectiles);
+
+        UpdateAutoState(*controller, *transform, *state);
+        ResetDirectionalInput(*controller);
+    }
+
+    inline void SpawnPendingProjectiles(
+        EntityManager& entityManager,
+        const std::vector<ProjectileSpawnRequest>& pendingProjectiles)
+    {
+        for (const ProjectileSpawnRequest& request : pendingProjectiles)
+        {
+            EntityBase* shooter = entityManager.Find(request.shooterId);
+            if (!shooter) continue;
+
+            entityManager.SpawnProjectile(
+                shooter,
+                request.position,
+                request.velocity,
+                request.damage,
+                request.lifetime);
+        }
     }
 }
 
@@ -168,129 +395,9 @@ void MovementControlSystem::Update(float deltaTime)
 
     for (auto& entityPair : m_entityManager->GetEntities())
     {
-        EntityBase* entity = entityPair.second.get();
-        CController* controller = entity->GetComponent<CController>();
-        CTransform* transform = entity->GetComponent<CTransform>();
-        CState* state = entity->GetComponent<CState>();
-        CSprite* sprite = entity->GetComponent<CSprite>();
-        CBoxCollider* collider = entity->GetComponent<CBoxCollider>();
-
-        // Only process controllable entities
-        if (!controller || !transform || !state) continue;
-
-        const EntityState currentState = state->GetState();
-        if (currentState == EntityState::Dying) continue;
-
-        DecreaseToZero(controller->m_attackCooldownTimer, deltaTime);
-        DecreaseToZero(controller->m_jumpBufferTimer, deltaTime);
-        DecreaseToZero(controller->m_rangedCooldownTimer, deltaTime);
-
-        const bool grounded = IsGrounded(collider);
-        if (grounded)
-            controller->m_coyoteTimer = controller->m_coyoteTimeWindow;
-        else
-            DecreaseToZero(controller->m_coyoteTimer, deltaTime);
-
-        const HorizontalIntent horizontalIntent =
-            ResolveHorizontalIntent(controller->m_moveLeft, controller->m_moveRight);
-
-        if (CanMove(currentState))
-        {
-            if (horizontalIntent == HorizontalIntent::Left)
-            {
-                if (sprite) sprite->SetDirection(Direction::Left);
-                transform->AddAcceleration(-transform->GetSpeed().x, 0.0f);
-                if (currentState == EntityState::Idle) state->SetState(EntityState::Walking);
-            }
-            else if (horizontalIntent == HorizontalIntent::Right)
-            {
-                if (sprite) sprite->SetDirection(Direction::Right);
-                transform->AddAcceleration(transform->GetSpeed().x, 0.0f);
-                if (currentState == EntityState::Idle) state->SetState(EntityState::Walking);
-            }
-        }
-
-        if (controller->m_jump)
-        {
-            const EntityState jumpState = state->GetState();
-            if (CanQueueJump(jumpState))
-                controller->m_jumpBufferTimer = controller->m_jumpBufferWindow;
-
-            controller->m_jump = false;
-        }
-
-        const bool canConsumeBufferedJump =
-            controller->m_jumpBufferTimer > 0.0f &&
-            (grounded || controller->m_coyoteTimer > 0.0f) &&
-            CanQueueJump(state->GetState());
-
-        if (canConsumeBufferedJump)
-        {
-            controller->m_jumpBufferTimer = 0.0f;
-            controller->m_coyoteTimer = 0.0f;
-            state->SetState(EntityState::Jumping);
-            transform->SetVelocity(transform->GetVelocity().x, -controller->m_jumpVelocity);
-        }
-
-        if (controller->m_cancelJump)
-        {
-            if (transform->GetVelocity().y < 0.0f)
-                transform->SetVelocity(transform->GetVelocity().x, transform->GetVelocity().y * controller->m_jumpCancelMultiplier);
-
-            controller->m_cancelJump = false;
-        }
-
-        bool meleeTriggered = false;
-        if (controller->m_attack)
-        {
-            const EntityState attackState = state->GetState();
-            if (CanStartMeleeAttack(attackState, controller->m_attackCooldownTimer))
-            {
-                transform->SetAcceleration(0.0f, 0.0f);
-                transform->SetVelocity(0.0f, 0.0f);
-                state->SetState(EntityState::Attacking);
-                controller->m_attackCooldownTimer = controller->m_attackCooldown;
-                meleeTriggered = true;
-            }
-
-            controller->m_attack = false;
-        }
-
-        if (controller->m_attackRanged)
-        {
-            const EntityState rangedState = state->GetState();
-            if (!meleeTriggered &&
-                controller->m_rangedEnabled &&
-                sprite &&
-                CanStartRangedAttack(rangedState, controller->m_rangedCooldownTimer))
-            {
-                pendingProjectiles.push_back(
-                    BuildRangedProjectileRequest(*entity, *transform, *sprite, *controller, collider, tuning));
-
-                controller->m_rangedCooldownTimer = controller->m_rangedCooldown;
-            }
-
-            controller->m_attackRanged = false;
-        }
-
-        const EntityState updatedState = state->GetState();
-        if (CanAutoState(updatedState))
-            state->SetState(ResolveLocomotionState(transform->GetVelocity(), controller->m_verticalAirThreshold, controller->m_horizontalWalkThreshold));
-
-        controller->m_moveLeft = false;
-        controller->m_moveRight = false;
+        if (!entityPair.second) continue;
+        UpdateSingleControllableEntity(*entityPair.second, tuning, deltaTime, pendingProjectiles);
     }
 
-    for (const ProjectileSpawnRequest& request : pendingProjectiles)
-    {
-        EntityBase* shooter = m_entityManager->Find(request.shooterId);
-        if (!shooter) continue;
-
-        m_entityManager->SpawnProjectile(
-            shooter,
-            request.position,
-            request.velocity,
-            request.damage,
-            request.lifetime);
-    }
+    SpawnPendingProjectiles(*m_entityManager, pendingProjectiles);
 }

@@ -181,24 +181,8 @@ bool SpriteSheet::LoadSheet(const std::string& file)
                 continue;
             }
 
-            // Reuse Animation stream parser to keep one source of truth
-            std::stringstream animationStream;
-            animationStream << "Animation "
-                << name << ' '
-                << startFrame << ' '
-                << endFrame << ' '
-                << row << ' '
-                << frameTime << ' '
-                << loop;
-
             Animation anim;
-            if (!(animationStream >> anim))
-            {
-                EngineLog::Warn(
-                    "Failed to parse animation in sheet '" + file +
-                    "' at line " + std::to_string(lineNumber));
-                continue;
-            }
+            anim.Configure(name, startFrame, endFrame, row, frameTime, loop == 1);
 
             const bool existed = (m_animations.find(name) != m_animations.end());
             m_animations.insert_or_assign(name, anim);

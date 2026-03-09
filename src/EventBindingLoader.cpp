@@ -1,9 +1,13 @@
-#include <unordered_set>
-#include <fstream>
-#include <sstream>
 #include <algorithm>
 #include <cctype>
+#include <cstdint>
+#include <fstream>
+#include <limits>
+#include <sstream>
+#include <string>
 #include <unordered_map>
+#include <unordered_set>
+
 #include "EventManager.h"
 #include "EngineLog.h"
 #include "ConfigParseUtils.h"
@@ -34,7 +38,26 @@ namespace
         return true;
     }
 
-    const std::unordered_map<std::string, EventType> STRING_TO_EVENT_MAP = {
+    bool TryParseNonNegativeIntExact(const std::string& raw, int& outValue)
+    {
+        try
+        {
+            size_t parsedChars = 0;
+            const long long parsed = std::stoll(raw, &parsedChars);
+            if (parsedChars != raw.size()) return false;
+            if (parsed < 0) return false;
+            if (parsed > std::numeric_limits<int>::max()) return false;
+
+            outValue = static_cast<int>(parsed);
+            return true;
+        }
+        catch (...)
+        {
+            return false;
+        }
+    }
+
+    const std::unordered_map<std::string, EventType> kStringToEventMap = {
         {"closed", EventType::Closed}, {"resized", EventType::Resized},
         {"focuslost", EventType::FocusLost}, {"focusgained", EventType::FocusGained},
         {"textentered", EventType::TextEntered}, {"keydown", EventType::KeyDown},
@@ -45,7 +68,7 @@ namespace
         {"joystick", EventType::Joystick}
     };
 
-    const std::unordered_map<std::string, sf::Keyboard::Key> STRING_TO_KEY_MAP = {
+    const std::unordered_map<std::string, sf::Keyboard::Key> kStringToKeyMap = {
         {"a", sf::Keyboard::Key::A}, {"b", sf::Keyboard::Key::B}, {"c", sf::Keyboard::Key::C},
         {"d", sf::Keyboard::Key::D}, {"e", sf::Keyboard::Key::E}, {"f", sf::Keyboard::Key::F},
         {"g", sf::Keyboard::Key::G}, {"h", sf::Keyboard::Key::H}, {"i", sf::Keyboard::Key::I},
@@ -72,71 +95,84 @@ namespace
         {"up", sf::Keyboard::Key::Up}, {"down", sf::Keyboard::Key::Down}
     };
 
-    const std::unordered_map<std::string, sf::Mouse::Button> STRING_TO_MOUSE_MAP = {
+    const std::unordered_map<std::string, sf::Mouse::Button> kStringToMouseMap = {
         {"left", sf::Mouse::Button::Left}, {"right", sf::Mouse::Button::Right}, {"middle", sf::Mouse::Button::Middle},
         {"lmb", sf::Mouse::Button::Left}, {"rmb", sf::Mouse::Button::Right}, {"mmb", sf::Mouse::Button::Middle}
     };
 
+    bool TryParseEventType(const std::string& rawType, EventType& outType)
+    {
+        const auto it = kStringToEventMap.find(ToLowerCopy(rawType));
+        if (it == kStringToEventMap.end()) return false;
+        outType = it->second;
+        return true;
+    }
+
+    bool TryParseEventCode(EventType evtype, const std::string& evinfoStr, int& outCode)
+    {
+        const std::string normalized = ToLowerCopy(evinfoStr);
+
+        switch (evtype)
+        {
+        case EventType::KeyDown:
+        case EventType::KeyUp:
+        case EventType::KeyboardHeld:
+        case EventType::Keyboard:
+        {
+            const auto it = kStringToKeyMap.find(normalized);
+            if (it == kStringToKeyMap.end()) return false;
+            outCode = static_cast<int>(it->second);
+            return true;
+        }
+
+        case EventType::MouseClick:
+        case EventType::MouseRelease:
+        case EventType::MouseHeld:
+        case EventType::Mouse:
+        {
+            const auto it = kStringToMouseMap.find(normalized);
+            if (it == kStringToMouseMap.end()) return false;
+            outCode = static_cast<int>(it->second);
+            return true;
+        }
+
+        case EventType::MouseWheel:
+            if (normalized == "vertical" || normalized == "v" || normalized == "0") { outCode = 0; return true; }
+            if (normalized == "horizontal" || normalized == "h" || normalized == "1") { outCode = 1; return true; }
+            return false;
+
+        case EventType::Closed:
+        case EventType::Resized:
+        case EventType::FocusLost:
+        case EventType::FocusGained:
+        case EventType::TextEntered:
+            if (normalized == "0" || normalized == "none" || normalized == "any" || normalized == "_")
+            {
+                outCode = 0;
+                return true;
+            }
+            return false;
+
+        case EventType::Joystick:
+            return TryParseNonNegativeIntExact(evinfoStr, outCode);
+        }
+
+        return false;
+    }
+
+    std::uint64_t MakeEventDedupKey(EventType eventType, int code)
+    {
+        const std::uint64_t typeBits = static_cast<std::uint64_t>(static_cast<std::uint32_t>(eventType));
+        const std::uint64_t codeBits = static_cast<std::uint64_t>(static_cast<std::uint32_t>(code));
+        return (typeBits << 32) | codeBits;
+    }
 }
 
 // --- PARSERS FOR HUMAN READABLE CONFIG FILES ---
 int EventManager::ParseEventInfo(EventType evtype, const std::string& evinfoStr)
 {
-    const std::string normalized = ToLowerCopy(evinfoStr);
-
-    switch (evtype)
-    {
-    case EventType::KeyDown:
-    case EventType::KeyUp:
-    case EventType::KeyboardHeld:
-    case EventType::Keyboard:
-    {
-        auto it = STRING_TO_KEY_MAP.find(normalized);
-        return (it != STRING_TO_KEY_MAP.end()) ? static_cast<int>(it->second) : -1;
-    }
-
-    case EventType::MouseClick:
-    case EventType::MouseRelease:
-    case EventType::MouseHeld:
-    case EventType::Mouse:
-    {
-        auto it = STRING_TO_MOUSE_MAP.find(normalized);
-        return (it != STRING_TO_MOUSE_MAP.end()) ? static_cast<int>(it->second) : -1;
-    }
-
-    case EventType::MouseWheel:
-        // Keep config human-readable and stable
-        if (normalized == "vertical" || normalized == "v" || normalized == "0") return 0;
-        if (normalized == "horizontal" || normalized == "h" || normalized == "1") return 1;
-        return -1;
-
-    case EventType::Closed:
-    case EventType::Resized:
-    case EventType::FocusLost:
-    case EventType::FocusGained:
-    case EventType::TextEntered:
-        // These events do not use a code payload
-        if (normalized == "0" || normalized == "none" || normalized == "any" || normalized == "_")
-            return 0;
-        return -1;
-
-    case EventType::Joystick:
-        break;
-    }
-
-    // Numeric fallback only for joystick-like future extensions
-    try
-    {
-        size_t parsedChars = 0;
-        const int value = std::stoi(evinfoStr, &parsedChars);
-        if (parsedChars != evinfoStr.size() || value < 0)
-            return -1;
-        return value;
-    }
-    catch (...)
-    {
-        return -1;
-    }
+    int parsedCode = 0;
+    return TryParseEventCode(evtype, evinfoStr, parsedCode) ? parsedCode : -1;
 }
 
 void EventManager::LoadBindings(const std::string& path)
@@ -168,7 +204,7 @@ void EventManager::LoadBindings(const std::string& path)
         }
 
         auto bind = std::make_unique<Binding>(callbackName);
-        std::unordered_set<std::string> uniqueEvents;
+        std::unordered_set<std::uint64_t> uniqueEvents;
         std::string eventToken;
 
         while (keystream >> eventToken)
@@ -181,15 +217,13 @@ void EventManager::LoadBindings(const std::string& path)
                 continue;
             }
 
-            const std::string evtypeNorm = ToLowerCopy(evtypeStr);
-            auto typeIt = STRING_TO_EVENT_MAP.find(evtypeNorm);
-            if (typeIt == STRING_TO_EVENT_MAP.end())
+            EventType evtype;
+            if (!TryParseEventType(evtypeStr, evtype))
             {
                 WarnBindingLine(lineNumber, "Unknown event type '" + evtypeStr + "'.");
                 continue;
             }
 
-            const EventType evtype = typeIt->second;
             const int code = ParseEventInfo(evtype, evinfoStr);
             if (code < 0)
             {
@@ -197,9 +231,7 @@ void EventManager::LoadBindings(const std::string& path)
                 continue;
             }
 
-            const std::string dedupKey =
-                std::to_string(static_cast<int>(evtype)) + ":" + std::to_string(code);
-
+            const std::uint64_t dedupKey = MakeEventDedupKey(evtype, code);
             if (!uniqueEvents.insert(dedupKey).second)
             {
                 WarnBindingLine(lineNumber, "Duplicate event '" + eventToken + "' in binding '" + callbackName + "'.");

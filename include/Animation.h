@@ -8,6 +8,14 @@ public:
     Animation();
     ~Animation() = default;
 
+    void Configure(
+        const std::string& name,
+        unsigned int startFrame,
+        unsigned int endFrame,
+        unsigned int row,
+        float frameTime,
+        bool loop);
+
     void Play();
     void Stop();
     void SetLooping(bool loop);

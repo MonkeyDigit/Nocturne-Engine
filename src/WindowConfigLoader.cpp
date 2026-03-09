@@ -3,6 +3,7 @@
 #include <fstream>
 #include <limits>
 #include <sstream>
+#include <stdexcept>
 #include <unordered_set>
 
 #include "Window.h"
@@ -12,8 +13,8 @@
 
 namespace
 {
-    using ParseUtils::TryReadExact;
     using ParseUtils::PrepareConfigLine;
+    using ParseUtils::TryReadExact;
 
     std::string ToLowerCopy(std::string value)
     {
@@ -42,6 +43,75 @@ namespace
     void WarnWindowConfigLine(unsigned int lineNumber, const std::string& message)
     {
         EngineLog::Warn("window.cfg line " + std::to_string(lineNumber) + ": " + message);
+    }
+
+    bool TryParsePositiveFloatPair(std::stringstream& keystream, float& x, float& y)
+    {
+        return TryReadExact(keystream, x, y) && x > 0.0f && y > 0.0f;
+    }
+
+    bool TryParsePositiveUIntPair(std::stringstream& keystream, unsigned int& x, unsigned int& y)
+    {
+        return TryReadExact(keystream, x, y) && x > 0u && y > 0u;
+    }
+
+    bool TryParseNonNegativeInt(std::stringstream& keystream, int& value)
+    {
+        return TryReadExact(keystream, value) && value >= 0;
+    }
+
+    bool TryParseBinaryFlag(std::stringstream& keystream, bool& outValue)
+    {
+        int value = 0;
+        if (!TryReadExact(keystream, value)) return false;
+        if (value != 0 && value != 1) return false;
+        outValue = (value == 1);
+        return true;
+    }
+
+    enum class AISeedParseResult
+    {
+        Success,
+        Invalid,
+        OutOfRange
+    };
+
+    AISeedParseResult TryParseAISeedToken(
+        const std::string& seedToken,
+        bool& outHasFixedSeed,
+        std::uint32_t& outFixedSeed)
+    {
+        const std::string normalizedSeed = ToLowerCopy(seedToken);
+        if (normalizedSeed == "auto" || normalizedSeed == "random")
+        {
+            outHasFixedSeed = false;
+            outFixedSeed = 0;
+            return AISeedParseResult::Success;
+        }
+
+        try
+        {
+            size_t parsedChars = 0;
+            const unsigned long long parsed = std::stoull(seedToken, &parsedChars);
+
+            if (parsedChars != seedToken.size())
+                return AISeedParseResult::Invalid;
+
+            if (parsed > std::numeric_limits<std::uint32_t>::max())
+                return AISeedParseResult::OutOfRange;
+
+            outFixedSeed = static_cast<std::uint32_t>(parsed);
+            outHasFixedSeed = true;
+            return AISeedParseResult::Success;
+        }
+        catch (const std::out_of_range&)
+        {
+            return AISeedParseResult::OutOfRange;
+        }
+        catch (...)
+        {
+            return AISeedParseResult::Invalid;
+        }
     }
 }
 
@@ -83,22 +153,26 @@ void Window::LoadConfig()
 
         if (type == "gameres")
         {
-            float x = 0.0f, y = 0.0f;
-            if (!TryReadExact(keystream, x, y) || x <= 0.0f || y <= 0.0f)
+            float x = 0.0f;
+            float y = 0.0f;
+            if (!TryParsePositiveFloatPair(keystream, x, y))
             {
                 WarnWindowConfigLine(lineNumber, "Invalid GameRes (expected: GameRes <x> <y>, both > 0).");
                 continue;
             }
+
             m_gameResolution = { x, y };
         }
         else if (type == "uires")
         {
-            float x = 0.0f, y = 0.0f;
-            if (!TryReadExact(keystream, x, y) || x <= 0.0f || y <= 0.0f)
+            float x = 0.0f;
+            float y = 0.0f;
+            if (!TryParsePositiveFloatPair(keystream, x, y))
             {
                 WarnWindowConfigLine(lineNumber, "Invalid UIRes (expected: UIRes <x> <y>, both > 0).");
                 continue;
             }
+
             m_uiResolution = { x, y };
         }
         else if (type == "loglevel")
@@ -122,7 +196,7 @@ void Window::LoadConfig()
         else if (type == "frameratelimit")
         {
             int limit = 0;
-            if (!TryReadExact(keystream, limit) || limit < 0)
+            if (!TryParseNonNegativeInt(keystream, limit))
             {
                 WarnWindowConfigLine(lineNumber, "Invalid FrameRateLimit (expected int >= 0, 0 = unlimited).");
                 continue;
@@ -132,30 +206,31 @@ void Window::LoadConfig()
         }
         else if (type == "fullscreen")
         {
-            int value = 0;
-            if (!TryReadExact(keystream, value) || (value != 0 && value != 1))
+            bool value = false;
+            if (!TryParseBinaryFlag(keystream, value))
             {
                 WarnWindowConfigLine(lineNumber, "Invalid Fullscreen (expected 0 or 1).");
                 continue;
             }
 
-            m_isFullscreen = (value == 1);
+            m_isFullscreen = value;
         }
         else if (type == "resizable")
         {
-            int value = 0;
-            if (!TryReadExact(keystream, value) || (value != 0 && value != 1))
+            bool value = false;
+            if (!TryParseBinaryFlag(keystream, value))
             {
                 WarnWindowConfigLine(lineNumber, "Invalid Resizable (expected 0 or 1).");
                 continue;
             }
 
-            m_isResizeable = (value == 1);
+            m_isResizeable = value;
         }
         else if (type == "windowres")
         {
-            unsigned int x = 0, y = 0;
-            if (!TryReadExact(keystream, x, y) || x == 0 || y == 0)
+            unsigned int x = 0u;
+            unsigned int y = 0u;
+            if (!TryParsePositiveUIntPair(keystream, x, y))
             {
                 WarnWindowConfigLine(lineNumber, "Invalid WindowRes (expected: WindowRes <x> <y>, both > 0).");
                 continue;
@@ -172,34 +247,19 @@ void Window::LoadConfig()
                 continue;
             }
 
-            const std::string normalizedSeed = ToLowerCopy(seedToken);
-            if (normalizedSeed == "auto" || normalizedSeed == "random")
+            const AISeedParseResult result =
+                TryParseAISeedToken(seedToken, m_hasFixedAISeed, m_fixedAISeed);
+
+            if (result == AISeedParseResult::OutOfRange)
             {
-                m_hasFixedAISeed = false;
-                m_fixedAISeed = 0;
+                WarnWindowConfigLine(lineNumber, "AISeed out of range (expected uint32).");
+                continue;
             }
-            else
+
+            if (result == AISeedParseResult::Invalid)
             {
-                try
-                {
-                    size_t parsedChars = 0;
-                    const unsigned long long parsed = std::stoull(seedToken, &parsedChars);
-
-                    if (parsedChars != seedToken.size() ||
-                        parsed > std::numeric_limits<std::uint32_t>::max())
-                    {
-                        WarnWindowConfigLine(lineNumber, "AISeed out of range (expected uint32).");
-                        continue;
-                    }
-
-                    m_fixedAISeed = static_cast<std::uint32_t>(parsed);
-                    m_hasFixedAISeed = true;
-                }
-                catch (...)
-                {
-                    WarnWindowConfigLine(lineNumber, "Invalid AISeed '" + seedToken + "' (use Auto/Random or uint32).");
-                    continue;
-                }
+                WarnWindowConfigLine(lineNumber, "Invalid AISeed '" + seedToken + "' (use Auto/Random or uint32).");
+                continue;
             }
         }
         else
