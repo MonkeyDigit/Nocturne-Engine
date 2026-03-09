@@ -98,6 +98,7 @@ public:
 
     bool Load(const std::string& path);
     void Destroy();
+    void DestroyAndDisableProjectileDamage();
 
 protected:
 

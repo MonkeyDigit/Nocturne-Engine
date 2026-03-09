@@ -7,7 +7,6 @@
 #include "CTransform.h"
 #include "CBoxCollider.h"
 #include "CState.h"
-#include "CProjectile.h"
 
 namespace
 {
@@ -146,11 +145,11 @@ bool PhysicsSystem::ConstrainToMapBounds(EntityBase* entity, Map* map)
         {
             if (entity->GetType() == EntityType::Projectile)
             {
-                // Ensure projectile is ignored by CombatSystem in this same frame
-                entity->RemoveComponent<CProjectile>();
+                // Ensure projectile is ignored by CombatSystem in this same frame.
+                entity->DestroyAndDisableProjectileDamage();
             }
-
-            entity->Destroy();
+            else
+                entity->Destroy();
         }
 
         return false;

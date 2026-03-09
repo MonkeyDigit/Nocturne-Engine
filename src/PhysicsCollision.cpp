@@ -6,7 +6,6 @@
 #include "EntityBase.h"
 #include "CTransform.h"
 #include "CBoxCollider.h"
-#include "CProjectile.h"
 
 namespace
 {
@@ -69,8 +68,7 @@ void PhysicsSystem::ResolveMapCollisions(EntityBase* entity, Map* map, float del
     if (entity->GetType() == EntityType::Projectile)
     {
         // Ensure projectile cannot deal damage after map collision in the same frame
-        entity->RemoveComponent<CProjectile>();
-        entity->Destroy();
+        entity->DestroyAndDisableProjectileDamage();
         collider->m_collisions.clear();
         collider->SetReferenceTile(nullptr);
         return;

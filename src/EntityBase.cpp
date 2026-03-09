@@ -142,3 +142,14 @@ void EntityBase::Destroy()
 {
     m_entityManager.Remove(m_id);
 }
+
+void EntityBase::DestroyAndDisableProjectileDamage()
+{
+    if (m_type == EntityType::Projectile)
+    {
+        // Remove projectile payload first so other systems ignore it in this frame
+        RemoveComponent<CProjectile>();
+    }
+
+    Destroy();
+}

@@ -71,7 +71,7 @@ void CombatSystem::ResolveProjectiles(
             const bool damageApplied = targetState->TakeDamage(projComp->GetDamage());
             if (ShouldConsumeProjectile(damageApplied))
             {
-                projEntity->Destroy();
+                projEntity->DestroyAndDisableProjectileDamage();
                 break;
             }
         }
