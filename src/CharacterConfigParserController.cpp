@@ -1,61 +1,34 @@
-#include "CharacterConfigParser.h"
+#include <unordered_map>
 
+#include "CharacterConfigParser.h"
 #include "CController.h"
 #include "ConfigParseUtils.h"
 
 namespace
 {
+    using ParseContext = CharacterConfigParser::ParseContext;
     using ParseUtils::TryReadExact;
-}
+    using HandlerFn = bool (*)(std::stringstream&, const ParseContext&, const std::string&);
 
-bool CharacterConfigParser::HandleControllerKey(
-    const std::string& type,
-    std::stringstream& keystream,
-    const ParseContext& context)
-{
-    const bool isControllerKey =
-        (type == "JumpVelocity") ||
-        (type == "RangedCooldown") ||
-        (type == "RangedSpeed") ||
-        (type == "RangedLifetime") ||
-        (type == "RangedDamage") ||
-        (type == "RangedSpawnOffset") ||
-        (type == "RangedSize") ||
-        (type == "RangedSheet") ||
-        (type == "RangedAnimation") ||
-        (type == "RangedEnabled") ||
-        (type == "CoyoteTime") ||
-        (type == "JumpBufferTime") ||
-        (type == "AttackCooldown") ||
-        (type == "JumpCancelMultiplier") ||
-        (type == "VerticalAirThreshold") ||
-        (type == "HorizontalWalkThreshold");
-
-    if (isControllerKey && !context.controller)
+    bool ParseJumpVelocity(std::stringstream& keystream, const ParseContext& context, const std::string& key)
     {
-        WarnMissingComponent(context.path, context.lineNumber, type, "CController");
-        return true;
-    }
-
-    if (type == "JumpVelocity")
-    {
-        float jv = 0.0f;
-        if (!TryReadExact(keystream, jv) || jv <= 0.0f)
+        float value = 0.0f;
+        if (!TryReadExact(keystream, value) || value <= 0.0f)
         {
-            WarnInvalidValue(context.path, context.lineNumber, type, "JumpVelocity <float > 0>");
+            CharacterConfigParser::WarnInvalidValue(context.path, context.lineNumber, key, "JumpVelocity <float > 0>");
             return true;
         }
 
-        context.controller->m_jumpVelocity = jv;
+        context.controller->m_jumpVelocity = value;
         return true;
     }
 
-    if (type == "RangedCooldown")
+    bool ParseRangedCooldown(std::stringstream& keystream, const ParseContext& context, const std::string& key)
     {
         float value = 0.0f;
         if (!TryReadExact(keystream, value) || value < 0.0f)
         {
-            WarnInvalidValue(context.path, context.lineNumber, type, "RangedCooldown <float >= 0>");
+            CharacterConfigParser::WarnInvalidValue(context.path, context.lineNumber, key, "RangedCooldown <float >= 0>");
             return true;
         }
 
@@ -63,51 +36,52 @@ bool CharacterConfigParser::HandleControllerKey(
         return true;
     }
 
-    if (type == "RangedSpeed")
+    bool ParseRangedSpeed(std::stringstream& keystream, const ParseContext& context, const std::string& key)
     {
-        float speed = 0.0f;
-        if (!TryReadExact(keystream, speed) || speed <= 0.0f)
+        float value = 0.0f;
+        if (!TryReadExact(keystream, value) || value <= 0.0f)
         {
-            WarnInvalidValue(context.path, context.lineNumber, type, "RangedSpeed <float > 0>");
+            CharacterConfigParser::WarnInvalidValue(context.path, context.lineNumber, key, "RangedSpeed <float > 0>");
             return true;
         }
 
-        context.controller->m_rangedSpeed = speed;
+        context.controller->m_rangedSpeed = value;
         return true;
     }
 
-    if (type == "RangedLifetime")
+    bool ParseRangedLifetime(std::stringstream& keystream, const ParseContext& context, const std::string& key)
     {
-        float lifetime = 0.0f;
-        if (!TryReadExact(keystream, lifetime) || lifetime <= 0.0f)
+        float value = 0.0f;
+        if (!TryReadExact(keystream, value) || value <= 0.0f)
         {
-            WarnInvalidValue(context.path, context.lineNumber, type, "RangedLifetime <float > 0>");
+            CharacterConfigParser::WarnInvalidValue(context.path, context.lineNumber, key, "RangedLifetime <float > 0>");
             return true;
         }
 
-        context.controller->m_rangedLifetime = lifetime;
+        context.controller->m_rangedLifetime = value;
         return true;
     }
 
-    if (type == "RangedDamage")
+    bool ParseRangedDamage(std::stringstream& keystream, const ParseContext& context, const std::string& key)
     {
-        int damage = 0;
-        if (!TryReadExact(keystream, damage) || damage <= 0)
+        int value = 0;
+        if (!TryReadExact(keystream, value) || value <= 0)
         {
-            WarnInvalidValue(context.path, context.lineNumber, type, "RangedDamage <int > 0>");
+            CharacterConfigParser::WarnInvalidValue(context.path, context.lineNumber, key, "RangedDamage <int > 0>");
             return true;
         }
 
-        context.controller->m_rangedDamage = damage;
+        context.controller->m_rangedDamage = value;
         return true;
     }
 
-    if (type == "RangedSpawnOffset")
+    bool ParseRangedSpawnOffset(std::stringstream& keystream, const ParseContext& context, const std::string& key)
     {
-        float offsetX = 0.0f, offsetY = 0.0f;
+        float offsetX = 0.0f;
+        float offsetY = 0.0f;
         if (!TryReadExact(keystream, offsetX, offsetY) || offsetX < 0.0f)
         {
-            WarnInvalidValue(context.path, context.lineNumber, type, "RangedSpawnOffset <x >= 0> <y>");
+            CharacterConfigParser::WarnInvalidValue(context.path, context.lineNumber, key, "RangedSpawnOffset <x >= 0> <y>");
             return true;
         }
 
@@ -116,26 +90,27 @@ bool CharacterConfigParser::HandleControllerKey(
         return true;
     }
 
-    if (type == "RangedSize")
+    bool ParseRangedSize(std::stringstream& keystream, const ParseContext& context, const std::string& key)
     {
-        float sx = 0.0f, sy = 0.0f;
-        if (!TryReadExact(keystream, sx, sy) || sx <= 0.0f || sy <= 0.0f)
+        float sizeX = 0.0f;
+        float sizeY = 0.0f;
+        if (!TryReadExact(keystream, sizeX, sizeY) || sizeX <= 0.0f || sizeY <= 0.0f)
         {
-            WarnInvalidValue(context.path, context.lineNumber, type, "RangedSize <x > 0> <y > 0>");
+            CharacterConfigParser::WarnInvalidValue(context.path, context.lineNumber, key, "RangedSize <x > 0> <y > 0>");
             return true;
         }
 
-        context.controller->m_rangedSizeX = sx;
-        context.controller->m_rangedSizeY = sy;
+        context.controller->m_rangedSizeX = sizeX;
+        context.controller->m_rangedSizeY = sizeY;
         return true;
     }
 
-    if (type == "RangedSheet")
+    bool ParseRangedSheet(std::stringstream& keystream, const ParseContext& context, const std::string& key)
     {
         std::string sheetPath;
         if (!TryReadExact(keystream, sheetPath) || sheetPath.empty())
         {
-            WarnInvalidValue(context.path, context.lineNumber, type, "RangedSheet <path>");
+            CharacterConfigParser::WarnInvalidValue(context.path, context.lineNumber, key, "RangedSheet <path>");
             return true;
         }
 
@@ -143,25 +118,25 @@ bool CharacterConfigParser::HandleControllerKey(
         return true;
     }
 
-    if (type == "RangedAnimation")
+    bool ParseRangedAnimation(std::stringstream& keystream, const ParseContext& context, const std::string& key)
     {
-        std::string animName;
-        if (!TryReadExact(keystream, animName) || animName.empty())
+        std::string animationName;
+        if (!TryReadExact(keystream, animationName) || animationName.empty())
         {
-            WarnInvalidValue(context.path, context.lineNumber, type, "RangedAnimation <name>");
+            CharacterConfigParser::WarnInvalidValue(context.path, context.lineNumber, key, "RangedAnimation <name>");
             return true;
         }
 
-        context.controller->m_rangedAnimation = animName;
+        context.controller->m_rangedAnimation = animationName;
         return true;
     }
 
-    if (type == "RangedEnabled")
+    bool ParseRangedEnabled(std::stringstream& keystream, const ParseContext& context, const std::string& key)
     {
         int value = 0;
         if (!TryReadExact(keystream, value) || (value != 0 && value != 1))
         {
-            WarnInvalidValue(context.path, context.lineNumber, type, "RangedEnabled <0|1>");
+            CharacterConfigParser::WarnInvalidValue(context.path, context.lineNumber, key, "RangedEnabled <0|1>");
             return true;
         }
 
@@ -169,12 +144,12 @@ bool CharacterConfigParser::HandleControllerKey(
         return true;
     }
 
-    if (type == "CoyoteTime")
+    bool ParseCoyoteTime(std::stringstream& keystream, const ParseContext& context, const std::string& key)
     {
         float value = 0.0f;
         if (!TryReadExact(keystream, value) || value < 0.0f)
         {
-            WarnInvalidValue(context.path, context.lineNumber, type, "CoyoteTime <float >= 0>");
+            CharacterConfigParser::WarnInvalidValue(context.path, context.lineNumber, key, "CoyoteTime <float >= 0>");
             return true;
         }
 
@@ -182,12 +157,12 @@ bool CharacterConfigParser::HandleControllerKey(
         return true;
     }
 
-    if (type == "JumpBufferTime")
+    bool ParseJumpBufferTime(std::stringstream& keystream, const ParseContext& context, const std::string& key)
     {
         float value = 0.0f;
         if (!TryReadExact(keystream, value) || value < 0.0f)
         {
-            WarnInvalidValue(context.path, context.lineNumber, type, "JumpBufferTime <float >= 0>");
+            CharacterConfigParser::WarnInvalidValue(context.path, context.lineNumber, key, "JumpBufferTime <float >= 0>");
             return true;
         }
 
@@ -195,12 +170,12 @@ bool CharacterConfigParser::HandleControllerKey(
         return true;
     }
 
-    if (type == "AttackCooldown")
+    bool ParseAttackCooldown(std::stringstream& keystream, const ParseContext& context, const std::string& key)
     {
         float value = 0.0f;
         if (!TryReadExact(keystream, value) || value < 0.0f)
         {
-            WarnInvalidValue(context.path, context.lineNumber, type, "AttackCooldown <float >= 0>");
+            CharacterConfigParser::WarnInvalidValue(context.path, context.lineNumber, key, "AttackCooldown <float >= 0>");
             return true;
         }
 
@@ -208,12 +183,12 @@ bool CharacterConfigParser::HandleControllerKey(
         return true;
     }
 
-    if (type == "JumpCancelMultiplier")
+    bool ParseJumpCancelMultiplier(std::stringstream& keystream, const ParseContext& context, const std::string& key)
     {
         float value = 0.0f;
         if (!TryReadExact(keystream, value) || value <= 0.0f || value > 1.0f)
         {
-            WarnInvalidValue(context.path, context.lineNumber, type, "JumpCancelMultiplier <0 < value <= 1>");
+            CharacterConfigParser::WarnInvalidValue(context.path, context.lineNumber, key, "JumpCancelMultiplier <0 < value <= 1>");
             return true;
         }
 
@@ -221,12 +196,12 @@ bool CharacterConfigParser::HandleControllerKey(
         return true;
     }
 
-    if (type == "VerticalAirThreshold")
+    bool ParseVerticalAirThreshold(std::stringstream& keystream, const ParseContext& context, const std::string& key)
     {
         float value = 0.0f;
         if (!TryReadExact(keystream, value) || value < 0.0f)
         {
-            WarnInvalidValue(context.path, context.lineNumber, type, "VerticalAirThreshold <float >= 0>");
+            CharacterConfigParser::WarnInvalidValue(context.path, context.lineNumber, key, "VerticalAirThreshold <float >= 0>");
             return true;
         }
 
@@ -234,12 +209,12 @@ bool CharacterConfigParser::HandleControllerKey(
         return true;
     }
 
-    if (type == "HorizontalWalkThreshold")
+    bool ParseHorizontalWalkThreshold(std::stringstream& keystream, const ParseContext& context, const std::string& key)
     {
         float value = 0.0f;
         if (!TryReadExact(keystream, value) || value < 0.0f)
         {
-            WarnInvalidValue(context.path, context.lineNumber, type, "HorizontalWalkThreshold <float >= 0>");
+            CharacterConfigParser::WarnInvalidValue(context.path, context.lineNumber, key, "HorizontalWalkThreshold <float >= 0>");
             return true;
         }
 
@@ -247,5 +222,41 @@ bool CharacterConfigParser::HandleControllerKey(
         return true;
     }
 
-    return false;
+    // Key -> parser dispatch for controller-related config entries
+    const std::unordered_map<std::string, HandlerFn> kControllerHandlers = {
+        {"JumpVelocity", &ParseJumpVelocity},
+        {"RangedCooldown", &ParseRangedCooldown},
+        {"RangedSpeed", &ParseRangedSpeed},
+        {"RangedLifetime", &ParseRangedLifetime},
+        {"RangedDamage", &ParseRangedDamage},
+        {"RangedSpawnOffset", &ParseRangedSpawnOffset},
+        {"RangedSize", &ParseRangedSize},
+        {"RangedSheet", &ParseRangedSheet},
+        {"RangedAnimation", &ParseRangedAnimation},
+        {"RangedEnabled", &ParseRangedEnabled},
+        {"CoyoteTime", &ParseCoyoteTime},
+        {"JumpBufferTime", &ParseJumpBufferTime},
+        {"AttackCooldown", &ParseAttackCooldown},
+        {"JumpCancelMultiplier", &ParseJumpCancelMultiplier},
+        {"VerticalAirThreshold", &ParseVerticalAirThreshold},
+        {"HorizontalWalkThreshold", &ParseHorizontalWalkThreshold}
+    };
+}
+
+bool CharacterConfigParser::HandleControllerKey(
+    const std::string& type,
+    std::stringstream& keystream,
+    const ParseContext& context)
+{
+    const auto it = kControllerHandlers.find(type);
+    if (it == kControllerHandlers.end())
+        return false;
+
+    if (!context.controller)
+    {
+        WarnMissingComponent(context.path, context.lineNumber, type, "CController");
+        return true;
+    }
+
+    return it->second(keystream, context, type);
 }

@@ -1,43 +1,22 @@
-#include "CharacterConfigParser.h"
+#include <unordered_map>
 
+#include "CharacterConfigParser.h"
 #include "CAIPatrol.h"
 #include "EngineLog.h"
 #include "ConfigParseUtils.h"
 
 namespace
 {
+    using ParseContext = CharacterConfigParser::ParseContext;
     using ParseUtils::TryReadExact;
-}
+    using HandlerFn = bool (*)(std::stringstream&, const ParseContext&, const std::string&);
 
-bool CharacterConfigParser::HandleAiKey(
-    const std::string& type,
-    std::stringstream& keystream,
-    const ParseContext& context)
-{
-    const bool isAiKey =
-        (type == "AI_ChaseRange") ||
-        (type == "AI_ChaseDeadZone") ||
-        (type == "AI_ArrivalThreshold") ||
-        (type == "AI_IdleInterval") ||
-        (type == "AI_PatrolMinDistance") ||
-        (type == "AI_PatrolMaxDistance") ||
-        (type == "AI_PatrolDirectionChance") ||
-        (type == "AI_AttackRange") ||
-        (type == "AI_AttackRangeX") ||
-        (type == "AI_AttackRangeY");
-
-    if (isAiKey && !context.ai)
-    {
-        WarnMissingComponent(context.path, context.lineNumber, type, "CAIPatrol");
-        return true;
-    }
-
-    if (type == "AI_ChaseRange")
+    bool ParseAiChaseRange(std::stringstream& keystream, const ParseContext& context, const std::string& key)
     {
         float value = 0.0f;
         if (!TryReadExact(keystream, value) || value <= 0.0f)
         {
-            WarnInvalidValue(context.path, context.lineNumber, type, "AI_ChaseRange <float > 0>");
+            CharacterConfigParser::WarnInvalidValue(context.path, context.lineNumber, key, "AI_ChaseRange <float > 0>");
             return true;
         }
 
@@ -45,12 +24,12 @@ bool CharacterConfigParser::HandleAiKey(
         return true;
     }
 
-    if (type == "AI_ChaseDeadZone")
+    bool ParseAiChaseDeadZone(std::stringstream& keystream, const ParseContext& context, const std::string& key)
     {
         float value = 0.0f;
         if (!TryReadExact(keystream, value) || value < 0.0f)
         {
-            WarnInvalidValue(context.path, context.lineNumber, type, "AI_ChaseDeadZone <float >= 0>");
+            CharacterConfigParser::WarnInvalidValue(context.path, context.lineNumber, key, "AI_ChaseDeadZone <float >= 0>");
             return true;
         }
 
@@ -58,12 +37,12 @@ bool CharacterConfigParser::HandleAiKey(
         return true;
     }
 
-    if (type == "AI_ArrivalThreshold")
+    bool ParseAiArrivalThreshold(std::stringstream& keystream, const ParseContext& context, const std::string& key)
     {
         float value = 0.0f;
         if (!TryReadExact(keystream, value) || value < 0.0f)
         {
-            WarnInvalidValue(context.path, context.lineNumber, type, "AI_ArrivalThreshold <float >= 0>");
+            CharacterConfigParser::WarnInvalidValue(context.path, context.lineNumber, key, "AI_ArrivalThreshold <float >= 0>");
             return true;
         }
 
@@ -71,12 +50,12 @@ bool CharacterConfigParser::HandleAiKey(
         return true;
     }
 
-    if (type == "AI_IdleInterval")
+    bool ParseAiIdleInterval(std::stringstream& keystream, const ParseContext& context, const std::string& key)
     {
         float value = 0.0f;
         if (!TryReadExact(keystream, value) || value <= 0.0f)
         {
-            WarnInvalidValue(context.path, context.lineNumber, type, "AI_IdleInterval <float > 0>");
+            CharacterConfigParser::WarnInvalidValue(context.path, context.lineNumber, key, "AI_IdleInterval <float > 0>");
             return true;
         }
 
@@ -84,12 +63,12 @@ bool CharacterConfigParser::HandleAiKey(
         return true;
     }
 
-    if (type == "AI_PatrolMinDistance")
+    bool ParseAiPatrolMinDistance(std::stringstream& keystream, const ParseContext& context, const std::string& key)
     {
         int value = 0;
         if (!TryReadExact(keystream, value) || value <= 0)
         {
-            WarnInvalidValue(context.path, context.lineNumber, type, "AI_PatrolMinDistance <int > 0>");
+            CharacterConfigParser::WarnInvalidValue(context.path, context.lineNumber, key, "AI_PatrolMinDistance <int > 0>");
             return true;
         }
 
@@ -97,12 +76,12 @@ bool CharacterConfigParser::HandleAiKey(
         return true;
     }
 
-    if (type == "AI_PatrolMaxDistance")
+    bool ParseAiPatrolMaxDistance(std::stringstream& keystream, const ParseContext& context, const std::string& key)
     {
         int value = 0;
         if (!TryReadExact(keystream, value) || value <= 0)
         {
-            WarnInvalidValue(context.path, context.lineNumber, type, "AI_PatrolMaxDistance <int > 0>");
+            CharacterConfigParser::WarnInvalidValue(context.path, context.lineNumber, key, "AI_PatrolMaxDistance <int > 0>");
             return true;
         }
 
@@ -110,12 +89,12 @@ bool CharacterConfigParser::HandleAiKey(
         return true;
     }
 
-    if (type == "AI_PatrolDirectionChance")
+    bool ParseAiPatrolDirectionChance(std::stringstream& keystream, const ParseContext& context, const std::string& key)
     {
         float value = 0.0f;
         if (!TryReadExact(keystream, value))
         {
-            WarnInvalidValue(context.path, context.lineNumber, type, "AI_PatrolDirectionChance <float 0..1>");
+            CharacterConfigParser::WarnInvalidValue(context.path, context.lineNumber, key, "AI_PatrolDirectionChance <float 0..1>");
             return true;
         }
 
@@ -132,12 +111,12 @@ bool CharacterConfigParser::HandleAiKey(
         return true;
     }
 
-    if (type == "AI_AttackRange")
+    bool ParseAiAttackRange(std::stringstream& keystream, const ParseContext& context, const std::string& key)
     {
         float value = 0.0f;
         if (!TryReadExact(keystream, value) || value <= 0.0f)
         {
-            WarnInvalidValue(context.path, context.lineNumber, type, "AI_AttackRange <float > 0>");
+            CharacterConfigParser::WarnInvalidValue(context.path, context.lineNumber, key, "AI_AttackRange <float > 0>");
             return true;
         }
 
@@ -146,12 +125,12 @@ bool CharacterConfigParser::HandleAiKey(
         return true;
     }
 
-    if (type == "AI_AttackRangeX")
+    bool ParseAiAttackRangeX(std::stringstream& keystream, const ParseContext& context, const std::string& key)
     {
         float value = 0.0f;
         if (!TryReadExact(keystream, value) || value <= 0.0f)
         {
-            WarnInvalidValue(context.path, context.lineNumber, type, "AI_AttackRangeX <float > 0>");
+            CharacterConfigParser::WarnInvalidValue(context.path, context.lineNumber, key, "AI_AttackRangeX <float > 0>");
             return true;
         }
 
@@ -159,12 +138,12 @@ bool CharacterConfigParser::HandleAiKey(
         return true;
     }
 
-    if (type == "AI_AttackRangeY")
+    bool ParseAiAttackRangeY(std::stringstream& keystream, const ParseContext& context, const std::string& key)
     {
         float value = 0.0f;
         if (!TryReadExact(keystream, value) || value <= 0.0f)
         {
-            WarnInvalidValue(context.path, context.lineNumber, type, "AI_AttackRangeY <float > 0>");
+            CharacterConfigParser::WarnInvalidValue(context.path, context.lineNumber, key, "AI_AttackRangeY <float > 0>");
             return true;
         }
 
@@ -172,5 +151,35 @@ bool CharacterConfigParser::HandleAiKey(
         return true;
     }
 
-    return false;
+    // Key -> parser dispatch for AI-related config entries
+    const std::unordered_map<std::string, HandlerFn> kAiHandlers = {
+        {"AI_ChaseRange", &ParseAiChaseRange},
+        {"AI_ChaseDeadZone", &ParseAiChaseDeadZone},
+        {"AI_ArrivalThreshold", &ParseAiArrivalThreshold},
+        {"AI_IdleInterval", &ParseAiIdleInterval},
+        {"AI_PatrolMinDistance", &ParseAiPatrolMinDistance},
+        {"AI_PatrolMaxDistance", &ParseAiPatrolMaxDistance},
+        {"AI_PatrolDirectionChance", &ParseAiPatrolDirectionChance},
+        {"AI_AttackRange", &ParseAiAttackRange},
+        {"AI_AttackRangeX", &ParseAiAttackRangeX},
+        {"AI_AttackRangeY", &ParseAiAttackRangeY}
+    };
+}
+
+bool CharacterConfigParser::HandleAiKey(
+    const std::string& type,
+    std::stringstream& keystream,
+    const ParseContext& context)
+{
+    const auto it = kAiHandlers.find(type);
+    if (it == kAiHandlers.end())
+        return false;
+
+    if (!context.ai)
+    {
+        WarnMissingComponent(context.path, context.lineNumber, type, "CAIPatrol");
+        return true;
+    }
+
+    return it->second(keystream, context, type);
 }
