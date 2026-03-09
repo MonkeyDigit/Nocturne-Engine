@@ -16,7 +16,12 @@ public:
 
     void SetSpritePosition(const sf::Vector2f& pos);
     void SetDirection(Direction dir);
+    // Returns true if the animation exists and is now active
+    // Returns false only when the animation name does not exist in the sheet
     bool SetAnimation(const std::string& name, bool play = true, bool loop = false);
+
+    bool HasAnimation(const std::string& name) const;
+    bool IsCurrentAnimation(const std::string& name) const;
 
     // Loads and parses the .sheet file
     bool LoadSheet(const std::string& file);

@@ -8,6 +8,8 @@ void MovementControlSystem::Update(float deltaTime)
     if (!m_entityManager) return;
 
     std::vector<MovementControlDetail::ProjectileSpawnRequest> pendingProjectiles;
+    pendingProjectiles.reserve(m_entityManager->GetEntities().size());
+
     const GameplayTuning& tuning = m_entityManager->GetContext().m_gameplayTuning;
 
     for (auto& entityPair : m_entityManager->GetEntities())
@@ -22,5 +24,4 @@ void MovementControlSystem::Update(float deltaTime)
     }
 
     MovementControlDetail::SpawnPendingProjectiles(*m_entityManager, pendingProjectiles);
-    pendingProjectiles.reserve(m_entityManager->GetEntities().size());
 }

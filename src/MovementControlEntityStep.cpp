@@ -13,6 +13,7 @@
 namespace
 {
     using MovementControlDetail::ProjectileSpawnRequest;
+    constexpr float kWalkExitThresholdFactor = 0.6f;
 
     inline void DecreaseToZero(float& value, float deltaTime)
     {
@@ -30,9 +31,9 @@ namespace
 
     inline bool CanQueueJump(EntityState state)
     {
+        // Allow buffering while airborne; actual jump trigger is still gated by grounded/coyote
         return state != EntityState::Dying &&
             state != EntityState::Hurt &&
-            state != EntityState::Jumping &&
             state != EntityState::Attacking;
     }
 
@@ -62,12 +63,32 @@ namespace
 
     inline EntityState ResolveLocomotionState(
         const sf::Vector2f& velocity,
+        EntityState currentState,
+        bool grounded,
         float verticalAirThreshold,
         float horizontalWalkThreshold)
     {
-        if (std::abs(velocity.y) > verticalAirThreshold) return EntityState::Jumping;
-        if (std::abs(velocity.x) > horizontalWalkThreshold) return EntityState::Walking;
-        return EntityState::Idle;
+        const float safeVerticalThreshold = std::max(verticalAirThreshold, 0.0f);
+        const float walkEnterThreshold = std::max(horizontalWalkThreshold, 0.0f);
+        const float walkExitThreshold = walkEnterThreshold * kWalkExitThresholdFactor;
+
+        const float absVy = std::abs(velocity.y);
+        const float absVx = std::abs(velocity.x);
+
+        // Air-state latch: once jump starts, do not fall back to Idle/Walk at apex
+        if (currentState == EntityState::Jumping)
+        {
+            if (!grounded || absVy > safeVerticalThreshold)
+                return EntityState::Jumping;
+        }
+
+        if (absVy > safeVerticalThreshold) return EntityState::Jumping;
+
+        // Hysteresis: enter Walk with higher threshold, exit Walk with lower threshold
+        if (currentState == EntityState::Walking)
+            return (absVx > walkExitThreshold) ? EntityState::Walking : EntityState::Idle;
+
+        return (absVx > walkEnterThreshold) ? EntityState::Walking : EntityState::Idle;
     }
 
     inline bool IsGrounded(const CBoxCollider* collider)
@@ -324,17 +345,18 @@ namespace
         }
     }
 
-    inline void UpdateAutoState(CController& controller, CTransform& transform, CState& state)
+    inline void UpdateAutoState(CController& controller, CTransform& transform, CState& state, bool grounded)
     {
-        const EntityState updatedState = state.GetState();
-        if (CanAutoState(updatedState))
-        {
-            state.SetState(
-                ResolveLocomotionState(
-                    transform.GetVelocity(),
-                    controller.m_verticalAirThreshold,
-                    controller.m_horizontalWalkThreshold));
-        }
+        const EntityState currentState = state.GetState();
+        if (!CanAutoState(currentState)) return;
+
+        state.SetState(
+            ResolveLocomotionState(
+                transform.GetVelocity(),
+                currentState,
+                grounded,
+                controller.m_verticalAirThreshold,
+                controller.m_horizontalWalkThreshold));
     }
 
     inline void ResetDirectionalInput(CController& controller)
@@ -400,7 +422,7 @@ namespace MovementControlDetail
             meleeTriggered,
             pendingProjectiles);
 
-        UpdateAutoState(*controller, *transform, *state);
+        UpdateAutoState(*controller, *transform, *state, grounded);
         ResetDirectionalInput(*controller);
     }
 

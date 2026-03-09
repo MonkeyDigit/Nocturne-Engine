@@ -11,11 +11,39 @@
 namespace
 {
     constexpr float kMapKillZoneTilesBelowMap = 4.0f;
+    constexpr float kFallbackFixedDt = 1.0f / 60.0f;
+
+    inline bool IsFiniteVec2(const sf::Vector2f& v)
+    {
+        return std::isfinite(v.x) && std::isfinite(v.y);
+    }
+
+    inline bool IsFiniteRect(const sf::FloatRect& r)
+    {
+        return IsFiniteVec2(r.position) && IsFiniteVec2(r.size);
+    }
+
+    inline float SanitizeDeltaTime(float deltaTime)
+    {
+        return (std::isfinite(deltaTime) && deltaTime > 0.0f)
+            ? deltaTime
+            : kFallbackFixedDt;
+    }
+
+    inline void ClearColliderContacts(CBoxCollider& collider)
+    {
+        collider.SetCollidingX(false);
+        collider.SetCollidingY(false);
+        collider.SetReferenceTile(nullptr);
+        collider.m_collisions.clear();
+    }
 }
 
 void PhysicsSystem::Update(EntityManager& entityManager, Map* gameMap, float deltaTime)
 {
     if (!gameMap) return;
+
+    const float frameDt = SanitizeDeltaTime(deltaTime);
 
     for (auto& entityPair : entityManager.GetEntities())
     {
@@ -26,15 +54,23 @@ void PhysicsSystem::Update(EntityManager& entityManager, Map* gameMap, float del
 
         if (!transform || !collider) continue;
 
-        ApplyGravityAndMovement(entity, gameMap, deltaTime);
+        if (!IsFiniteVec2(transform->GetPosition()) || !IsFiniteVec2(transform->GetSize()))
+        {
+            // Invalid transform cannot produce stable AABB/collision data
+            ClearColliderContacts(*collider);
+
+            if (entity->GetType() == EntityType::Projectile)
+                entity->DestroyAndDisableProjectileDamage();
+
+            continue;
+        }
+
+        ApplyGravityAndMovement(entity, gameMap, frameDt);
 
         if (!ConstrainToMapBounds(entity, gameMap))
         {
             // Entity is leaving play-space and should not be resolved further this frame
-            collider->SetCollidingX(false);
-            collider->SetCollidingY(false);
-            collider->SetReferenceTile(nullptr);
-            collider->m_collisions.clear();
+            ClearColliderContacts(*collider);
             continue;
         }
 
@@ -42,7 +78,7 @@ void PhysicsSystem::Update(EntityManager& entityManager, Map* gameMap, float del
         collider->SetCollidingY(false);
 
         CheckMapCollisions(entity, gameMap);
-        ResolveMapCollisions(entity, gameMap, deltaTime);
+        ResolveMapCollisions(entity, gameMap, frameDt);
     }
 }
 
@@ -51,12 +87,20 @@ void PhysicsSystem::ApplyGravityAndMovement(EntityBase* entity, Map* map, float 
     CTransform* transform = entity->GetComponent<CTransform>();
     CBoxCollider* collider = entity->GetComponent<CBoxCollider>();
 
-    const float gravity = map->GetGravity();
+    if (!IsFiniteVec2(transform->GetVelocity()))
+        transform->SetVelocity(0.0f, 0.0f);
+
+    if (!IsFiniteVec2(transform->GetAcceleration()))
+        transform->SetAcceleration(0.0f, 0.0f);
+
+    const float gravityRaw = map->GetGravity();
+    const float gravity = std::isfinite(gravityRaw) ? gravityRaw : 0.0f;
     transform->AddAcceleration(0.0f, gravity);
 
+    const sf::Vector2f acceleration = transform->GetAcceleration();
     transform->AddVelocity(
-        transform->GetAcceleration().x * deltaTime,
-        transform->GetAcceleration().y * deltaTime);
+        acceleration.x * deltaTime,
+        acceleration.y * deltaTime);
 
     sf::Vector2f frictionValue;
     TileInfo* refTile = collider->GetReferenceTile();
@@ -81,8 +125,15 @@ void PhysicsSystem::ApplyGravityAndMovement(EntityBase* entity, Map* map, float 
         frictionValue = transform->GetFriction();
     }
 
-    const float friction_x = (transform->GetSpeed().x * frictionValue.x) * deltaTime;
-    const float friction_y = (transform->GetSpeed().y * frictionValue.y) * deltaTime;
+    if (!IsFiniteVec2(frictionValue))
+        frictionValue = { 0.0f, 0.0f };
+
+    sf::Vector2f speed = transform->GetSpeed();
+    if (!IsFiniteVec2(speed))
+        speed = { 0.0f, 0.0f };
+
+    const float friction_x = (speed.x * frictionValue.x) * deltaTime;
+    const float friction_y = (speed.y * frictionValue.y) * deltaTime;
 
     sf::Vector2f velocity = transform->GetVelocity();
     if (transform->GetAcceleration().x == 0.0f)
@@ -96,15 +147,28 @@ void PhysicsSystem::ApplyGravityAndMovement(EntityBase* entity, Map* map, float 
         else velocity.y += (velocity.y < 0.0f) ? friction_y : -friction_y;
     }
 
+    if (!IsFiniteVec2(velocity))
+        velocity = { 0.0f, 0.0f };
+
     transform->SetVelocity(velocity.x, velocity.y);
     transform->SetAcceleration(0.0f, 0.0f);
 
-    const sf::Vector2f deltaPos = transform->GetVelocity() * deltaTime;
+    sf::Vector2f safeVelocity = transform->GetVelocity();
+    if (!IsFiniteVec2(safeVelocity))
+    {
+        safeVelocity = { 0.0f, 0.0f };
+        transform->SetVelocity(0.0f, 0.0f);
+    }
+
+    const sf::Vector2f deltaPos = safeVelocity * deltaTime;
     transform->AddPosition(deltaPos.x, deltaPos.y);
 
+    const sf::Vector2f pos = transform->GetPosition();
+    const sf::Vector2f size = transform->GetSize();
+
     collider->SetAABB(sf::FloatRect(
-        { transform->GetPosition().x - (transform->GetSize().x * 0.5f), transform->GetPosition().y - transform->GetSize().y },
-        { transform->GetSize().x, transform->GetSize().y }
+        { pos.x - (size.x * 0.5f), pos.y - size.y },
+        { size.x, size.y }
     ));
 }
 
@@ -115,25 +179,38 @@ bool PhysicsSystem::ConstrainToMapBounds(EntityBase* entity, Map* map)
 
     const sf::Vector2u mapSize = map->GetMapSize();
     const float tileSize = static_cast<float>(map->GetTileSize());
+
+    if (!std::isfinite(tileSize) || tileSize <= 0.0f)
+        return false;
+
     const sf::FloatRect& aabb = collider->GetAABB();
+    if (!IsFiniteRect(aabb))
+        return false;
 
-    if (transform->GetPosition().x - aabb.size.x * 0.5f < 0.0f)
+    sf::Vector2f position = transform->GetPosition();
+    if (!IsFiniteVec2(position))
+        return false;
+
+    if (position.x - aabb.size.x * 0.5f < 0.0f)
     {
-        transform->SetPosition(aabb.size.x * 0.5f, transform->GetPosition().y);
+        position.x = aabb.size.x * 0.5f;
+        transform->SetPosition(position.x, position.y);
         transform->SetVelocity(0.0f, transform->GetVelocity().y);
     }
-    else if (transform->GetPosition().x + aabb.size.x * 0.5f > mapSize.x * tileSize)
+    else if (position.x + aabb.size.x * 0.5f > mapSize.x * tileSize)
     {
-        transform->SetPosition(mapSize.x * tileSize - aabb.size.x * 0.5f, transform->GetPosition().y);
+        position.x = mapSize.x * tileSize - aabb.size.x * 0.5f;
+        transform->SetPosition(position.x, position.y);
         transform->SetVelocity(0.0f, transform->GetVelocity().y);
     }
 
-    if (transform->GetPosition().y < 0.0f)
+    if (position.y < 0.0f)
     {
-        transform->SetPosition(transform->GetPosition().x, 0.0f);
+        position.y = 0.0f;
+        transform->SetPosition(position.x, position.y);
         transform->SetVelocity(transform->GetVelocity().x, 0.0f);
     }
-    else if (transform->GetPosition().y >
+    else if (position.y >
         (static_cast<float>(mapSize.y) + kMapKillZoneTilesBelowMap) * tileSize)
     {
         if (CState* state = entity->GetComponent<CState>())
@@ -145,11 +222,13 @@ bool PhysicsSystem::ConstrainToMapBounds(EntityBase* entity, Map* map)
         {
             if (entity->GetType() == EntityType::Projectile)
             {
-                // Ensure projectile is ignored by CombatSystem in this same frame.
+                // Ensure projectile is ignored by CombatSystem in this same frame
                 entity->DestroyAndDisableProjectileDamage();
             }
             else
+            {
                 entity->Destroy();
+            }
         }
 
         return false;

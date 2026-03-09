@@ -3,13 +3,13 @@ Size 140 95
 Scale 1.0 1.0
 |Type|Name|StartFrame|EndFrame|Row|FrameTime|Loop|
 Animation Idle 0 5 0 0.16 1
-Animation WalkStart 0 14 1 0.04 0
-Animation Walk 0 14 2 0.04 1
-Animation WalkEnd 5 16 4 0.06 0
+Animation WalkStart 0 15 1 0.04 0
+Animation Walk 0 15 2 0.04 1
+Animation WalkEnd 0 17 4 0.04 0
 Animation Jump 0 5 12 0.06 0
 Animation JumpForward 10 13 13 0.06 0
 Animation Fall 7 15 12 0.06 0
-Animation Land 0 7 14 0.06 0
-Animation Hurt 0 1 17 0.06 0
+Animation Land 0 7 14 0.08 0
+Animation Hurt 7 10 17 0.06 0
 Animation Attack 13 17 6 0.06 0
 Animation Death 0 5 17 0.06 0

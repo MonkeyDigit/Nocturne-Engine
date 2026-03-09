@@ -276,7 +276,7 @@
         {
          "name":"Gravity",
          "type":"float",
-         "value":1280
+         "value":1024
         }],
  "renderorder":"right-down",
  "tiledversion":"1.11.2",

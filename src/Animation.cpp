@@ -1,3 +1,5 @@
+#include <cmath>
+
 #include "Animation.h"
 
 Animation::Animation()
@@ -48,25 +50,55 @@ void Animation::SetLooping(bool loop) { m_loop = loop; }
 void Animation::Update(float deltaTime)
 {
     if (!m_playing) return;
+    if (!std::isfinite(deltaTime) || deltaTime <= 0.0f) return;
+
+    if (!std::isfinite(m_frameTime) || m_frameTime <= 0.0f)
+    {
+        // Invalid frame timing would cause unstable stepping
+        m_playing = false;
+        return;
+    }
 
     m_elapsedTime += deltaTime;
-    if (m_elapsedTime >= m_frameTime)
+    if (!std::isfinite(m_elapsedTime))
+    {
+        m_elapsedTime = 0.0f;
+        m_playing = false;
+        return;
+    }
+
+    constexpr unsigned int kMaxFrameAdvancesPerUpdate = 240u;
+    unsigned int advances = 0;
+
+    // Consume all elapsed animation time, not just one frame
+    while (m_elapsedTime >= m_frameTime && advances < kMaxFrameAdvancesPerUpdate)
     {
         m_elapsedTime -= m_frameTime;
-        m_currentFrame++;
+        ++advances;
 
-        if (m_currentFrame > m_endFrame)
+        if (m_currentFrame < m_endFrame)
         {
-            if (m_loop)
-            {
-                m_currentFrame = m_startFrame;
-            }
-            else
-            {
-                m_currentFrame = m_endFrame;
-                m_playing = false;
-            }
+            ++m_currentFrame;
+            continue;
         }
+
+        if (m_loop)
+        {
+            m_currentFrame = m_startFrame;
+        }
+        else
+        {
+            m_currentFrame = m_endFrame;
+            m_playing = false;
+            m_elapsedTime = 0.0f;
+            break;
+        }
+    }
+
+    if (advances == kMaxFrameAdvancesPerUpdate)
+    {
+        // Drop excessive backlog under extreme frame spikes
+        m_elapsedTime = 0.0f;
     }
 }
 

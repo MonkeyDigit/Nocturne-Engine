@@ -70,11 +70,16 @@ bool EntityBase::Load(const std::string& path)
     }
 
     // Ensure a visible fallback animation if present
-    if (spriteComp && !spriteComp->GetSpriteSheet().SetAnimation("Idle", true, true))
+    if (spriteComp)
     {
-        EngineLog::WarnOnce(
-            "char.missing_idle." + path,
-            "Missing or invalid 'Idle' animation in character sheet for '" + path + "'");
+        SpriteSheet& sheet = spriteComp->GetSpriteSheet();
+
+        if (!sheet.HasAnimation("Idle") || !sheet.SetAnimation("Idle", true, true))
+        {
+            EngineLog::WarnOnce(
+                "char.missing_idle." + path,
+                "Missing or invalid 'Idle' animation in character sheet for '" + path + "'");
+        }
     }
 
     return true;

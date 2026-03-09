@@ -57,22 +57,43 @@ void SpriteSheet::SetDirection(Direction dir)
 
 bool SpriteSheet::SetAnimation(const std::string& name, bool play, bool loop)
 {
-    // Do nothing if it's already playing this animation
-    if (m_animationCurrent && m_animationCurrent->GetName() == name) return false;
-
     auto it = m_animations.find(name);
+    if (it == m_animations.end())
+        return false;
 
-    if (it != m_animations.end())
+    Animation* target = &it->second;
+
+    // On animation switch, reset to first frame for deterministic transitions.
+    if (m_animationCurrent != target)
     {
-        m_animationCurrent = &it->second;
-        m_animationCurrent->SetLooping(loop);
+        m_animationCurrent = target;
         m_animationCurrent->Stop();
-        if (play) m_animationCurrent->Play();
-        CropSprite();
-        return true;
     }
 
-    return false;
+    m_animationCurrent->SetLooping(loop);
+
+    if (play)
+    {
+        if (!m_animationCurrent->IsPlaying())
+            m_animationCurrent->Play();
+    }
+    else
+    {
+        m_animationCurrent->Stop();
+    }
+
+    CropSprite();
+    return true;
+}
+
+bool SpriteSheet::HasAnimation(const std::string& name) const
+{
+    return m_animations.find(name) != m_animations.end();
+}
+
+bool SpriteSheet::IsCurrentAnimation(const std::string& name) const
+{
+    return m_animationCurrent && m_animationCurrent->GetName() == name;
 }
 
 void SpriteSheet::Update(float deltaTime)

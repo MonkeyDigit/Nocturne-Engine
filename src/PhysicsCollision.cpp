@@ -11,26 +11,79 @@ namespace
 {
     constexpr float kFallbackFixedDt = 1.0f / 60.0f;
     constexpr float kOneWayFootTolerance = 1.0f;
+    constexpr float kTileEdgeEpsilon = 0.001f;
+
+    inline bool IsFinite(float value)
+    {
+        return std::isfinite(value);
+    }
+
+    inline bool IsFiniteVec2(const sf::Vector2f& value)
+    {
+        return IsFinite(value.x) && IsFinite(value.y);
+    }
+
+    inline bool IsValidRect(const sf::FloatRect& rect)
+    {
+        return IsFiniteVec2(rect.position) &&
+            IsFiniteVec2(rect.size) &&
+            rect.size.x > 0.0f &&
+            rect.size.y > 0.0f;
+    }
+
+    inline float SanitizeDeltaTime(float deltaTime)
+    {
+        return (IsFinite(deltaTime) && deltaTime > 0.0f) ? deltaTime : kFallbackFixedDt;
+    }
+
+    inline sf::FloatRect BuildEntityAABB(const CTransform& transform)
+    {
+        const sf::Vector2f pos = transform.GetPosition();
+        const sf::Vector2f size = transform.GetSize();
+
+        return sf::FloatRect(
+            { pos.x - (size.x * 0.5f), pos.y - size.y },
+            { size.x, size.y }
+        );
+    }
 }
 
 void PhysicsSystem::CheckMapCollisions(EntityBase* entity, Map* map)
 {
-    CTransform* transform = entity->GetComponent<CTransform>();
-    CBoxCollider* collider = entity->GetComponent<CBoxCollider>();
+    if (!entity || !map) return;
 
-    (void)transform; // kept for symmetry with existing access pattern
+    CBoxCollider* collider = entity->GetComponent<CBoxCollider>();
+    if (!collider) return;
+
+    collider->m_collisions.clear();
 
     const unsigned int tileSize = map->GetTileSize();
-    if (tileSize == 0u) return;
+    const sf::Vector2u mapSize = map->GetMapSize();
+    if (tileSize == 0u || mapSize.x == 0u || mapSize.y == 0u) return;
+
+    const sf::FloatRect& aabb = collider->GetAABB();
+    if (!IsValidRect(aabb)) return;
 
     const float tileSizeF = static_cast<float>(tileSize);
-    const sf::FloatRect& aabb = collider->GetAABB();
 
-    const int fromX = static_cast<int>(std::floor(aabb.position.x / tileSizeF));
-    const int toX = static_cast<int>(std::floor((aabb.position.x + aabb.size.x) / tileSizeF));
+    const float maxXCoord = aabb.position.x + std::max(0.0f, aabb.size.x - kTileEdgeEpsilon);
+    const float maxYCoord = aabb.position.y + std::max(0.0f, aabb.size.y - kTileEdgeEpsilon);
 
-    const int fromY = static_cast<int>(std::floor(aabb.position.y / tileSizeF));
-    const int toY = static_cast<int>(std::floor((aabb.position.y + aabb.size.y) / tileSizeF));
+    int fromX = static_cast<int>(std::floor(aabb.position.x / tileSizeF));
+    int toX = static_cast<int>(std::floor(maxXCoord / tileSizeF));
+    int fromY = static_cast<int>(std::floor(aabb.position.y / tileSizeF));
+    int toY = static_cast<int>(std::floor(maxYCoord / tileSizeF));
+
+    const int maxTileX = static_cast<int>(mapSize.x) - 1;
+    const int maxTileY = static_cast<int>(mapSize.y) - 1;
+    if (maxTileX < 0 || maxTileY < 0) return;
+
+    fromX = std::clamp(fromX, 0, maxTileX);
+    toX = std::clamp(toX, 0, maxTileX);
+    fromY = std::clamp(fromY, 0, maxTileY);
+    toY = std::clamp(toY, 0, maxTileY);
+
+    if (fromX > toX || fromY > toY) return;
 
     for (int x = fromX; x <= toX; ++x)
     {
@@ -39,20 +92,29 @@ void PhysicsSystem::CheckMapCollisions(EntityBase* entity, Map* map)
             Tile* tile = map->GetTile(x, y);
             if (!tile) continue;
 
-            sf::FloatRect tileBounds(
+            if (tile->properties.collision == TileCollision::None && !tile->warp)
+                continue;
+
+            const sf::FloatRect tileBounds(
                 { static_cast<float>(x * tileSize), static_cast<float>(y * tileSize) },
-                { static_cast<float>(tileSize), static_cast<float>(tileSize) }
+                { tileSizeF, tileSizeF }
             );
 
             std::optional<sf::FloatRect> intersection = aabb.findIntersection(tileBounds);
-            if (intersection.has_value())
-            {
-                float area = intersection->size.x * intersection->size.y;
+            if (!intersection.has_value()) continue;
+
+            const float area = intersection->size.x * intersection->size.y;
+            if (!IsFinite(area) || area <= 0.0f) continue;
+
+            if (tile->properties.collision != TileCollision::None)
                 collider->m_collisions.emplace_back(area, &tile->properties, tileBounds);
 
-                // Handle map changing (warp)
-                if (tile->warp && entity->GetType() == EntityType::Player && !map->IsNextMapQueued())
-                    map->LoadNext();
+            // Warp trigger stays independent from solidity
+            if (tile->warp &&
+                entity->GetType() == EntityType::Player &&
+                !map->IsNextMapQueued())
+            {
+                map->LoadNext();
             }
         }
     }
@@ -60,119 +122,136 @@ void PhysicsSystem::CheckMapCollisions(EntityBase* entity, Map* map)
 
 void PhysicsSystem::ResolveMapCollisions(EntityBase* entity, Map* map, float deltaTime)
 {
+    if (!entity || !map) return;
+
     CTransform* transform = entity->GetComponent<CTransform>();
     CBoxCollider* collider = entity->GetComponent<CBoxCollider>();
+    if (!transform || !collider) return;
 
-    if (collider->m_collisions.empty()) return;
+    if (collider->m_collisions.empty())
+    {
+        // No contact this frame: do not keep stale ground tile
+        collider->SetReferenceTile(nullptr);
+        return;
+    }
 
     if (entity->GetType() == EntityType::Projectile)
     {
-        // Ensure projectile cannot deal damage after map collision in the same frame
+        // Projectile must be harmless as soon as it hits map geometry
         entity->DestroyAndDisableProjectileDamage();
         collider->m_collisions.clear();
         collider->SetReferenceTile(nullptr);
         return;
     }
 
-    // Resolve the most significant overlaps first
-    // This helps reduce jitter on tile seams and corners
-    std::sort(collider->m_collisions.begin(), collider->m_collisions.end(),
-        [](const CollisionElement& e1, const CollisionElement& e2) {
-            return e1.m_area > e2.m_area;
+    std::sort(
+        collider->m_collisions.begin(),
+        collider->m_collisions.end(),
+        [](const CollisionElement& lhs, const CollisionElement& rhs)
+        {
+            return lhs.m_area > rhs.m_area;
         });
 
-    const float tileSize = static_cast<float>(map->GetTileSize());
+    const float frameDt = SanitizeDeltaTime(deltaTime);
 
-    for (auto& itr : collider->m_collisions)
+    for (const CollisionElement& hit : collider->m_collisions)
     {
-        const sf::FloatRect& aabb = collider->GetAABB();
-        std::optional<sf::FloatRect> intersection = aabb.findIntersection(itr.m_tileBounds);
+        if (!hit.m_tile) continue;
+        if (hit.m_tile->collision == TileCollision::None) continue;
+        if (!IsValidRect(hit.m_tileBounds)) continue;
+
+        const sf::FloatRect aabb = collider->GetAABB();
+        if (!IsValidRect(aabb)) continue;
+
+        std::optional<sf::FloatRect> intersection = aabb.findIntersection(hit.m_tileBounds);
         if (!intersection.has_value()) continue;
 
-        // Delta between entity center and tile center
         sf::Vector2f delta;
-        delta.x = (aabb.position.x + (aabb.size.x * 0.5f)) - (itr.m_tileBounds.position.x + (itr.m_tileBounds.size.x * 0.5f));
-        delta.y = (aabb.position.y + (aabb.size.y * 0.5f)) - (itr.m_tileBounds.position.y + (itr.m_tileBounds.size.y * 0.5f));
+        delta.x = (aabb.position.x + (aabb.size.x * 0.5f)) -
+            (hit.m_tileBounds.position.x + (hit.m_tileBounds.size.x * 0.5f));
+        delta.y = (aabb.position.y + (aabb.size.y * 0.5f)) -
+            (hit.m_tileBounds.position.y + (hit.m_tileBounds.size.y * 0.5f));
 
-        // Overlap metrics used to choose the primary resolution axis
         sf::Vector2f deltaDiff;
-        deltaDiff.x = std::abs(delta.x) - (aabb.size.x * 0.5f + itr.m_tileBounds.size.x * 0.5f);
-        deltaDiff.y = std::abs(delta.y) - (aabb.size.y * 0.5f + itr.m_tileBounds.size.y * 0.5f);
+        deltaDiff.x = std::abs(delta.x) - (aabb.size.x * 0.5f + hit.m_tileBounds.size.x * 0.5f);
+        deltaDiff.y = std::abs(delta.y) - (aabb.size.y * 0.5f + hit.m_tileBounds.size.y * 0.5f);
 
         bool forceVerticalResolution = false;
 
         // One-way platform rules:
-        // 1) Only collide while descending
-        // 2) Ignore hits coming from below
-        // 3) If we were already below platform top last frame, keep falling through
-        if (itr.m_tile->collision == TileCollision::OneWay)
+        // 1) Only collide while descending.
+        // 2) Ignore intersections from below.
+        // 3) Ignore if we were already below top in previous frame
+        if (hit.m_tile->collision == TileCollision::OneWay)
         {
-            if (transform->GetVelocity().y <= 0.0f) continue;
+            const float vy = transform->GetVelocity().y;
+            if (!IsFinite(vy) || vy <= 0.0f) continue;
             if (delta.y > 0.0f) continue;
 
-            const float frameDt = (deltaTime > 0.0f) ? deltaTime : kFallbackFixedDt;
-            const float moveY = transform->GetVelocity().y * frameDt;
-            const float previousBottom = (aabb.position.y + aabb.size.y) - moveY;
-            const float tileTop = itr.m_tileBounds.position.y;
-
+            const float previousBottom = (aabb.position.y + aabb.size.y) - (vy * frameDt);
+            const float tileTop = hit.m_tileBounds.position.y;
             if (previousBottom > tileTop + kOneWayFootTolerance) continue;
 
-            // Valid landing from above: always resolve on Y
             forceVerticalResolution = true;
         }
 
-        double resolve = 0.0;
         const bool resolveOnX = !forceVerticalResolution && (deltaDiff.x > deltaDiff.y);
 
         if (resolveOnX)
         {
-            // Horizontal separation
-            if (delta.x > 0.0f) resolve = (itr.m_tileBounds.position.x + tileSize) - aabb.position.x;
-            else resolve = -(((double)aabb.position.x + (double)aabb.size.x) - (double)itr.m_tileBounds.position.x);
+            float resolveX = 0.0f;
+            if (delta.x > 0.0f)
+                resolveX = (hit.m_tileBounds.position.x + hit.m_tileBounds.size.x) - aabb.position.x;
+            else
+                resolveX = -((aabb.position.x + aabb.size.x) - hit.m_tileBounds.position.x);
 
-            // Cancel X velocity only if moving into the blocking side
-            if ((delta.x > 0.0f && transform->GetVelocity().x < 0.0f) ||
-                (delta.x < 0.0f && transform->GetVelocity().x > 0.0f))
+            if (!IsFinite(resolveX) || resolveX == 0.0f) continue;
+
+            const sf::Vector2f velocity = transform->GetVelocity();
+            if ((delta.x > 0.0f && velocity.x < 0.0f) ||
+                (delta.x < 0.0f && velocity.x > 0.0f))
             {
-                transform->SetVelocity(0.0f, transform->GetVelocity().y);
+                transform->SetVelocity(0.0f, velocity.y);
             }
 
-            transform->AddPosition(static_cast<float>(resolve), 0.0f);
+            transform->AddPosition(resolveX, 0.0f);
             collider->SetCollidingX(true);
         }
         else
         {
-            // Vertical separation
-            if (delta.y > 0.0f) resolve = (itr.m_tileBounds.position.y + tileSize) - aabb.position.y;
-            else resolve = -((aabb.position.y + aabb.size.y) - itr.m_tileBounds.position.y);
+            float resolveY = 0.0f;
+            if (delta.y > 0.0f)
+                resolveY = (hit.m_tileBounds.position.y + hit.m_tileBounds.size.y) - aabb.position.y;
+            else
+                resolveY = -((aabb.position.y + aabb.size.y) - hit.m_tileBounds.position.y);
 
-            // Cancel Y velocity only if moving into the blocking side
-            if ((delta.y > 0.0f && transform->GetVelocity().y < 0.0f) ||
-                (delta.y < 0.0f && transform->GetVelocity().y > 0.0f))
+            if (!IsFinite(resolveY) || resolveY == 0.0f) continue;
+
+            const sf::Vector2f velocity = transform->GetVelocity();
+            if ((delta.y > 0.0f && velocity.y < 0.0f) ||
+                (delta.y < 0.0f && velocity.y > 0.0f))
             {
-                transform->SetVelocity(transform->GetVelocity().x, 0.0f);
+                transform->SetVelocity(velocity.x, 0.0f);
             }
 
-            transform->AddPosition(0.0f, static_cast<float>(resolve));
+            transform->AddPosition(0.0f, resolveY);
 
-            // Keep the first valid ground-contact tile for this frame
-            if (collider->IsCollidingY()) continue;
-
-            if (delta.y < 0.0f) collider->SetReferenceTile(itr.m_tile);
-            else collider->SetReferenceTile(nullptr);
+            const bool firstVerticalContact = !collider->IsCollidingY();
+            if (firstVerticalContact)
+            {
+                if (delta.y < 0.0f) collider->SetReferenceTile(hit.m_tile);
+                else collider->SetReferenceTile(nullptr);
+            }
 
             collider->SetCollidingY(true);
         }
 
-        // Keep collider aligned after each correction to avoid cascading errors
-        collider->SetAABB(sf::FloatRect(
-            { transform->GetPosition().x - (transform->GetSize().x * 0.5f), transform->GetPosition().y - transform->GetSize().y },
-            { transform->GetSize().x, transform->GetSize().y }
-        ));
+        // Keep collider aligned after each correction
+        collider->SetAABB(BuildEntityAABB(*transform));
     }
 
     collider->m_collisions.clear();
 
-    // If no vertical collision survived, entity is not grounded this frame
-    if (!collider->IsCollidingY()) collider->SetReferenceTile(nullptr);
+    if (!collider->IsCollidingY())
+        collider->SetReferenceTile(nullptr);
 }

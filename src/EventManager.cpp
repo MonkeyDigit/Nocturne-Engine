@@ -31,8 +31,10 @@ EventManager::EventManager()
 
 bool EventManager::AddBinding(std::unique_ptr<Binding> binding)
 {
-    if (!binding || m_bindings.find(binding->m_name) != m_bindings.end())
-        return false;
+    if (!binding) return false;
+    if (binding->m_name.empty()) return false;
+    if (binding->m_events.empty()) return false; // Prevent always-true callbacks.
+    if (m_bindings.find(binding->m_name) != m_bindings.end()) return false;
 
     return m_bindings.emplace(binding->m_name, std::move(binding)).second;
 }

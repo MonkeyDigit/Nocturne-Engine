@@ -136,9 +136,17 @@ int EntityManager::SpawnProjectile(EntityBase* shooter, const sf::Vector2f& posi
     sprite->Load(projectileSheet);
 
     // Force a valid animation/texture-rect for the fallback projectile visual
-    bool hasProjectileAnim = sprite->GetSpriteSheet().SetAnimation(projectileAnimation, true, true);
-    if (!hasProjectileAnim && projectileAnimation != "Idle")
-        hasProjectileAnim = sprite->GetSpriteSheet().SetAnimation("Idle", true, true);
+    SpriteSheet& projectileSheetRef = sprite->GetSpriteSheet();
+
+    bool hasProjectileAnim = false;
+    if (projectileSheetRef.HasAnimation(projectileAnimation))
+    {
+        hasProjectileAnim = projectileSheetRef.SetAnimation(projectileAnimation, true, true);
+    }
+    else if (projectileAnimation != "Idle" && projectileSheetRef.HasAnimation("Idle"))
+    {
+        hasProjectileAnim = projectileSheetRef.SetAnimation("Idle", true, true);
+    }
 
     if (!hasProjectileAnim)
     {
