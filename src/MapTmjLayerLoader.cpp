@@ -1,11 +1,104 @@
 #include <algorithm>
 #include <cmath>
+#include <string>
 
 #include "MapTmjLoader.h"
 #include "EntityManager.h"
 #include "SharedContext.h"
 #include "EntityBase.h"
 #include "EngineLog.h"
+
+namespace
+{
+    bool LayerHasCollisions(const nlohmann::json& layer)
+    {
+        bool hasCollisions = true;
+
+        if (!layer.contains("properties") || !layer["properties"].is_array())
+            return hasCollisions;
+
+        for (const auto& prop : layer["properties"])
+        {
+            if (prop.value("name", "") == "HasCollisions")
+            {
+                hasCollisions = prop.value("value", true);
+                break;
+            }
+        }
+
+        return hasCollisions;
+    }
+
+    void AppendTexturedQuad(
+        sf::VertexArray& vertexArray,
+        const sf::Vector2f& pos,
+        const sf::Vector2f& size,
+        const sf::Vector2f& texPos)
+    {
+        vertexArray.append(sf::Vertex(pos, sf::Color::White, texPos));
+        vertexArray.append(sf::Vertex({ pos.x + size.x, pos.y }, sf::Color::White, { texPos.x + size.x, texPos.y }));
+        vertexArray.append(sf::Vertex({ pos.x, pos.y + size.y }, sf::Color::White, { texPos.x, texPos.y + size.y }));
+
+        vertexArray.append(sf::Vertex({ pos.x, pos.y + size.y }, sf::Color::White, { texPos.x, texPos.y + size.y }));
+        vertexArray.append(sf::Vertex({ pos.x + size.x, pos.y }, sf::Color::White, { texPos.x + size.x, texPos.y }));
+        vertexArray.append(sf::Vertex({ pos.x + size.x, pos.y + size.y }, sf::Color::White, { texPos.x + size.x, texPos.y + size.y }));
+    }
+
+    TileInfo ResolveTileInfo(
+        int actualTileId,
+        const std::unordered_map<int, TileInfo>& tileTemplates,
+        const TileInfo& defaultTileInfo)
+    {
+        TileInfo result;
+        result.id = static_cast<unsigned int>(actualTileId);
+        result.friction = defaultTileInfo.friction;
+        result.deadly = false;
+        result.collision = TileCollision::Solid;
+
+        const auto it = tileTemplates.find(actualTileId);
+        if (it != tileTemplates.end())
+            result = it->second;
+
+        return result;
+    }
+
+    std::string ResolveRawObjectType(const nlohmann::json& object)
+    {
+        std::string typeStr = object.value("class", object.value("type", ""));
+        if (!typeStr.empty())
+            return typeStr;
+
+        if (!object.contains("properties") || !object["properties"].is_array())
+            return "";
+
+        for (const auto& prop : object["properties"])
+        {
+            const std::string propName = prop.value("name", "");
+            if (propName == "Class" || propName == "Type")
+                return prop.value("value", "");
+        }
+
+        return "";
+    }
+
+    bool TryReadFiniteObjectRect(
+        const nlohmann::json& object,
+        float& outX,
+        float& outY,
+        float& outW,
+        float& outH)
+    {
+        outX = object.value("x", 0.0f);
+        outY = object.value("y", 0.0f);
+        outW = object.value("width", 32.0f);
+        outH = object.value("height", 32.0f);
+
+        return std::isfinite(outX) &&
+            std::isfinite(outY) &&
+            std::isfinite(outW) &&
+            std::isfinite(outH);
+    }
+}
 
 void MapTmjLoader::ProcessTileLayer(
     Map& map,
@@ -16,15 +109,28 @@ void MapTmjLoader::ProcessTileLayer(
 {
     if (!layer.contains("data") || !layer["data"].is_array()) return;
 
-    bool layerHasCollisions = true;
-    if (layer.contains("properties"))
-    {
-        for (const auto& prop : layer["properties"])
+    const bool layerHasCollisions = LayerHasCollisions(layer);
+
+    // Must stay here: accesses Map private members (friend context)
+    auto addCollisionTileIfNeeded =
+        [&](const TileInfo& tileInfo,
+            const sf::Vector2f& tileSize,
+            const sf::Vector2f& texPos,
+            unsigned int tileX,
+            unsigned int tileY)
         {
-            if (prop.value("name", "") == "HasCollisions")
-                layerHasCollisions = prop.value("value", true);
-        }
-    }
+            if (!layerHasCollisions || tileInfo.collision == TileCollision::None)
+                return;
+
+            auto tile = std::make_unique<Tile>();
+            tile->warp = false;
+            tile->properties = tileInfo;
+            tile->properties.textureRect = sf::IntRect(
+                { static_cast<int>(texPos.x), static_cast<int>(texPos.y) },
+                { static_cast<int>(tileSize.x), static_cast<int>(tileSize.y) });
+
+            map.m_tileMap.emplace(map.ConvertCoords(tileX, tileY), std::move(tile));
+        };
 
     sf::VertexArray vertexArray(sf::PrimitiveType::Triangles);
     const auto& data = layer["data"];
@@ -58,40 +164,16 @@ void MapTmjLoader::ProcessTileLayer(
         const unsigned int x = static_cast<unsigned int>(i % map.m_maxMapSize.x);
         const unsigned int y = static_cast<unsigned int>(i / map.m_maxMapSize.x);
 
-        sf::Vector2f pos(static_cast<float>(x * map.m_tileWidth), static_cast<float>(y * map.m_tileHeight));
-        sf::Vector2f size(static_cast<float>(map.m_tileWidth), static_cast<float>(map.m_tileHeight));
-        sf::Vector2f texPos(
+        const sf::Vector2f pos(static_cast<float>(x * map.m_tileWidth), static_cast<float>(y * map.m_tileHeight));
+        const sf::Vector2f size(static_cast<float>(map.m_tileWidth), static_cast<float>(map.m_tileHeight));
+        const sf::Vector2f texPos(
             static_cast<float>((actualID % static_cast<int>(tilesPerRow)) * map.m_tileWidth),
             static_cast<float>((actualID / static_cast<int>(tilesPerRow)) * map.m_tileHeight));
 
-        vertexArray.append(sf::Vertex(pos, sf::Color::White, texPos));
-        vertexArray.append(sf::Vertex({ pos.x + size.x, pos.y }, sf::Color::White, { texPos.x + size.x, texPos.y }));
-        vertexArray.append(sf::Vertex({ pos.x, pos.y + size.y }, sf::Color::White, { texPos.x, texPos.y + size.y }));
-        vertexArray.append(sf::Vertex({ pos.x, pos.y + size.y }, sf::Color::White, { texPos.x, texPos.y + size.y }));
-        vertexArray.append(sf::Vertex({ pos.x + size.x, pos.y }, sf::Color::White, { texPos.x + size.x, texPos.y }));
-        vertexArray.append(sf::Vertex({ pos.x + size.x, pos.y + size.y }, sf::Color::White, { texPos.x + size.x, texPos.y + size.y }));
+        AppendTexturedQuad(vertexArray, pos, size, texPos);
 
-        TileInfo currentTileInfo;
-        currentTileInfo.id = static_cast<unsigned int>(actualID);
-        currentTileInfo.friction = map.m_defaultTile.friction;
-        currentTileInfo.deadly = false;
-        currentTileInfo.collision = TileCollision::Solid;
-
-        auto it = tileTemplates.find(actualID);
-        if (it != tileTemplates.end())
-            currentTileInfo = it->second;
-
-        if (layerHasCollisions && currentTileInfo.collision != TileCollision::None)
-        {
-            auto tile = std::make_unique<Tile>();
-            tile->warp = false;
-            tile->properties = currentTileInfo;
-            tile->properties.textureRect = sf::IntRect(
-                { static_cast<int>(texPos.x), static_cast<int>(texPos.y) },
-                { static_cast<int>(size.x), static_cast<int>(size.y) });
-
-            map.m_tileMap.emplace(map.ConvertCoords(x, y), std::move(tile));
-        }
+        const TileInfo currentTileInfo = ResolveTileInfo(actualID, tileTemplates, map.m_defaultTile);
+        addCollisionTileIfNeeded(currentTileInfo, size, texPos, x, y);
     }
 
     if (invalidTileTypeCount > 0u)
@@ -117,37 +199,8 @@ void MapTmjLoader::ProcessObjectLayer(
     const float mapPixelWidth = static_cast<float>(map.m_maxMapSize.x * map.m_tileWidth);
     const float mapPixelHeight = static_cast<float>(map.m_maxMapSize.y * map.m_tileHeight);
 
-    for (const auto& object : layer["objects"])
-    {
-        std::string typeStr = object.value("class", object.value("type", ""));
-
-        if (typeStr.empty() && object.contains("properties") && object["properties"].is_array())
-        {
-            for (const auto& prop : object["properties"])
-            {
-                if (prop.value("name", "") == "Class" || prop.value("name", "") == "Type")
-                {
-                    typeStr = prop.value("value", "");
-                    break;
-                }
-            }
-        }
-
-        const std::string objectType = CanonicalObjectType(typeStr);
-
-        const std::string name = object.value("name", "Unknown");
-        const float objX = object.value("x", 0.0f);
-        const float objY = object.value("y", 0.0f);
-        const float objW = object.value("width", 32.0f);
-        const float objH = object.value("height", 32.0f);
-
-        if (!std::isfinite(objX) || !std::isfinite(objY) || !std::isfinite(objW) || !std::isfinite(objH))
-        {
-            EngineLog::Warn("Skipping object '" + name + "' in '" + path + "' (non-finite coordinates/size).");
-            continue;
-        }
-
-        if (objectType == "player")
+    // Must stay here: accesses Map private members (friend context)
+    auto handlePlayerObject = [&](const std::string& name, float objX, float objY)
         {
             ++playerObjectCount;
             if (playerObjectCount > 1u)
@@ -155,15 +208,13 @@ void MapTmjLoader::ProcessObjectLayer(
                 EngineLog::WarnOnce(
                     "map.object.player.multiple." + path,
                     "Multiple Player objects found in map '" + path + "'. Using the first one.");
-                continue;
+                return;
             }
 
             map.m_playerStart = sf::Vector2f(objX, objY);
 
             if (objX < 0.0f || objY < 0.0f || objX > mapPixelWidth || objY > mapPixelHeight)
-            {
                 EngineLog::Warn("Player spawn is outside map bounds in '" + path + "'.");
-            }
 
             if (map.m_playerId == -1)
             {
@@ -171,39 +222,41 @@ void MapTmjLoader::ProcessObjectLayer(
                 if (map.m_playerId < 0)
                 {
                     EngineLog::WarnOnce("map.spawn.player.failed", "Failed to spawn player from map object");
-                    continue;
+                    return;
                 }
             }
 
             EntityBase* player = map.m_context.GetEntityManager().Find(static_cast<unsigned int>(map.m_playerId));
             if (player)
                 player->SetPosition(map.m_playerStart);
-        }
-        else if (objectType == "enemy")
+        };
+
+    auto handleEnemyObject = [&](const std::string& name, float objX, float objY)
         {
             if (name.empty() || name == "Unknown")
             {
                 EngineLog::Warn("Enemy object missing type id in name field in '" + path + "'. Object skipped.");
-                continue;
+                return;
             }
 
-            int enemyId = map.m_context.GetEntityManager().Add(EntityType::Enemy, name);
+            const int enemyId = map.m_context.GetEntityManager().Add(EntityType::Enemy, name);
             if (enemyId < 0)
             {
                 EngineLog::WarnOnce("map.spawn.enemy.failed", "Failed to spawn enemy from map object");
-                continue;
+                return;
             }
 
             EntityBase* enemy = map.m_context.GetEntityManager().Find(static_cast<unsigned int>(enemyId));
             if (enemy)
                 enemy->SetPosition(sf::Vector2f(objX, objY));
-        }
-        else if (objectType == "door")
+        };
+
+    auto handleDoorObject = [&](float objX, float objY, float objW, float objH)
         {
             if (objW <= 0.0f || objH <= 0.0f)
             {
                 EngineLog::Warn("Door object with non-positive size in '" + path + "'. Object skipped.");
-                continue;
+                return;
             }
 
             ++doorObjectCount;
@@ -212,20 +265,54 @@ void MapTmjLoader::ProcessObjectLayer(
                 EngineLog::WarnOnce(
                     "map.object.door.multiple." + path,
                     "Multiple Door objects found in map '" + path + "'. Using the first one.");
-                continue;
+                return;
             }
 
             map.m_doorRect = { {objX, objY}, {objW, objH} };
-        }
-        else if (objectType == "trap")
+        };
+
+    auto handleTrapObject = [&](float objX, float objY, float objW, float objH)
         {
             if (objW <= 0.0f || objH <= 0.0f)
             {
                 EngineLog::Warn("Trap object with non-positive size in '" + path + "'. Object skipped.");
-                continue;
+                return;
             }
 
             map.m_traps.push_back({ {objX, objY}, {objW, objH} });
+        };
+
+    for (const auto& object : layer["objects"])
+    {
+        const std::string name = object.value("name", "Unknown");
+
+        float objX = 0.0f;
+        float objY = 0.0f;
+        float objW = 0.0f;
+        float objH = 0.0f;
+        if (!TryReadFiniteObjectRect(object, objX, objY, objW, objH))
+        {
+            EngineLog::Warn("Skipping object '" + name + "' in '" + path + "' (non-finite coordinates/size).");
+            continue;
+        }
+
+        const std::string objectType = CanonicalObjectType(ResolveRawObjectType(object));
+
+        if (objectType == "player")
+        {
+            handlePlayerObject(name, objX, objY);
+        }
+        else if (objectType == "enemy")
+        {
+            handleEnemyObject(name, objX, objY);
+        }
+        else if (objectType == "door")
+        {
+            handleDoorObject(objX, objY, objW, objH);
+        }
+        else if (objectType == "trap")
+        {
+            handleTrapObject(objX, objY, objW, objH);
         }
         else if (!objectType.empty())
         {

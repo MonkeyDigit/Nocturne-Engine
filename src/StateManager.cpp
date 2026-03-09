@@ -1,4 +1,6 @@
 #include <algorithm>
+#include <iterator>
+
 #include "StateManager.h"
 #include "SharedContext.h"
 #include "Window.h"
@@ -8,6 +10,39 @@
 #include "State_Paused.h"
 #include "State_Settings.h"
 #include "State_Credits.h"
+
+namespace
+{
+    bool IsQueuedForRemoval(const TypeContainer& queue, StateType type)
+    {
+        return std::find(queue.begin(), queue.end(), type) != queue.end();
+    }
+
+    template <typename OverlayPredicate>
+    StateContainer::iterator ResolveStackStart(StateContainer& states, OverlayPredicate&& isOverlayState)
+    {
+        auto itr = std::prev(states.end());
+
+        if (states.size() <= 1 || !isOverlayState(*itr))
+            return itr;
+
+        while (itr != states.begin())
+        {
+            if (!isOverlayState(*itr))
+                break;
+            --itr;
+        }
+
+        return itr;
+    }
+
+    template <typename Fn>
+    void ForEachStateFrom(StateContainer& states, StateContainer::iterator start, Fn&& fn)
+    {
+        for (auto itr = start; itr != states.end(); ++itr)
+            fn(*itr->second);
+    }
+}
 
 StateManager::StateManager(SharedContext& shared)
     : m_shared(shared)
@@ -22,39 +57,36 @@ StateManager::StateManager(SharedContext& shared)
 
 StateManager::~StateManager()
 {
-    // unique_ptr will handle memory deletion, but we still need to trigger OnDestroy manually
-    for (auto& statePair : m_states)
-    {
-        statePair.second->OnDestroy();
-    }
+    // Destroy top-to-bottom to mirror stack semantics
+    for (auto itr = m_states.rbegin(); itr != m_states.rend(); ++itr)
+        itr->second->OnDestroy();
 }
 
 void StateManager::Draw()
 {
     if (m_states.empty()) return;
 
-    // Check if the top state is transparent (e.g., Paused state over Game state)
-    if (m_states.back().second->IsTransparent() && m_states.size() > 1)
-    {
-        auto itr = m_states.end();
-        --itr;
-        while (itr != m_states.begin())
+    auto start = ResolveStackStart(
+        m_states,
+        [](const auto& statePair)
         {
-            if (!itr->second->IsTransparent()) break;
-            --itr;
-        }
+            return statePair.second->IsTransparent();
+        });
 
-        for (; itr != m_states.end(); ++itr)
-            itr->second->Draw();
-    }
-    else
-        m_states.back().second->Draw();
+    ForEachStateFrom(
+        m_states,
+        start,
+        [](BaseState& state)
+        {
+            state.Draw();
+        });
 }
 
 void StateManager::ProcessRequests()
 {
     for (StateType type : m_toRemove)
         RemoveState(type);
+
     m_toRemove.clear();
 }
 
@@ -62,15 +94,15 @@ SharedContext& StateManager::GetContext() { return m_shared; }
 
 bool StateManager::HasState(StateType type) const
 {
-    for (auto itr = m_states.begin(); itr != m_states.end(); ++itr)
-    {
-        if (itr->first == type)
-        {
-            auto removed = std::find(m_toRemove.begin(), m_toRemove.end(), type);
-            return removed == m_toRemove.end();
-        }
-    }
-    return false;
+    const auto stateIt = std::find_if(
+        m_states.begin(),
+        m_states.end(),
+        [type](const auto& pair) { return pair.first == type; });
+
+    if (stateIt == m_states.end())
+        return false;
+
+    return !IsQueuedForRemoval(m_toRemove, type);
 }
 
 void StateManager::SwitchTo(StateType type)
@@ -81,21 +113,23 @@ void StateManager::SwitchTo(StateType type)
         return;
     }
 
-    for (auto itr = m_states.begin(); itr != m_states.end(); ++itr)
+    const auto existingIt = std::find_if(
+        m_states.begin(),
+        m_states.end(),
+        [type](const auto& pair) { return pair.first == type; });
+
+    if (existingIt != m_states.end())
     {
-        if (itr->first == type)
-        {
-            m_states.back().second->Deactivate();
+        m_states.back().second->Deactivate();
 
-            StateType tmpType = itr->first;
-            std::unique_ptr<BaseState> tmpState = std::move(itr->second);
-            m_states.erase(itr);
-            m_states.emplace_back(tmpType, std::move(tmpState));
+        StateType tmpType = existingIt->first;
+        std::unique_ptr<BaseState> tmpState = std::move(existingIt->second);
+        m_states.erase(existingIt);
+        m_states.emplace_back(tmpType, std::move(tmpState));
 
-            m_states.back().second->Activate();
-            m_shared.m_eventManager.SetCurrentState(type);
-            return;
-        }
+        m_states.back().second->Activate();
+        m_shared.m_eventManager.SetCurrentState(type);
+        return;
     }
 
     BaseState* previousTop = m_states.empty() ? nullptr : m_states.back().second.get();
@@ -114,8 +148,7 @@ void StateManager::SwitchTo(StateType type)
 
 void StateManager::Remove(StateType type)
 {
-    // Avoid queueing the same state multiple times
-    if (std::find(m_toRemove.begin(), m_toRemove.end(), type) == m_toRemove.end())
+    if (!IsQueuedForRemoval(m_toRemove, type))
         m_toRemove.push_back(type);
 }
 
@@ -134,24 +167,24 @@ bool StateManager::CreateState(StateType type)
 
 void StateManager::RemoveState(StateType type)
 {
-    for (auto itr = m_states.begin(); itr != m_states.end(); ++itr)
+    const auto itr = std::find_if(
+        m_states.begin(),
+        m_states.end(),
+        [type](const auto& pair) { return pair.first == type; });
+
+    if (itr == m_states.end())
+        return;
+
+    const bool wasTopState = (itr == std::prev(m_states.end()));
+
+    itr->second->OnDestroy();
+    m_states.erase(itr);
+
+    // If we removed the active state, activate the new top state
+    if (wasTopState && !m_states.empty())
     {
-        if (itr->first == type)
-        {
-            const bool wasTopState = (itr == std::prev(m_states.end()));
-
-            itr->second->OnDestroy();
-            m_states.erase(itr);
-
-            // If we removed the active state, activate the new top state
-            if (wasTopState && !m_states.empty())
-            {
-                m_shared.m_eventManager.SetCurrentState(m_states.back().first);
-                m_states.back().second->Activate();
-            }
-
-            return;
-        }
+        m_shared.m_eventManager.SetCurrentState(m_states.back().first);
+        m_states.back().second->Activate();
     }
 }
 
@@ -159,23 +192,18 @@ void StateManager::Update(const sf::Time& time)
 {
     if (m_states.empty()) return;
 
-    if (m_states.back().second->IsTranscendent() && m_states.size() > 1)
-    {
-        auto itr = m_states.end();
-        --itr;
-        while (itr != m_states.begin())
+    auto start = ResolveStackStart(
+        m_states,
+        [](const auto& statePair)
         {
-            if (!itr->second->IsTranscendent()) break;
-            --itr;
-        }
+            return statePair.second->IsTranscendent();
+        });
 
-        for (; itr != m_states.end(); ++itr)
+    ForEachStateFrom(
+        m_states,
+        start,
+        [&time](BaseState& state)
         {
-            itr->second->Update(time);
-        }
-    }
-    else
-    {
-        m_states.back().second->Update(time);
-    }
+            state.Update(time);
+        });
 }
