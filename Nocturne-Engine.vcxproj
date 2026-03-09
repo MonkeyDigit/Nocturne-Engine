@@ -223,6 +223,7 @@
     <ClCompile Include="src\StateManager.cpp" />
     <ClCompile Include="src\State_Credits.cpp" />
     <ClCompile Include="src\State_Game.cpp" />
+    <ClCompile Include="src\State_GameCallbacks.cpp" />
     <ClCompile Include="src\State_Intro.cpp" />
     <ClCompile Include="src\State_MainMenu.cpp" />
     <ClCompile Include="src\State_Paused.cpp" />

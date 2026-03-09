@@ -8,15 +8,12 @@
 #include "EntityManager.h"
 #include "CState.h"
 #include "CSprite.h"
-#include "EngineLog.h"
 #include "CTransform.h"
 #include "CBoxCollider.h"
 #include "CombatGeometry.h"
 
 namespace
 {
-    constexpr float kCursorHideDelaySeconds = 3.0f;
-
     constexpr unsigned int kFpsTextCharacterSize = 20u;
     constexpr float kFpsTextOutlineThickness = 1.0f;
     constexpr float kFpsSampleIntervalSeconds = 0.25f;
@@ -44,49 +41,15 @@ State_Game::State_Game(StateManager& stateManager)
     m_fpsFrameCount(0),
     m_currentFps(0.0f),
     m_debugFontLoaded(false)
-{}
+{
+}
 
 State_Game::~State_Game() {}
 
-void State_Game::OnCreate()
-{
-    EventManager& evMgr = m_stateManager.GetContext().m_eventManager;
-
-    // Registering callbacks using the modern EventDetails reference
-    evMgr.AddCallback(StateType::Game, "OpenMainMenu", &State_Game::MainMenu, *this);
-    evMgr.AddCallback(StateType::Game, "Pause", &State_Game::Pause, *this);
-    evMgr.AddCallback(StateType::Game, "ToggleDebug", &State_Game::ToggleDebugOverlay, *this);
-
-    // Mouse logic
-    m_stillCursorTime = 0.0f;
-    m_mousePos = evMgr.GetMousePos(m_stateManager.GetContext().m_window.GetRenderWindow());
-    m_cursorVisible = true;
-
-    m_gameMap.LoadMap("media/maps/map_1.tmj");
-
-    m_hud = std::make_unique<HUD>(m_stateManager.GetContext().GetEntityManager());
-
-    InitializeDebugOverlay();
-}
-
-void State_Game::OnDestroy()
-{
-    EventManager& evMgr = m_stateManager.GetContext().m_eventManager;
-    evMgr.RemoveCallback(StateType::Game, "OpenMainMenu");
-    evMgr.RemoveCallback(StateType::Game, "Pause");
-    evMgr.RemoveCallback(StateType::Game, "ToggleDebug");
-}
-
-void State_Game::Activate() {}
-
-void State_Game::Deactivate() {}
-
 void State_Game::Update(const sf::Time& time)
 {
-    // Keep cursor visibility logic independent from gameplay update
     UpdateCursor(time);
 
-    // Skip player hazard/respawn logic while a map transition is queued
     if (!m_gameMap.IsNextMapQueued())
     {
         EntityBase* player = ResolvePlayer();
@@ -97,12 +60,10 @@ void State_Game::Update(const sf::Time& time)
             RespawnPlayer();
     }
 
-    // Core world update
     SharedContext& context = m_stateManager.GetContext();
     context.GetEntityManager().Update(time.asSeconds());
     m_gameMap.Update();
 
-    // UI overlay update (guarded for safety)
     if (m_hud)
         m_hud->Update();
 }
@@ -122,56 +83,6 @@ void State_Game::Draw()
         DrawDebugOverlay(window, gameView);
 
     DrawHudOverlay(window, gameView);
-}
-
-void State_Game::MainMenu(EventDetails&)
-{
-    m_stillCursorTime = 0.0f;
-    SetCursorVisible(true);
-    m_stateManager.SwitchTo(StateType::MainMenu);
-    m_stateManager.Remove(StateType::Game);
-}
-
-void State_Game::Pause(EventDetails&)
-{
-    m_stillCursorTime = 0.0f;
-    SetCursorVisible(true);
-    m_stateManager.SwitchTo(StateType::Paused);
-}
-
-void State_Game::ToggleDebugOverlay(EventDetails&)
-{
-    m_debugMode = !m_debugMode;
-    EngineLog::Info(std::string("Debug Mode: ") + (m_debugMode ? "ON" : "OFF"));
-
-    if (m_debugMode)
-        ResetFpsCounter();
-}
-
-void State_Game::UpdateCursor(const sf::Time& time)
-{
-    sf::RenderWindow& window = m_stateManager.GetContext().m_window.GetRenderWindow();
-    sf::Vector2i newMousePos = m_stateManager.GetContext().m_eventManager.GetMousePos(window);
-
-    if (m_mousePos == newMousePos)
-        m_stillCursorTime += time.asSeconds();
-    else
-    {
-        m_stillCursorTime = 0.0f;
-        if (!m_cursorVisible) SetCursorVisible(true);
-    }
-
-    m_mousePos = newMousePos;
-
-    // Hide cursor after 3 seconds of inactivity
-    if (m_stillCursorTime >= kCursorHideDelaySeconds && m_cursorVisible)
-        SetCursorVisible(false);
-}
-
-void State_Game::SetCursorVisible(bool visible)
-{
-    m_cursorVisible = visible;
-    m_stateManager.GetContext().m_window.GetRenderWindow().setMouseCursorVisible(m_cursorVisible);
 }
 
 void State_Game::InitializeDebugOverlay()
@@ -243,13 +154,11 @@ void State_Game::DrawDebugHitboxes(sf::RenderWindow& window)
         {
             attackShape.setOutlineColor(sf::Color::Red);
             attackShape.setOutlineThickness(kAttackActiveOutlineThickness);
-
         }
         else
         {
             attackShape.setOutlineColor(sf::Color::Yellow);
             attackShape.setOutlineThickness(kAttackInactiveOutlineThickness);
-
         }
 
         window.draw(attackShape);
@@ -291,77 +200,6 @@ void State_Game::DrawFpsCounter(sf::RenderWindow& window, const sf::View& gameVi
     window.setView(gameView);
 }
 
-EntityBase* State_Game::ResolvePlayer()
-{
-    return m_stateManager.GetContext().GetEntityManager().GetPlayer();
-}
-
-EntityBase* State_Game::RespawnPlayer()
-{
-    SharedContext& context = m_stateManager.GetContext();
-    EntityManager& entityManager = context.GetEntityManager();
-
-    EngineLog::Info("Respawning player...");
-    const int playerId = entityManager.Add(EntityType::Player, "Player");
-
-    if (playerId < 0)
-    {
-        // Avoid log spam while keeping the issue visible
-        EngineLog::ErrorOnce(
-            "respawn.player.blocked",
-            "Respawn blocked: player could not be created (entity limit or creation error)");
-        return nullptr;
-    }
-
-    EngineLog::ResetOnce("respawn.player.blocked");
-
-    EntityBase* player = entityManager.Find(static_cast<unsigned int>(playerId));
-    if (player)
-    {
-        if (CTransform* transform = player->GetComponent<CTransform>())
-        {
-            // Spawn at map-defined player start
-            transform->SetPosition(m_gameMap.GetPlayerStart());
-        }
-    }
-
-    return player;
-}
-
-void State_Game::HandlePlayerHazards(EntityBase& player)
-{
-    CTransform* transform = player.GetComponent<CTransform>();
-    CBoxCollider* collider = player.GetComponent<CBoxCollider>();
-    CState* state = player.GetComponent<CState>();
-
-    // Require all gameplay-critical components
-    if (!transform || !collider || !state || state->GetState() == EntityState::Dying)
-        return;
-
-    const float mapHeight = static_cast<float>(m_gameMap.GetMapSize().y * m_gameMap.GetTileSize());
-    const sf::FloatRect pBounds = collider->GetAABB();
-
-    // Death hazards have priority over map transition
-    if (transform->GetPosition().y >= mapHeight)
-    {
-        state->InstantKill();
-        return;
-    }
-
-    for (const auto& trap : m_gameMap.GetTraps())
-    {
-        if (trap.findIntersection(pBounds))
-        {
-            state->InstantKill();
-            return;
-        }
-    }
-
-    // Queue next map only if still alive
-    if (m_gameMap.GetDoorRect().findIntersection(pBounds))
-        m_gameMap.LoadNext();
-}
-
 sf::View State_Game::ResolveGameView()
 {
     SharedContext& context = m_stateManager.GetContext();
@@ -370,11 +208,9 @@ sf::View State_Game::ResolveGameView()
     const sf::View baseGameView = context.m_window.GetGameView();
     sf::View gameView = entityManager.GetCameraSystem().GetCurrentView();
 
-    // Keep a valid camera view even in edge cases
     if (gameView.getSize().x <= 0.0f || gameView.getSize().y <= 0.0f)
         gameView = baseGameView;
 
-    // Keep viewport aligned with the configured game viewport
     gameView.setViewport(baseGameView.getViewport());
     return gameView;
 }
@@ -392,6 +228,5 @@ void State_Game::DrawHudOverlay(sf::RenderWindow& window, const sf::View& gameVi
     window.setView(context.m_window.GetUIView());
     m_hud->Draw(window);
 
-    // Restore gameplay view for any subsequent draw call
     window.setView(gameView);
 }
