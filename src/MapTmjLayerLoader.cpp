@@ -191,11 +191,23 @@ void MapTmjLoader::ProcessObjectLayer(
         {
             HandleTrapObject(map, path, objX, objY, objW, objH);
         }
-        else if (!objectType.empty())
+        else
         {
-            EngineLog::WarnOnce(
-                "map.object.unknown_type." + path + "." + objectType,
-                "Unknown object type '" + objectType + "' in map '" + path + "'.");
+            const std::string objectLabel = name.empty() ? "<unnamed>" : name;
+
+            if (objectType.empty())
+            {
+                EngineLog::WarnOnce(
+                    "map.object.missing_type." + path + "." + objectLabel,
+                    "Object '" + objectLabel + "' in map '" + path +
+                    "' has no valid type/class/Type property. Object skipped.");
+            }
+            else
+            {
+                EngineLog::WarnOnce(
+                    "map.object.unknown_type." + path + "." + objectType,
+                    "Unknown object type '" + objectType + "' in map '" + path + "'.");
+            }
         }
     }
 }

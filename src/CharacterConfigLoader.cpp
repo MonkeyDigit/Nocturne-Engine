@@ -69,16 +69,18 @@ bool EntityBase::Load(const std::string& path)
             "' at line " + std::to_string(lineNumber));
     }
 
-    // Ensure a visible fallback animation if present
+    // Require a valid playable Idle animation
+    // Failing fast here avoids spawning invisible/broken entities
     if (spriteComp)
     {
         SpriteSheet& sheet = spriteComp->GetSpriteSheet();
 
         if (!sheet.HasAnimation("Idle") || !sheet.SetAnimation("Idle", true, true))
         {
-            EngineLog::WarnOnce(
-                "char.missing_idle." + path,
-                "Missing or invalid 'Idle' animation in character sheet for '" + path + "'");
+            EngineLog::Error(
+                "Character load failed for '" + path +
+                "': missing valid 'Idle' animation in spritesheet.");
+            return false;
         }
     }
 

@@ -13,14 +13,26 @@ std::string MapTmjLoader::ResolveRawObjectType(const nlohmann::json& object)
     if (!typeStr.empty())
         return typeStr;
 
-    if (!object.contains("properties") || !object["properties"].is_array())
-        return "";
-
-    for (const auto& prop : object["properties"])
+    if (object.contains("properties") && object["properties"].is_array())
     {
-        const std::string propName = prop.value("name", "");
-        if (propName == "Class" || propName == "Type")
-            return prop.value("value", "");
+        for (const auto& prop : object["properties"])
+        {
+            const std::string propName = prop.value("name", "");
+            if (propName == "Class" || propName == "Type")
+                return prop.value("value", "");
+        }
+    }
+
+    // Compatibility fallback: accept well-known object names as semantic type
+    const std::string nameFallback = object.value("name", "");
+    const std::string canonicalName = CanonicalObjectType(nameFallback);
+
+    if (canonicalName == "player" ||
+        canonicalName == "enemy" ||
+        canonicalName == "door" ||
+        canonicalName == "trap")
+    {
+        return nameFallback;
     }
 
     return "";

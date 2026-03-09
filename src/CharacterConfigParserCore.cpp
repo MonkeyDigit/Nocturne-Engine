@@ -69,7 +69,14 @@ bool CharacterConfigParser::HandleCoreKey(
             return true;
         }
 
-        context.sprite->Load(spritePath);
+        if (!context.sprite->Load(spritePath))
+        {
+            EngineLog::ErrorOnce(
+                "char.spritesheet.load.failed." + context.path + "." + spritePath,
+                "Failed loading Spritesheet '" + spritePath + "' in '" + context.path +
+                "' at line " + std::to_string(context.lineNumber));
+        }
+
         return true;
     }
 

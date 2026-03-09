@@ -22,7 +22,8 @@ public:
     }
 
     // --- DELEGATED METHODS ---
-    void Load(const std::string& path) { m_spriteSheet.LoadSheet(path); }
+    // --- DELEGATED METHODS ---
+    bool Load(const std::string& path) { return m_spriteSheet.LoadSheet(path); }
     SpriteSheet& GetSpriteSheet() { return m_spriteSheet; }
 
     // --- Wrapper methods for Direction ---

@@ -6,6 +6,33 @@
 #include "Utilities.h"
 #include "EngineLog.h"
 
+namespace
+{
+    bool TryReadPositiveUnsignedField(const nlohmann::json& jsonData, const char* key, unsigned int& outValue)
+    {
+        if (!jsonData.contains(key) || !jsonData[key].is_number_unsigned())
+            return false;
+
+        outValue = jsonData[key].get<unsigned int>();
+        return outValue > 0u;
+    }
+
+    unsigned int CountLayersOfType(const nlohmann::json& mapData, const std::string& type)
+    {
+        if (!mapData.contains("layers") || !mapData["layers"].is_array())
+            return 0u;
+
+        unsigned int count = 0u;
+        for (const auto& layer : mapData["layers"])
+        {
+            if (layer.value("type", "") == type)
+                ++count;
+        }
+
+        return count;
+    }
+}
+
 std::string MapTmjLoader::ToLowerCopy(std::string value)
 {
     std::transform(value.begin(), value.end(), value.begin(),
@@ -41,7 +68,7 @@ bool MapTmjLoader::LoadJson(const std::string& path, nlohmann::json& outData)
     }
     catch (const nlohmann::json::parse_error& e)
     {
-        EngineLog::Error(std::string("JSON Parse Error: ") + e.what());
+        EngineLog::Error(std::string("JSON Parse Error in map '") + path + "': " + e.what());
         return false;
     }
 }
@@ -59,22 +86,42 @@ void MapTmjLoader::ResetPerMapDefaults(Map& map)
 
 bool MapTmjLoader::ReadMapGeometry(Map& map, const nlohmann::json& mapData, const std::string& path)
 {
-    map.m_maxMapSize.x = mapData.value("width", 32u);
-    map.m_maxMapSize.y = mapData.value("height", 32u);
+    unsigned int width = 0u;
+    unsigned int height = 0u;
+    unsigned int tileWidth = 0u;
+    unsigned int tileHeight = 0u;
 
-    map.m_tileWidth = mapData.value("tilewidth", 16u);
-    map.m_tileHeight = mapData.value("tileheight", 16u);
-
-    if (map.m_tileWidth == 0u || map.m_tileHeight == 0u)
+    if (!TryReadPositiveUnsignedField(mapData, "width", width))
     {
-        EngineLog::Error("Invalid map tile size in '" + path + "' (tilewidth/tileheight must be > 0).");
+        EngineLog::Error("Invalid or missing 'width' in map '" + path + "' (expected unsigned > 0).");
         return false;
     }
 
+    if (!TryReadPositiveUnsignedField(mapData, "height", height))
+    {
+        EngineLog::Error("Invalid or missing 'height' in map '" + path + "' (expected unsigned > 0).");
+        return false;
+    }
+
+    if (!TryReadPositiveUnsignedField(mapData, "tilewidth", tileWidth))
+    {
+        EngineLog::Error("Invalid or missing 'tilewidth' in map '" + path + "' (expected unsigned > 0).");
+        return false;
+    }
+
+    if (!TryReadPositiveUnsignedField(mapData, "tileheight", tileHeight))
+    {
+        EngineLog::Error("Invalid or missing 'tileheight' in map '" + path + "' (expected unsigned > 0).");
+        return false;
+    }
+
+    map.m_maxMapSize = { width, height };
+    map.m_tileWidth = tileWidth;
+    map.m_tileHeight = tileHeight;
     return true;
 }
 
-void MapTmjLoader::LoadLayers(
+bool MapTmjLoader::LoadLayers(
     Map& map,
     const nlohmann::json& mapData,
     const std::unordered_map<int, TileInfo>& tileTemplates,
@@ -83,6 +130,8 @@ void MapTmjLoader::LoadLayers(
 {
     unsigned int playerObjectCount = 0u;
     unsigned int doorObjectCount = 0u;
+    unsigned int tileLayerCount = 0u;
+    unsigned int objectLayerCount = 0u;
 
     for (const auto& layer : mapData["layers"])
     {
@@ -90,20 +139,36 @@ void MapTmjLoader::LoadLayers(
 
         if (layerType == "tilelayer")
         {
+            ++tileLayerCount;
             ProcessTileLayer(map, layer, tileTemplates, tilesPerRow, path);
         }
         else if (layerType == "objectgroup")
         {
+            ++objectLayerCount;
             ProcessObjectLayer(map, layer, path, playerObjectCount, doorObjectCount);
         }
     }
 
-    if (playerObjectCount == 0u)
+    if (tileLayerCount == 0u)
+    {
+        EngineLog::Error("Map '" + path + "' has no tile layers. Aborting load.");
+        return false;
+    }
+
+    if (objectLayerCount == 0u)
     {
         EngineLog::WarnOnce(
-            "map.object.player.missing." + path,
-            "No Player object found in map '" + path + "'. Respawn fallback will use (0,0).");
+            "map.object_layer.missing." + path,
+            "Map '" + path + "' has no object layer. Gameplay entities may be missing.");
     }
+
+    if (playerObjectCount == 0u)
+    {
+        EngineLog::Error("Map '" + path + "' has no Player object. Aborting load.");
+        return false;
+    }
+
+    return true;
 }
 
 void MapTmjLoader::Load(Map& map, const std::string& path)
@@ -121,6 +186,24 @@ void MapTmjLoader::Load(Map& map, const std::string& path)
     if (!ReadMapGeometry(map, mapData, path))
         return;
 
+    if (!mapData.contains("tilesets") || !mapData["tilesets"].is_array() || mapData["tilesets"].empty())
+    {
+        EngineLog::Error("Map '" + path + "' has no valid 'tilesets' array.");
+        return;
+    }
+
+    if (!mapData.contains("layers") || !mapData["layers"].is_array() || mapData["layers"].empty())
+    {
+        EngineLog::Error("Map '" + path + "' has no valid 'layers' array.");
+        return;
+    }
+
+    if (CountLayersOfType(mapData, "tilelayer") == 0u)
+    {
+        EngineLog::Error("Map '" + path + "' has zero tile layers.");
+        return;
+    }
+
     const unsigned int tilesPerRow = PrepareTilesetTexture(map);
 
     LoadMapPropertiesAndBackgrounds(map, mapData);
@@ -128,9 +211,8 @@ void MapTmjLoader::Load(Map& map, const std::string& path)
     std::unordered_map<int, TileInfo> tileTemplates;
     BuildTileTemplates(map, mapData, tileTemplates);
 
-    if (!mapData.contains("layers") || !mapData["layers"].is_array())
+    if (!LoadLayers(map, mapData, tileTemplates, tilesPerRow, path))
         return;
 
-    LoadLayers(map, mapData, tileTemplates, tilesPerRow, path);
     map.RefreshBackgroundScale();
 }

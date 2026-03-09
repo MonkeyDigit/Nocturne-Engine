@@ -25,7 +25,7 @@ private:
         const nlohmann::json& mapData,
         std::unordered_map<int, TileInfo>& tileTemplates);
 
-    static void LoadLayers(
+    static bool LoadLayers(
         Map& map,
         const nlohmann::json& mapData,
         const std::unordered_map<int, TileInfo>& tileTemplates,

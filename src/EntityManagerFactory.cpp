@@ -133,9 +133,26 @@ int EntityManager::SpawnProjectile(EntityBase* shooter, const sf::Vector2f& posi
     transform->SetSize(projectileWidth, projectileHeight);
 
     CSprite* sprite = entity->AddComponent<CSprite>(m_context.m_textureManager);
-    sprite->Load(projectileSheet);
 
-    // Force a valid animation/texture-rect for the fallback projectile visual
+    // Try configured sheet first, then global fallback sheet
+    std::string loadedProjectileSheet = projectileSheet;
+    bool projectileSheetLoaded = sprite->Load(loadedProjectileSheet);
+
+    if (!projectileSheetLoaded && loadedProjectileSheet != tuning.m_projectileFallbackSheet)
+    {
+        loadedProjectileSheet = tuning.m_projectileFallbackSheet;
+        projectileSheetLoaded = sprite->Load(loadedProjectileSheet);
+    }
+
+    if (!projectileSheetLoaded)
+    {
+        EngineLog::ErrorOnce(
+            "projectile.sheet.load.failed." + projectileSheet,
+            "Projectile creation aborted: failed to load sheet '" + projectileSheet +
+            "' and fallback '" + tuning.m_projectileFallbackSheet + "'.");
+        return -1;
+    }
+
     SpriteSheet& projectileSheetRef = sprite->GetSpriteSheet();
 
     bool hasProjectileAnim = false;
@@ -150,9 +167,11 @@ int EntityManager::SpawnProjectile(EntityBase* shooter, const sf::Vector2f& posi
 
     if (!hasProjectileAnim)
     {
-        EngineLog::WarnOnce(
-            "projectile.sprite.missing_anim." + projectileSheet + "." + projectileAnimation,
-            "Projectile sheet '" + projectileSheet + "' has no usable animation '" + projectileAnimation + "'.");
+        EngineLog::ErrorOnce(
+            "projectile.sprite.missing_anim." + loadedProjectileSheet + "." + projectileAnimation,
+            "Projectile creation aborted: no usable animation ('" + projectileAnimation +
+            "' or 'Idle') in sheet '" + loadedProjectileSheet + "'.");
+        return -1;
     }
 
     sprite->SetDirection((velocity.x < 0.0f) ? Direction::Left : Direction::Right);
