@@ -215,6 +215,7 @@
     <ClCompile Include="src\MapLoadTmj.cpp" />
     <ClCompile Include="src\MapTmjLayerLoader.cpp" />
     <ClCompile Include="src\MapTmjLoader.cpp" />
+    <ClCompile Include="src\MovementControlUpdate.cpp" />
     <ClCompile Include="src\PhysicsSystem.cpp" />
     <ClCompile Include="src\MovementControlSystem.cpp" />
     <ClCompile Include="src\RenderSystem.cpp" />
