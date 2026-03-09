@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cmath>
 
 #include "MovementControlDetail.h"
@@ -150,6 +151,32 @@ namespace
         return moveLeft ? HorizontalIntent::Left : HorizontalIntent::Right;
     }
 
+    inline void ClearActionInputFlags(CController& controller)
+    {
+        // One-shot actions should never persist across invalid/ignored updates.
+        controller.m_jump = false;
+        controller.m_cancelJump = false;
+        controller.m_attack = false;
+        controller.m_attackRanged = false;
+    }
+
+    inline bool HasValidRangedRequest(const CController& controller, const GameplayTuning& tuning)
+    {
+        if (!std::isfinite(controller.m_rangedSpeed) || controller.m_rangedSpeed <= 0.0f) return false;
+        if (!std::isfinite(controller.m_rangedLifetime) || controller.m_rangedLifetime <= 0.0f) return false;
+        if (controller.m_rangedDamage <= 0) return false;
+
+        const float sizeX = (controller.m_rangedSizeX > 0.0f)
+            ? controller.m_rangedSizeX
+            : tuning.m_projectileFallbackWidth;
+
+        const float sizeY = (controller.m_rangedSizeY > 0.0f)
+            ? controller.m_rangedSizeY
+            : tuning.m_projectileFallbackHeight;
+
+        return std::isfinite(sizeX) && std::isfinite(sizeY) && sizeX > 0.0f && sizeY > 0.0f;
+    }
+
     inline bool TryGetControllableComponents(
         EntityBase& entity,
         CController*& outController,
@@ -235,9 +262,10 @@ namespace
         {
             if (transform.GetVelocity().y < 0.0f)
             {
+                const float safeCancelMultiplier = std::clamp(controller.m_jumpCancelMultiplier, 0.0f, 1.0f);
                 transform.SetVelocity(
                     transform.GetVelocity().x,
-                    transform.GetVelocity().y * controller.m_jumpCancelMultiplier);
+                    transform.GetVelocity().y * safeCancelMultiplier);
             }
 
             controller.m_cancelJump = false;
@@ -283,6 +311,7 @@ namespace
             if (!meleeTriggered &&
                 controller.m_rangedEnabled &&
                 sprite &&
+                HasValidRangedRequest(controller, tuning) &&
                 CanStartRangedAttack(rangedState, controller.m_rangedCooldownTimer))
             {
                 pendingProjectiles.push_back(
@@ -332,9 +361,22 @@ namespace MovementControlDetail
         if (!TryGetControllableComponents(entity, controller, transform, state, sprite, collider))
             return;
 
+        if (!std::isfinite(deltaTime) || deltaTime <= 0.0f)
+        {
+            // Invalid frame delta: consume current-frame input and skip simulation
+            ClearActionInputFlags(*controller);
+            ResetDirectionalInput(*controller);
+            return;
+        }
+
         const EntityState currentState = state->GetState();
         if (currentState == EntityState::Dying)
+        {
+            // Avoid carrying stale input if state changes later
+            ClearActionInputFlags(*controller);
+            ResetDirectionalInput(*controller);
             return;
+        }
 
         const bool grounded = IsGrounded(collider);
         UpdateTimersAndGrounding(*controller, deltaTime, grounded);

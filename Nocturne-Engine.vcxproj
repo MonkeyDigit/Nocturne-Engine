@@ -222,6 +222,7 @@
     <ClCompile Include="src\MapLoadTmj.cpp" />
     <ClCompile Include="src\MapTmjLayerLoader.cpp" />
     <ClCompile Include="src\MapTmjLoader.cpp" />
+    <ClCompile Include="src\MapTmjObjectHandlers.cpp" />
     <ClCompile Include="src\MapTmjTilesetLoader.cpp" />
     <ClCompile Include="src\MovementControlEntityStep.cpp" />
     <ClCompile Include="src\MovementControlUpdate.cpp" />

@@ -22,4 +22,5 @@ void MovementControlSystem::Update(float deltaTime)
     }
 
     MovementControlDetail::SpawnPendingProjectiles(*m_entityManager, pendingProjectiles);
+    pendingProjectiles.reserve(m_entityManager->GetEntities().size());
 }

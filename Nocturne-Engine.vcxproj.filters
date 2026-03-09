@@ -314,5 +314,8 @@
     <ClCompile Include="src\MovementControlEntityStep.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\MapTmjObjectHandlers.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

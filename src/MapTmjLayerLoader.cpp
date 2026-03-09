@@ -1,11 +1,7 @@
 #include <algorithm>
 #include <cmath>
-#include <string>
 
 #include "MapTmjLoader.h"
-#include "EntityManager.h"
-#include "SharedContext.h"
-#include "EntityBase.h"
 #include "EngineLog.h"
 
 namespace
@@ -61,43 +57,6 @@ namespace
 
         return result;
     }
-
-    std::string ResolveRawObjectType(const nlohmann::json& object)
-    {
-        std::string typeStr = object.value("class", object.value("type", ""));
-        if (!typeStr.empty())
-            return typeStr;
-
-        if (!object.contains("properties") || !object["properties"].is_array())
-            return "";
-
-        for (const auto& prop : object["properties"])
-        {
-            const std::string propName = prop.value("name", "");
-            if (propName == "Class" || propName == "Type")
-                return prop.value("value", "");
-        }
-
-        return "";
-    }
-
-    bool TryReadFiniteObjectRect(
-        const nlohmann::json& object,
-        float& outX,
-        float& outY,
-        float& outW,
-        float& outH)
-    {
-        outX = object.value("x", 0.0f);
-        outY = object.value("y", 0.0f);
-        outW = object.value("width", 32.0f);
-        outH = object.value("height", 32.0f);
-
-        return std::isfinite(outX) &&
-            std::isfinite(outY) &&
-            std::isfinite(outW) &&
-            std::isfinite(outH);
-    }
 }
 
 void MapTmjLoader::ProcessTileLayer(
@@ -111,7 +70,7 @@ void MapTmjLoader::ProcessTileLayer(
 
     const bool layerHasCollisions = LayerHasCollisions(layer);
 
-    // Must stay here: accesses Map private members (friend context)
+    // Must stay here: accesses Map private members (friend context).
     auto addCollisionTileIfNeeded =
         [&](const TileInfo& tileInfo,
             const sf::Vector2f& tileSize,
@@ -199,89 +158,6 @@ void MapTmjLoader::ProcessObjectLayer(
     const float mapPixelWidth = static_cast<float>(map.m_maxMapSize.x * map.m_tileWidth);
     const float mapPixelHeight = static_cast<float>(map.m_maxMapSize.y * map.m_tileHeight);
 
-    // Must stay here: accesses Map private members (friend context)
-    auto handlePlayerObject = [&](const std::string& name, float objX, float objY)
-        {
-            ++playerObjectCount;
-            if (playerObjectCount > 1u)
-            {
-                EngineLog::WarnOnce(
-                    "map.object.player.multiple." + path,
-                    "Multiple Player objects found in map '" + path + "'. Using the first one.");
-                return;
-            }
-
-            map.m_playerStart = sf::Vector2f(objX, objY);
-
-            if (objX < 0.0f || objY < 0.0f || objX > mapPixelWidth || objY > mapPixelHeight)
-                EngineLog::Warn("Player spawn is outside map bounds in '" + path + "'.");
-
-            if (map.m_playerId == -1)
-            {
-                map.m_playerId = map.m_context.GetEntityManager().Add(EntityType::Player, name);
-                if (map.m_playerId < 0)
-                {
-                    EngineLog::WarnOnce("map.spawn.player.failed", "Failed to spawn player from map object");
-                    return;
-                }
-            }
-
-            EntityBase* player = map.m_context.GetEntityManager().Find(static_cast<unsigned int>(map.m_playerId));
-            if (player)
-                player->SetPosition(map.m_playerStart);
-        };
-
-    auto handleEnemyObject = [&](const std::string& name, float objX, float objY)
-        {
-            if (name.empty() || name == "Unknown")
-            {
-                EngineLog::Warn("Enemy object missing type id in name field in '" + path + "'. Object skipped.");
-                return;
-            }
-
-            const int enemyId = map.m_context.GetEntityManager().Add(EntityType::Enemy, name);
-            if (enemyId < 0)
-            {
-                EngineLog::WarnOnce("map.spawn.enemy.failed", "Failed to spawn enemy from map object");
-                return;
-            }
-
-            EntityBase* enemy = map.m_context.GetEntityManager().Find(static_cast<unsigned int>(enemyId));
-            if (enemy)
-                enemy->SetPosition(sf::Vector2f(objX, objY));
-        };
-
-    auto handleDoorObject = [&](float objX, float objY, float objW, float objH)
-        {
-            if (objW <= 0.0f || objH <= 0.0f)
-            {
-                EngineLog::Warn("Door object with non-positive size in '" + path + "'. Object skipped.");
-                return;
-            }
-
-            ++doorObjectCount;
-            if (doorObjectCount > 1u)
-            {
-                EngineLog::WarnOnce(
-                    "map.object.door.multiple." + path,
-                    "Multiple Door objects found in map '" + path + "'. Using the first one.");
-                return;
-            }
-
-            map.m_doorRect = { {objX, objY}, {objW, objH} };
-        };
-
-    auto handleTrapObject = [&](float objX, float objY, float objW, float objH)
-        {
-            if (objW <= 0.0f || objH <= 0.0f)
-            {
-                EngineLog::Warn("Trap object with non-positive size in '" + path + "'. Object skipped.");
-                return;
-            }
-
-            map.m_traps.push_back({ {objX, objY}, {objW, objH} });
-        };
-
     for (const auto& object : layer["objects"])
     {
         const std::string name = object.value("name", "Unknown");
@@ -300,19 +176,20 @@ void MapTmjLoader::ProcessObjectLayer(
 
         if (objectType == "player")
         {
-            handlePlayerObject(name, objX, objY);
+            HandlePlayerObject(
+                map, path, name, objX, objY, mapPixelWidth, mapPixelHeight, playerObjectCount);
         }
         else if (objectType == "enemy")
         {
-            handleEnemyObject(name, objX, objY);
+            HandleEnemyObject(map, path, name, objX, objY);
         }
         else if (objectType == "door")
         {
-            handleDoorObject(objX, objY, objW, objH);
+            HandleDoorObject(map, path, objX, objY, objW, objH, doorObjectCount);
         }
         else if (objectType == "trap")
         {
-            handleTrapObject(objX, objY, objW, objH);
+            HandleTrapObject(map, path, objX, objY, objW, objH);
         }
         else if (!objectType.empty())
         {

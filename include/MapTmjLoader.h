@@ -45,4 +45,47 @@ private:
         const std::string& path,
         unsigned int& playerObjectCount,
         unsigned int& doorObjectCount);
+
+    // Object parsing helpers (member functions to keep friend access to Map internals)
+    static std::string ResolveRawObjectType(const nlohmann::json& object);
+    static bool TryReadFiniteObjectRect(
+        const nlohmann::json& object,
+        float& outX,
+        float& outY,
+        float& outW,
+        float& outH);
+
+    static void HandlePlayerObject(
+        Map& map,
+        const std::string& path,
+        const std::string& name,
+        float objX,
+        float objY,
+        float mapPixelWidth,
+        float mapPixelHeight,
+        unsigned int& playerObjectCount);
+
+    static void HandleEnemyObject(
+        Map& map,
+        const std::string& path,
+        const std::string& name,
+        float objX,
+        float objY);
+
+    static void HandleDoorObject(
+        Map& map,
+        const std::string& path,
+        float objX,
+        float objY,
+        float objW,
+        float objH,
+        unsigned int& doorObjectCount);
+
+    static void HandleTrapObject(
+        Map& map,
+        const std::string& path,
+        float objX,
+        float objY,
+        float objW,
+        float objH);
 };
