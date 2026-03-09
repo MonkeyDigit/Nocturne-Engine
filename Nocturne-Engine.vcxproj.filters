@@ -150,6 +150,9 @@
     <ClInclude Include="include\CharacterConfigParser.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\MapTmjLoader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Game.cpp">
@@ -261,6 +264,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\WindowConfigLoader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\MapTmjLoader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\MapTmjLayerLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

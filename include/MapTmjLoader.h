@@ -1,0 +1,48 @@
+#pragma once
+
+#include <string>
+#include <unordered_map>
+#include "json.hpp"
+#include "Map.h"
+
+class MapTmjLoader
+{
+public:
+    static void Load(Map& map, const std::string& path);
+
+private:
+    static std::string ToLowerCopy(std::string value);
+    static std::string CanonicalObjectType(std::string rawType);
+
+    static bool LoadJson(const std::string& path, nlohmann::json& outData);
+    static void ResetPerMapDefaults(Map& map);
+    static bool ReadMapGeometry(Map& map, const nlohmann::json& mapData, const std::string& path);
+    static unsigned int PrepareTilesetTexture(Map& map);
+    static void LoadMapPropertiesAndBackgrounds(Map& map, const nlohmann::json& mapData);
+
+    static void BuildTileTemplates(
+        Map& map,
+        const nlohmann::json& mapData,
+        std::unordered_map<int, TileInfo>& tileTemplates);
+
+    static void LoadLayers(
+        Map& map,
+        const nlohmann::json& mapData,
+        const std::unordered_map<int, TileInfo>& tileTemplates,
+        unsigned int tilesPerRow,
+        const std::string& path);
+
+    static void ProcessTileLayer(
+        Map& map,
+        const nlohmann::json& layer,
+        const std::unordered_map<int, TileInfo>& tileTemplates,
+        unsigned int tilesPerRow,
+        const std::string& path);
+
+    static void ProcessObjectLayer(
+        Map& map,
+        const nlohmann::json& layer,
+        const std::string& path,
+        unsigned int& playerObjectCount,
+        unsigned int& doorObjectCount);
+};

@@ -72,7 +72,7 @@ void PhysicsSystem::ApplyGravityAndMovement(EntityBase* entity, Map* map, float 
     {
         frictionValue = refTile->friction;
 
-        // Some entities (e.g. projectiles) do not have CState.
+        // Some entities (e.g. projectiles) do not have CState
         if (refTile->deadly)
         {
             if (CState* state = entity->GetComponent<CState>())

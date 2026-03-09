@@ -7,6 +7,7 @@
 
 struct SharedContext;
 class BaseState;
+class MapTmjLoader;
 
 using TileID = unsigned int;
 
@@ -65,6 +66,8 @@ public:
     const std::vector<sf::FloatRect>& GetTraps() const { return m_traps; }
 
 private:
+    friend class MapTmjLoader;
+
     unsigned int ConvertCoords(unsigned int x, unsigned int y) const;
     void PurgeMap();
     void RefreshBackgroundScale();
