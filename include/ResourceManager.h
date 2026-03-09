@@ -6,6 +6,7 @@
 #include <memory>
 #include "Utilities.h"
 #include "EngineLog.h"
+#include "ConfigParseUtils.h"
 
 template<typename Derived, typename T>
 class ResourceManager
@@ -155,34 +156,18 @@ public:
         {
             ++lineNumber;
 
-            // Support inline comments and full-line comments
-            const size_t hashPos = line.find('#');
-            if (hashPos != std::string::npos)
-                line.erase(hashPos);
-
-            // Skip empty/whitespace and custom comment marker '|'
-            const size_t first = line.find_first_not_of(" \t\r\n");
-            if (first == std::string::npos) continue;
-            if (line[first] == '|') continue;
+            // Shared config-line preprocessing:
+            // strips inline comments, trims whitespace, skips empty/custom comment lines
+            if (!ParseUtils::PrepareConfigLine(line)) continue;
 
             std::stringstream keystream{ line };
             std::string pathName;
             std::string path;
 
-            if (!(keystream >> pathName >> path))
+            // Exact read: requires exactly 2 tokens, rejects trailing garbage
+            if (!ParseUtils::TryReadExact(keystream, pathName, path))
             {
                 warnLine(lineNumber, "Invalid entry (expected: <ResourceId> <RelativePath>).");
-                continue;
-            }
-
-            // Reject trailing unexpected tokens
-            std::string trailing;
-            if (keystream >> trailing)
-            {
-                warnLine(
-                    lineNumber,
-                    "Too many tokens in entry for id '" + pathName +
-                    "' (expected exactly 2 tokens).");
                 continue;
             }
 
@@ -193,6 +178,7 @@ public:
             }
 
             auto [seenIt, insertedSeen] = firstSeenLineById.emplace(pathName, lineNumber);
+            (void)insertedSeen;
 
             auto [it, inserted] = m_paths.emplace(pathName, path);
             if (!inserted)

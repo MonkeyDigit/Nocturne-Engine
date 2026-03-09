@@ -200,6 +200,7 @@
     <ClCompile Include="src\CharacterConfigParserController.cpp" />
     <ClCompile Include="src\CharacterConfigParserCore.cpp" />
     <ClCompile Include="src\CharacterConfigParserState.cpp" />
+    <ClCompile Include="src\CombatResolution.cpp" />
     <ClCompile Include="src\CombatSystem.cpp" />
     <ClCompile Include="src\EngineLog.cpp" />
     <ClCompile Include="src\EntityBase.cpp" />
