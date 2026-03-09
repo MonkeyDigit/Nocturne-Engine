@@ -147,6 +147,9 @@
     <ClInclude Include="include\GameplayTuningLoader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\CharacterConfigParser.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Game.cpp">
@@ -243,6 +246,18 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\EventBindingLoader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CharacterConfigParserCore.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CharacterConfigParserState.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CharacterConfigParserController.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CharacterConfigParserAI.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

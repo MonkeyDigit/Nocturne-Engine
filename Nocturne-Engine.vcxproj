@@ -150,6 +150,7 @@
     <ClInclude Include="include\CameraSystem.h" />
     <ClInclude Include="include\CBoxCollider.h" />
     <ClInclude Include="include\CController.h" />
+    <ClInclude Include="include\CharacterConfigParser.h" />
     <ClInclude Include="include\CombatGeometry.h" />
     <ClInclude Include="include\CombatSystem.h" />
     <ClInclude Include="include\Component.h" />
@@ -194,6 +195,10 @@
     <ClCompile Include="src\BaseState.cpp" />
     <ClCompile Include="src\CameraSystem.cpp" />
     <ClCompile Include="src\CharacterConfigLoader.cpp" />
+    <ClCompile Include="src\CharacterConfigParserAI.cpp" />
+    <ClCompile Include="src\CharacterConfigParserController.cpp" />
+    <ClCompile Include="src\CharacterConfigParserCore.cpp" />
+    <ClCompile Include="src\CharacterConfigParserState.cpp" />
     <ClCompile Include="src\CombatSystem.cpp" />
     <ClCompile Include="src\EngineLog.cpp" />
     <ClCompile Include="src\EntityBase.cpp" />
