@@ -17,4 +17,9 @@ struct GameplayTuning
 
     // Camera
     float m_cameraTargetVerticalBias = 0.5f;
+
+    // Core loop tuning
+    float m_fixedUpdateHz = 60.0f;
+    float m_maxFrameTimeSeconds = 0.25f;
+    unsigned int m_maxUpdatesPerFrame = 8u;
 };

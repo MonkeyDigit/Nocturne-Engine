@@ -97,7 +97,7 @@ void State_Game::InitializeDebugOverlay()
     m_fpsText.setFillColor(sf::Color::White);
     m_fpsText.setOutlineColor(sf::Color::Black);
     m_fpsText.setOutlineThickness(kFpsTextOutlineThickness);
-    m_fpsText.setString("FPS: --");
+    m_fpsText.setString("FPS: --\nFrame: -- ms\nUpd/frame: --\nFixed: --\nDrops: 0");
 
     ResetFpsCounter();
 }
@@ -110,7 +110,7 @@ void State_Game::ResetFpsCounter()
     m_currentFps = 0.0f;
 
     if (m_debugFontLoaded)
-        m_fpsText.setString("FPS: --");
+        m_fpsText.setString("FPS: --\nFrame: -- ms\nUpd/frame: --\nFixed: --\nDrops: 0");
 }
 
 void State_Game::DrawDebugOverlay(sf::RenderWindow& window, const sf::View& gameView)
@@ -169,6 +169,9 @@ void State_Game::DrawFpsCounter(sf::RenderWindow& window, const sf::View& gameVi
 {
     if (!m_debugFontLoaded) return;
 
+    SharedContext& context = m_stateManager.GetContext();
+    const RuntimeFrameStats& loopStats = context.m_runtimeFrameStats;
+
     const float dt = m_fpsClock.restart().asSeconds();
     m_fpsAccumTime += dt;
     ++m_fpsFrameCount;
@@ -179,16 +182,30 @@ void State_Game::DrawFpsCounter(sf::RenderWindow& window, const sf::View& gameVi
         m_fpsAccumTime = 0.0f;
         m_fpsFrameCount = 0;
 
+        const float fixedHz = (loopStats.m_fixedStepSeconds > 0.0f)
+            ? (1.0f / loopStats.m_fixedStepSeconds)
+            : 0.0f;
+
+        const float frameMs = std::max(0.0f, loopStats.m_elapsedFrameSeconds * 1000.0f);
+
         std::ostringstream ss;
-        ss << "FPS: " << static_cast<int>(std::round(m_currentFps));
+        ss << "FPS: " << static_cast<int>(std::round(m_currentFps))
+            << "\nFrame: " << static_cast<int>(std::round(frameMs)) << " ms"
+            << "\nUpd/frame: " << loopStats.m_lastFixedUpdates << "/" << loopStats.m_maxUpdatesPerFrame
+            << "\nFixed: " << static_cast<int>(std::round(fixedHz)) << " Hz"
+            << "\nDrops: " << loopStats.m_backlogDropCount;
         m_fpsText.setString(ss.str());
 
-        if (m_currentFps >= kFpsGoodThreshold)      m_fpsText.setFillColor(kFpsGoodColor);
-        else if (m_currentFps >= kFpsWarnThreshold) m_fpsText.setFillColor(kFpsWarnColor);
-        else                                        m_fpsText.setFillColor(kFpsBadColor);
+        if (loopStats.m_droppedBacklog || m_currentFps < kFpsWarnThreshold)
+            m_fpsText.setFillColor(kFpsBadColor);
+        else if (m_currentFps < kFpsGoodThreshold)
+            m_fpsText.setFillColor(kFpsWarnColor);
+        else
+            m_fpsText.setFillColor(kFpsGoodColor);
     }
 
-    SharedContext& context = m_stateManager.GetContext();
+    m_fpsText.setOutlineColor(loopStats.m_droppedBacklog ? kFpsBadColor : sf::Color::Black);
+
     window.setView(context.m_window.GetUIView());
 
     const sf::Vector2f uiRes = context.m_window.GetUIResolution();

@@ -1,7 +1,49 @@
+#include <algorithm>
 #include <cassert>
+#include <cmath>
+
 #include "Game.h"
 #include "EngineLog.h"
 #include "GameplayTuningLoader.h"
+
+namespace
+{
+    constexpr float kDefaultFixedUpdateHz = 60.0f;
+    constexpr float kMinFixedUpdateHz = 15.0f;
+    constexpr float kMaxFixedUpdateHz = 240.0f;
+
+    constexpr float kDefaultMaxFrameTimeSeconds = 0.25f;
+    constexpr float kMinMaxFrameTimeSeconds = 0.01f;
+    constexpr float kMaxMaxFrameTimeSeconds = 1.0f;
+
+    constexpr unsigned int kDefaultMaxUpdatesPerFrame = 8u;
+    constexpr unsigned int kMinMaxUpdatesPerFrame = 1u;
+    constexpr unsigned int kMaxMaxUpdatesPerFrame = 120u;
+
+    float SanitizeFixedUpdateHz(float value)
+    {
+        if (!std::isfinite(value) || value <= 0.0f)
+            return kDefaultFixedUpdateHz;
+
+        return std::clamp(value, kMinFixedUpdateHz, kMaxFixedUpdateHz);
+    }
+
+    float SanitizeMaxFrameTimeSeconds(float value)
+    {
+        if (!std::isfinite(value) || value <= 0.0f)
+            return kDefaultMaxFrameTimeSeconds;
+
+        return std::clamp(value, kMinMaxFrameTimeSeconds, kMaxMaxFrameTimeSeconds);
+    }
+
+    unsigned int SanitizeMaxUpdatesPerFrame(unsigned int value)
+    {
+        if (value == 0u)
+            return kDefaultMaxUpdatesPerFrame;
+
+        return std::clamp(value, kMinMaxUpdatesPerFrame, kMaxMaxUpdatesPerFrame);
+    }
+}
 
 Game::Game()
     : m_window("Project Nocturne", { 1280, 720 }),
@@ -35,6 +77,21 @@ Game::Game()
 
 void Game::Run()
 {
+    const GameplayTuning& tuning = m_context.m_gameplayTuning;
+
+    const float fixedHz = SanitizeFixedUpdateHz(tuning.m_fixedUpdateHz);
+    const sf::Time timePerFrame = sf::seconds(1.0f / fixedHz);
+
+    const float maxFrameSeconds = SanitizeMaxFrameTimeSeconds(tuning.m_maxFrameTimeSeconds);
+    const sf::Time maxFrameTime = sf::seconds(maxFrameSeconds);
+
+    const unsigned int maxUpdatesPerFrame = SanitizeMaxUpdatesPerFrame(tuning.m_maxUpdatesPerFrame);
+
+    m_context.m_runtimeFrameStats.m_fixedStepSeconds = timePerFrame.asSeconds();
+    m_context.m_runtimeFrameStats.m_maxUpdatesPerFrame = maxUpdatesPerFrame;
+    m_context.m_runtimeFrameStats.m_lastFixedUpdates = 0u;
+    m_context.m_runtimeFrameStats.m_droppedBacklog = false;
+
     sf::Clock clock;
     sf::Time timeSinceLastUpdate = sf::Time::Zero;
 
@@ -43,27 +100,33 @@ void Game::Run()
         sf::Time elapsedTime = clock.restart();
 
         // Clamp very large frame times (e.g. debugger break, window drag, alt-tab spike)
-        if (elapsedTime > MAX_FRAME_TIME)
-            elapsedTime = MAX_FRAME_TIME;
+        if (elapsedTime > maxFrameTime)
+            elapsedTime = maxFrameTime;
 
+        m_context.m_runtimeFrameStats.m_elapsedFrameSeconds = elapsedTime.asSeconds();
         timeSinceLastUpdate += elapsedTime;
 
-        // FIXED TIMESTEP (Accumulator Pattern)
-        // Guarantees that the physics simulation advances at a constant rate (60 FPS) 
-        // regardless of the user's PC hardware power
+        // Fixed timestep (accumulator pattern)
         unsigned int updates = 0;
-        while (timeSinceLastUpdate >= TIME_PER_FRAME && updates < MAX_UPDATES_PER_FRAME)
+        while (timeSinceLastUpdate >= timePerFrame && updates < maxUpdatesPerFrame)
         {
-            timeSinceLastUpdate -= TIME_PER_FRAME;
-            Update(TIME_PER_FRAME);
+            timeSinceLastUpdate -= timePerFrame;
+            Update(timePerFrame);
             ++updates;
         }
 
+        const bool droppedBacklog =
+            (updates == maxUpdatesPerFrame && timeSinceLastUpdate >= timePerFrame);
+
         // Drop residual backlog to avoid perpetual catch-up under heavy load
-        if (updates == MAX_UPDATES_PER_FRAME)
+        if (droppedBacklog)
             timeSinceLastUpdate = sf::Time::Zero;
 
-        // Render as fast as possible
+        m_context.m_runtimeFrameStats.m_lastFixedUpdates = updates;
+        m_context.m_runtimeFrameStats.m_droppedBacklog = droppedBacklog;
+        if (droppedBacklog)
+            ++m_context.m_runtimeFrameStats.m_backlogDropCount;
+
         Render();
     }
 }

@@ -79,6 +79,24 @@ void GameplayTuningLoader::Load(const std::string& path, GameplayTuning& outTuni
             if (!TryReadExact(ss, value)) { WarnLine(lineNumber, "Invalid CameraTargetVerticalBias"); continue; }
             outTuning.m_cameraTargetVerticalBias = std::clamp(value, 0.0f, 1.0f);
         }
+        else if (key == "FixedUpdateHz")
+        {
+            float value = 0.0f;
+            if (!TryReadExact(ss, value) || value <= 0.0f) { WarnLine(lineNumber, "Invalid FixedUpdateHz"); continue; }
+            outTuning.m_fixedUpdateHz = value;
+        }
+        else if (key == "MaxFrameTimeSeconds")
+        {
+            float value = 0.0f;
+            if (!TryReadExact(ss, value) || value <= 0.0f) { WarnLine(lineNumber, "Invalid MaxFrameTimeSeconds"); continue; }
+            outTuning.m_maxFrameTimeSeconds = value;
+        }
+        else if (key == "MaxUpdatesPerFrame")
+        {
+            int value = 0;
+            if (!TryReadExact(ss, value) || value <= 0) { WarnLine(lineNumber, "Invalid MaxUpdatesPerFrame"); continue; }
+            outTuning.m_maxUpdatesPerFrame = static_cast<unsigned int>(value);
+        }
         else
         {
             WarnLine(lineNumber, "Unknown key '" + key + "'");

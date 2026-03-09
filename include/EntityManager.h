@@ -1,4 +1,5 @@
 #pragma once
+#include <map>
 #include <unordered_map>
 #include <cstdint>
 #include <vector>
@@ -17,7 +18,8 @@ struct SharedContext;
 
 // Use unique_ptr to own the entities
 // When an entity is erased from this map, its memory is automatically freed
-using EntityContainer = std::unordered_map<unsigned int, std::unique_ptr<EntityBase>>;
+// Use std::map for deterministic iteration order by entity id.
+using EntityContainer = std::map<unsigned int, std::unique_ptr<EntityBase>>;
 
 using EnemyTypes = std::unordered_map<std::string, std::string>;
 
@@ -40,8 +42,15 @@ public:
 
     SharedContext& GetContext();
 
-    std::unordered_map<unsigned int, std::unique_ptr<EntityBase>>& GetEntities()
-    { return m_entities; }
+    EntityContainer& GetEntities()
+    {
+        return m_entities;
+    }
+
+    const EntityContainer& GetEntities() const
+    {
+        return m_entities;
+    }
 
     // Spawns a projectile dynamically during gameplay
     int SpawnProjectile(EntityBase* shooter, const sf::Vector2f& position, const sf::Vector2f& velocity, int damage, float lifespan);
