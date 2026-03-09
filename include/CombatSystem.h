@@ -3,6 +3,7 @@
 
 class EntityManager;
 class EntityBase;
+struct GameplayTuning;
 
 class CombatSystem
 {
@@ -20,5 +21,6 @@ private:
 
     void ResolveEnemyVsPlayer(
         EntityBase* player,
-        const std::vector<EntityBase*>& enemies);
+        const std::vector<EntityBase*>& enemies,
+        const GameplayTuning& tuning);
 };

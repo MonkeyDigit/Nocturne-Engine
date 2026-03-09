@@ -164,6 +164,8 @@
     <ClInclude Include="include\EntityManager.h" />
     <ClInclude Include="include\EventManager.h" />
     <ClInclude Include="include\Game.h" />
+    <ClInclude Include="include\GameplayTuning.h" />
+    <ClInclude Include="include\GameplayTuningLoader.h" />
     <ClInclude Include="include\HUD.h" />
     <ClInclude Include="include\json.hpp" />
     <ClInclude Include="include\Map.h" />
@@ -198,6 +200,7 @@
     <ClCompile Include="src\EntityManager.cpp" />
     <ClCompile Include="src\EventManager.cpp" />
     <ClCompile Include="src\Game.cpp" />
+    <ClCompile Include="src\GameplayTuningLoader.cpp" />
     <ClCompile Include="src\HUD.cpp" />
     <ClCompile Include="src\Main.cpp" />
     <ClCompile Include="src\Map.cpp" />

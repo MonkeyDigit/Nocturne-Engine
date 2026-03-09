@@ -195,25 +195,27 @@ int EntityManager::SpawnProjectile(EntityBase* shooter, const sf::Vector2f& posi
 
     const CController* shooterController = shooter->GetComponent<CController>();
 
+    const GameplayTuning& tuning = m_context.m_gameplayTuning;
+
     const float projectileWidth =
         (shooterController && shooterController->m_rangedSizeX > 0.0f)
         ? shooterController->m_rangedSizeX
-        : 16.0f;
+        : tuning.m_projectileFallbackWidth;
 
     const float projectileHeight =
         (shooterController && shooterController->m_rangedSizeY > 0.0f)
         ? shooterController->m_rangedSizeY
-        : 16.0f;
+        : tuning.m_projectileFallbackHeight;
 
     const std::string projectileSheet =
         (shooterController && !shooterController->m_rangedSheetPath.empty())
         ? shooterController->m_rangedSheetPath
-        : "media/spritesheets/Player.sheet";
+        : tuning.m_projectileFallbackSheet;
 
     const std::string projectileAnimation =
         (shooterController && !shooterController->m_rangedAnimation.empty())
         ? shooterController->m_rangedAnimation
-        : "Idle";
+        : tuning.m_projectileFallbackAnimation;
 
     if (m_entities.size() >= m_maxEntities)
     {

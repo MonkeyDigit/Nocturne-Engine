@@ -1,5 +1,6 @@
 #pragma once
 #include <cassert>
+#include "GameplayTuning.h"
 
 // Forward declarations instead of includes (this can reduces recompilation times)
 class Window;
@@ -39,4 +40,6 @@ struct SharedContext {
     // --- DYNAMIC SYSTEMS (Can be null, can be swapped) ---
     EntityManager* m_entityManager;
     Map* m_gameMap;
+
+    GameplayTuning m_gameplayTuning;
 };

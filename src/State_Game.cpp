@@ -86,16 +86,18 @@ void State_Game::Update(const sf::Time& time)
     // Keep cursor visibility logic independent from gameplay update
     UpdateCursor(time);
 
-    // Resolve player once per frame (fast ID path + fallback by name)
-    EntityBase* player = ResolvePlayer();
+    // Skip player hazard/respawn logic while a map transition is queued
+    if (!m_gameMap.IsNextMapQueued())
+    {
+        EntityBase* player = ResolvePlayer();
 
-    // If player exists, process death/transition hazards; otherwise try respawn
-    if (player)
-        HandlePlayerHazards(*player);
-    else
-        RespawnPlayer();
+        if (player)
+            HandlePlayerHazards(*player);
+        else
+            RespawnPlayer();
+    }
 
-    // Core world update.
+    // Core world update
     SharedContext& context = m_stateManager.GetContext();
     context.GetEntityManager().Update(time.asSeconds());
     m_gameMap.Update();
@@ -339,23 +341,25 @@ void State_Game::HandlePlayerHazards(EntityBase& player)
     const float mapHeight = static_cast<float>(m_gameMap.GetMapSize().y * m_gameMap.GetTileSize());
     const sf::FloatRect pBounds = collider->GetAABB();
 
-    // Kill if player falls outside map height.
+    // Death hazards have priority over map transition
     if (transform->GetPosition().y >= mapHeight)
+    {
         state->InstantKill();
+        return;
+    }
 
-    // Queue next map when touching the door trigger
-    if (m_gameMap.GetDoorRect().findIntersection(pBounds))
-        m_gameMap.LoadNext();
-
-    // Kill on trap collision
     for (const auto& trap : m_gameMap.GetTraps())
     {
         if (trap.findIntersection(pBounds))
         {
             state->InstantKill();
-            break;
+            return;
         }
     }
+
+    // Queue next map only if still alive
+    if (m_gameMap.GetDoorRect().findIntersection(pBounds))
+        m_gameMap.LoadNext();
 }
 
 sf::View State_Game::ResolveGameView()

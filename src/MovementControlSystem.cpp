@@ -87,7 +87,8 @@ namespace
         const CTransform& transform,
         const CSprite& sprite,
         const CController& controller,
-        const CBoxCollider* collider)
+        const CBoxCollider* collider,
+        const GameplayTuning& tuning)
     {
         ProjectileSpawnRequest request;
         request.shooterId = shooter.GetId();
@@ -105,10 +106,19 @@ namespace
         {
             const sf::FloatRect body = collider->GetAABB();
 
-            float halfW = controller.m_rangedSizeX * 0.5f;
+            const float projectileSizeX = (controller.m_rangedSizeX > 0.0f)
+                ? controller.m_rangedSizeX
+                : tuning.m_projectileFallbackWidth;
+
+            const float projectileSizeY = (controller.m_rangedSizeY > 0.0f)
+                ? controller.m_rangedSizeY
+                : tuning.m_projectileFallbackHeight;
+
+            // ...
+            float halfW = projectileSizeX * 0.5f;
             if (halfW < 0.0f) halfW = 0.0f;
 
-            float halfH = controller.m_rangedSizeY * 0.5f;
+            float halfH = projectileSizeY * 0.5f;
             if (halfH < 0.0f) halfH = 0.0f;
 
             // Keep spawn vertically inside the body column to avoid floor overlap
@@ -205,6 +215,7 @@ void MovementControlSystem::Update(float deltaTime)
     if (!m_entityManager) return;
 
     std::vector<ProjectileSpawnRequest> pendingProjectiles;
+    const GameplayTuning& tuning = m_entityManager->GetContext().m_gameplayTuning;
 
     for (auto& entityPair : m_entityManager->GetEntities())
     {
@@ -312,7 +323,7 @@ void MovementControlSystem::Update(float deltaTime)
                 CanStartRangedAttack(rangedState, controller->m_rangedCooldownTimer))
             {
                 pendingProjectiles.push_back(
-                    BuildRangedProjectileRequest(*entity, *transform, *sprite, *controller, collider));
+                    BuildRangedProjectileRequest(*entity, *transform, *sprite, *controller, collider, tuning));
 
                 controller->m_rangedCooldownTimer = controller->m_rangedCooldown;
             }

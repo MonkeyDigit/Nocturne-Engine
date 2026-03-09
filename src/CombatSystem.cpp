@@ -7,6 +7,8 @@
 #include "CState.h"
 #include "CSprite.h"
 #include "CProjectile.h"
+#include "SharedContext.h"
+#include "GameplayTuning.h"
 
 namespace
 {
@@ -43,17 +45,12 @@ namespace
     {
         return (kProjectileHitPolicy == ProjectileHitPolicy::ConsumeAlways) || damageApplied;
     }
-
-    // Fallback values used when character data does not define AttackKnockback
-    constexpr float kDefaultPlayerSwordKnockbackX = 200.0f;
-    constexpr float kDefaultPlayerSwordKnockbackY = -100.0f;
-    constexpr float kDefaultEnemyAttackKnockbackX = 128.0f;
-    constexpr float kDefaultEnemyAttackKnockbackY = 0.0f;
 }
 
 void CombatSystem::Update(EntityManager& entityManager)
 {
     auto& entities = entityManager.GetEntities();
+    const GameplayTuning& tuning = entityManager.GetContext().m_gameplayTuning;
 
     std::vector<EntityBase*> projectiles;
     std::vector<EntityBase*> targets;
@@ -86,7 +83,7 @@ void CombatSystem::Update(EntityManager& entityManager)
     }
 
     ResolveProjectiles(projectiles, targets);
-    ResolveEnemyVsPlayer(player, enemies);
+    ResolveEnemyVsPlayer(player, enemies, tuning);
 }
 
 void CombatSystem::ResolveProjectiles(
@@ -125,7 +122,8 @@ void CombatSystem::ResolveProjectiles(
 
 void CombatSystem::ResolveEnemyVsPlayer(
     EntityBase* player,
-    const std::vector<EntityBase*>& enemies)
+    const std::vector<EntityBase*>& enemies,
+    const GameplayTuning& tuning)
 {
     if (!player) return;
 
@@ -163,11 +161,11 @@ void CombatSystem::ResolveEnemyVsPlayer(
         {
             const float knockbackX = playerState->HasAttackKnockbackOverride()
                 ? playerState->GetAttackKnockbackX()
-                : kDefaultPlayerSwordKnockbackX;
+                : tuning.m_playerSwordKnockbackX;
 
             const float knockbackY = playerState->HasAttackKnockbackOverride()
                 ? playerState->GetAttackKnockbackY()
-                : kDefaultPlayerSwordKnockbackY;
+                : tuning.m_playerSwordKnockbackY;
 
             ApplyKnockbackAwayFrom(*enemyTrans, *playerTrans, knockbackX, knockbackY);
         }
@@ -186,11 +184,11 @@ void CombatSystem::ResolveEnemyVsPlayer(
             {
                 const float knockbackX = enemyState->HasAttackKnockbackOverride()
                     ? enemyState->GetAttackKnockbackX()
-                    : kDefaultEnemyAttackKnockbackX;
+                    : tuning.m_enemyAttackKnockbackX;
 
                 const float knockbackY = enemyState->HasAttackKnockbackOverride()
                     ? enemyState->GetAttackKnockbackY()
-                    : kDefaultEnemyAttackKnockbackY;
+                    : tuning.m_enemyAttackKnockbackY;
 
                 ApplyKnockbackAwayFrom(*playerTrans, *enemyTrans, knockbackX, knockbackY);
                 FaceTarget(*enemySprite, *enemyTrans, *playerTrans);

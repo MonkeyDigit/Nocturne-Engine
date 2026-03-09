@@ -31,10 +31,11 @@ public:
         m_attackRanged(false),
         m_rangedSpawnOffsetX(20.0f),
         m_rangedSpawnOffsetY(-22.0f),
-        m_rangedSizeX(16.0f),
-        m_rangedSizeY(16.0f),
-        m_rangedSheetPath("media/spritesheets/Player.sheet"),
-        m_rangedAnimation("Idle")
+        // Keep projectile visual fields unset by default so global gameplay fallback can apply.
+        m_rangedSizeX(0.0f),
+        m_rangedSizeY(0.0f),
+        m_rangedSheetPath(""),
+        m_rangedAnimation("")
     {
     }
 

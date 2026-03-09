@@ -8,8 +8,6 @@
 
 namespace
 {
-    constexpr float kCameraTargetVerticalBias = 0.5f;
-
     float ClampAxisToMap(float center, float viewSize, float mapSize)
     {
         if (mapSize <= 0.0f) return center;
@@ -50,7 +48,11 @@ void CameraSystem::Update(EntityManager& entityManager, const Map& map)
 
     const sf::Vector2f targetPos = transform->GetPosition();
     const sf::Vector2f targetSize = transform->GetSize();
-    view.setCenter({ targetPos.x, targetPos.y + targetSize.y * kCameraTargetVerticalBias });
+    const float verticalBias = std::clamp(
+        entityManager.GetContext().m_gameplayTuning.m_cameraTargetVerticalBias,
+        0.0f, 1.0f);
+
+    view.setCenter({ targetPos.x, targetPos.y + targetSize.y * verticalBias });
 
     sf::Vector2f viewCenter = view.getCenter();
     const sf::Vector2f viewSize = view.getSize();

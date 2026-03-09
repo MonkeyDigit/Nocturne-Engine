@@ -1,6 +1,7 @@
 #include <cassert>
 #include "Game.h"
 #include "EngineLog.h"
+#include "GameplayTuningLoader.h"
 
 Game::Game()
     : m_window("Project Nocturne", { 1280, 720 }),
@@ -16,6 +17,7 @@ Game::Game()
 {
     m_context.SetEntityManager(m_entityManager);
     assert(m_context.HasEntityManager());
+    GameplayTuningLoader::Load("config/gameplay.cfg", m_context.m_gameplayTuning);
 
     if (m_window.HasFixedAISeed())
     {
