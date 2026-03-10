@@ -20,6 +20,13 @@ struct RuntimeFrameStats
     unsigned long long m_backlogDropCount = 0ull;
 };
 
+struct SessionStats
+{
+    unsigned int m_kills = 0u;
+    unsigned int m_deaths = 0u;
+    unsigned int m_damageTaken = 0u;
+};
+
 struct SharedContext {
     // Constructor requires all core systems to be passed as references
     SharedContext(Window& window, EventManager& eventManager,
@@ -55,5 +62,6 @@ struct SharedContext {
     Map* m_gameMap;
 
     RuntimeFrameStats m_runtimeFrameStats;
+    SessionStats m_sessionStats;
     GameplayTuning m_gameplayTuning;
 };

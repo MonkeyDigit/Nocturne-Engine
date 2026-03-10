@@ -181,6 +181,7 @@
     <ClInclude Include="include\StateManager.h" />
     <ClInclude Include="include\State_Credits.h" />
     <ClInclude Include="include\State_Game.h" />
+    <ClInclude Include="include\State_GameOver.h" />
     <ClInclude Include="include\State_Intro.h" />
     <ClInclude Include="include\State_MainMenu.h" />
     <ClInclude Include="include\State_Paused.h" />
@@ -237,6 +238,7 @@
     <ClCompile Include="src\State_Credits.cpp" />
     <ClCompile Include="src\State_Game.cpp" />
     <ClCompile Include="src\State_GameCallbacks.cpp" />
+    <ClCompile Include="src\State_GameOver.cpp" />
     <ClCompile Include="src\State_Intro.cpp" />
     <ClCompile Include="src\State_MainMenu.cpp" />
     <ClCompile Include="src\State_Paused.cpp" />

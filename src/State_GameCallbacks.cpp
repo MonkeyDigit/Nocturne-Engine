@@ -36,6 +36,7 @@ void State_Game::OnCreate()
     m_hud = std::make_unique<HUD>(m_stateManager.GetContext().GetEntityManager());
 
     InitializeDebugOverlay();
+    ResetRunStats();
 }
 
 void State_Game::OnDestroy()

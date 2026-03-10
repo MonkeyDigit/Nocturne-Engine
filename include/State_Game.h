@@ -1,5 +1,7 @@
 #pragma once
 #include <memory>
+#include <unordered_map>
+#include <unordered_set>
 #include "BaseState.h"
 #include "Map.h"
 #include "HUD.h"
@@ -28,6 +30,8 @@ public:
 private:
     void UpdateCursor(const sf::Time& time);
     void SetCursorVisible(bool visible);
+    void ResetRunStats();
+    void UpdateRunStats(float deltaSeconds);
 
     void InitializeDebugOverlay();
     void ResetFpsCounter();
@@ -58,4 +62,11 @@ private:
     unsigned int m_fpsFrameCount;
     float m_currentFps;
     bool m_debugFontLoaded;
+    float m_runElapsedSeconds;
+    unsigned int m_runKills;
+    unsigned int m_runDamageTaken;
+
+    std::unordered_map<unsigned int, int> m_prevHitPoints;
+    std::unordered_set<unsigned int> m_countedDyingEntities;
+
 };

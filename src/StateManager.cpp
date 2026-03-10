@@ -11,6 +11,7 @@
 #include "State_Settings.h"
 #include "State_Credits.h"
 #include "State_Victory.h"
+#include "State_GameOver.h"
 
 namespace
 {
@@ -57,6 +58,7 @@ StateManager::StateManager(SharedContext& shared)
     RegisterState<State_Settings>(StateType::Settings);
     RegisterState<State_Credits>(StateType::Credits);
     RegisterState<State_Victory>(StateType::Victory);
+    RegisterState<State_GameOver>(StateType::GameOver);
 }
 
 StateManager::~StateManager()

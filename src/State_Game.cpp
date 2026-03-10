@@ -1,4 +1,4 @@
-#include <cmath>
+﻿#include <cmath>
 #include <sstream>
 #include <SFML/Graphics/RectangleShape.hpp>
 #include "State_Game.h"
@@ -40,7 +40,10 @@ State_Game::State_Game(StateManager& stateManager)
     m_fpsAccumTime(0.0f),
     m_fpsFrameCount(0),
     m_currentFps(0.0f),
-    m_debugFontLoaded(false)
+    m_debugFontLoaded(false),
+    m_runElapsedSeconds(0.0f),
+    m_runKills(0u),
+    m_runDamageTaken(0u)
 {
 }
 
@@ -49,15 +52,27 @@ State_Game::~State_Game() {}
 void State_Game::Update(const sf::Time& time)
 {
     UpdateCursor(time);
+    UpdateRunStats(time.asSeconds());
 
     if (!m_gameMap.IsNextMapQueued())
     {
         EntityBase* player = ResolvePlayer();
 
         if (player)
+        {
             HandlePlayerHazards(*player);
+        }
         else
-            RespawnPlayer();
+        {
+            // Count one death when the player no longer exists in the world
+            ++m_stateManager.GetContext().m_sessionStats.m_deaths;
+
+            m_stillCursorTime = 0.0f;
+            SetCursorVisible(true);
+            m_stateManager.SwitchTo(StateType::GameOver);
+            m_stateManager.Remove(StateType::Game);
+            return;
+        }
     }
 
     SharedContext& context = m_stateManager.GetContext();
@@ -97,7 +112,7 @@ void State_Game::InitializeDebugOverlay()
     m_fpsText.setFillColor(sf::Color::White);
     m_fpsText.setOutlineColor(sf::Color::Black);
     m_fpsText.setOutlineThickness(kFpsTextOutlineThickness);
-    m_fpsText.setString("FPS: --\nFrame: -- ms\nUpd/frame: --\nFixed: --\nDrops: 0");
+    m_fpsText.setString("FPS: --\nFrame: -- ms\nUpd/frame: --\nFixed: --\nDrops: 0\nRun: 0 s\nKills: 0\nDeaths: 0\nDmgTaken: 0");
 
     ResetFpsCounter();
 }
@@ -110,7 +125,7 @@ void State_Game::ResetFpsCounter()
     m_currentFps = 0.0f;
 
     if (m_debugFontLoaded)
-        m_fpsText.setString("FPS: --\nFrame: -- ms\nUpd/frame: --\nFixed: --\nDrops: 0");
+        m_fpsText.setString("FPS: --\nFrame: -- ms\nUpd/frame: --\nFixed: --\nDrops: 0\nRun: 0 s\nKills: 0\nDeaths: 0\nDmgTaken: 0");
 }
 
 void State_Game::DrawDebugOverlay(sf::RenderWindow& window, const sf::View& gameView)
@@ -193,7 +208,11 @@ void State_Game::DrawFpsCounter(sf::RenderWindow& window, const sf::View& gameVi
             << "\nFrame: " << static_cast<int>(std::round(frameMs)) << " ms"
             << "\nUpd/frame: " << loopStats.m_lastFixedUpdates << "/" << loopStats.m_maxUpdatesPerFrame
             << "\nFixed: " << static_cast<int>(std::round(fixedHz)) << " Hz"
-            << "\nDrops: " << loopStats.m_backlogDropCount;
+            << "\nDrops: " << loopStats.m_backlogDropCount
+            << "\nRun: " << static_cast<int>(std::round(m_runElapsedSeconds)) << " s"
+            << "\nKills: " << m_runKills
+            << "\nDeaths: " << context.m_sessionStats.m_deaths
+            << "\nDmgTaken: " << m_runDamageTaken;
         m_fpsText.setString(ss.str());
 
         if (loopStats.m_droppedBacklog || m_currentFps < kFpsWarnThreshold)
@@ -246,4 +265,83 @@ void State_Game::DrawHudOverlay(sf::RenderWindow& window, const sf::View& gameVi
     m_hud->Draw(window);
 
     window.setView(gameView);
+}
+
+void State_Game::ResetRunStats()
+{
+    m_runElapsedSeconds = 0.0f;
+    m_runKills = 0u;
+    m_runDamageTaken = 0u;
+    m_prevHitPoints.clear();
+    m_countedDyingEntities.clear();
+}
+
+void State_Game::UpdateRunStats(float deltaSeconds)
+{
+    if (!std::isfinite(deltaSeconds) || deltaSeconds <= 0.0f)
+        return;
+
+    m_runElapsedSeconds += deltaSeconds;
+
+    SharedContext& context = m_stateManager.GetContext();
+    EntityManager& entityManager = context.GetEntityManager();
+
+    std::unordered_set<unsigned int> aliveIds;
+    aliveIds.reserve(entityManager.GetEntities().size());
+
+    for (auto& [id, entityPtr] : entityManager.GetEntities())
+    {
+        if (!entityPtr) continue;
+
+        EntityBase* entity = entityPtr.get();
+        CState* state = entity->GetComponent<CState>();
+        if (!state) continue;
+
+        aliveIds.insert(id);
+
+        const int currentHp = state->GetHitPoints();
+        auto prevHpIt = m_prevHitPoints.find(id);
+
+        if (prevHpIt != m_prevHitPoints.end())
+        {
+            const int prevHp = prevHpIt->second;
+
+            // Track only damage taken by player
+            if (entity->GetType() == EntityType::Player && currentHp < prevHp)
+                m_runDamageTaken += static_cast<unsigned int>(prevHp - currentHp);
+        }
+
+        m_prevHitPoints[id] = currentHp;
+
+        // Count each entity entering Dying only once
+        if (state->GetState() == EntityState::Dying &&
+            m_countedDyingEntities.find(id) == m_countedDyingEntities.end())
+        {
+            if (entity->GetType() == EntityType::Enemy)
+            {
+                // Enemy suicides/environmental deaths can force Dying without HP reaching 0
+                // Count only deaths that actually depleted HP
+                if (currentHp <= 0)
+                    ++m_runKills;
+            }
+
+            m_countedDyingEntities.insert(id);
+        }
+    }
+
+    for (auto it = m_prevHitPoints.begin(); it != m_prevHitPoints.end();)
+    {
+        if (aliveIds.find(it->first) == aliveIds.end())
+            it = m_prevHitPoints.erase(it);
+        else
+            ++it;
+    }
+
+    for (auto it = m_countedDyingEntities.begin(); it != m_countedDyingEntities.end();)
+    {
+        if (aliveIds.find(*it) == aliveIds.end())
+            it = m_countedDyingEntities.erase(it);
+        else
+            ++it;
+    }
 }
